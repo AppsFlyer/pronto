@@ -8,6 +8,7 @@ message Person {
   string email = 3;
   Address address = 4;
   repeated Like likes = 7;
+  Person friend = 8;
 }
 
 message Address {

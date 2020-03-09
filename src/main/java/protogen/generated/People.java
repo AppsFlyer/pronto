@@ -199,6 +199,21 @@ public final class People {
      */
     protogen.generated.People.LikeOrBuilder getLikesOrBuilder(
         int index);
+
+    /**
+     * <code>.protogen.generated.Person friend = 8;</code>
+     * @return Whether the friend field is set.
+     */
+    boolean hasFriend();
+    /**
+     * <code>.protogen.generated.Person friend = 8;</code>
+     * @return The friend.
+     */
+    protogen.generated.People.Person getFriend();
+    /**
+     * <code>.protogen.generated.Person friend = 8;</code>
+     */
+    protogen.generated.People.PersonOrBuilder getFriendOrBuilder();
   }
   /**
    * Protobuf type {@code protogen.generated.Person}
@@ -286,6 +301,19 @@ public final class People {
               }
               likes_.add(
                   input.readMessage(protogen.generated.People.Like.parser(), extensionRegistry));
+              break;
+            }
+            case 66: {
+              protogen.generated.People.Person.Builder subBuilder = null;
+              if (friend_ != null) {
+                subBuilder = friend_.toBuilder();
+              }
+              friend_ = input.readMessage(protogen.generated.People.Person.parser(), extensionRegistry);
+              if (subBuilder != null) {
+                subBuilder.mergeFrom(friend_);
+                friend_ = subBuilder.buildPartial();
+              }
+
               break;
             }
             default: {
@@ -463,6 +491,29 @@ public final class People {
       return likes_.get(index);
     }
 
+    public static final int FRIEND_FIELD_NUMBER = 8;
+    private protogen.generated.People.Person friend_;
+    /**
+     * <code>.protogen.generated.Person friend = 8;</code>
+     * @return Whether the friend field is set.
+     */
+    public boolean hasFriend() {
+      return friend_ != null;
+    }
+    /**
+     * <code>.protogen.generated.Person friend = 8;</code>
+     * @return The friend.
+     */
+    public protogen.generated.People.Person getFriend() {
+      return friend_ == null ? protogen.generated.People.Person.getDefaultInstance() : friend_;
+    }
+    /**
+     * <code>.protogen.generated.Person friend = 8;</code>
+     */
+    public protogen.generated.People.PersonOrBuilder getFriendOrBuilder() {
+      return getFriend();
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -492,6 +543,9 @@ public final class People {
       for (int i = 0; i < likes_.size(); i++) {
         output.writeMessage(7, likes_.get(i));
       }
+      if (friend_ != null) {
+        output.writeMessage(8, getFriend());
+      }
       unknownFields.writeTo(output);
     }
 
@@ -518,6 +572,10 @@ public final class People {
       for (int i = 0; i < likes_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(7, likes_.get(i));
+      }
+      if (friend_ != null) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(8, getFriend());
       }
       size += unknownFields.getSerializedSize();
       memoizedSize = size;
@@ -547,6 +605,11 @@ public final class People {
       }
       if (!getLikesList()
           .equals(other.getLikesList())) return false;
+      if (hasFriend() != other.hasFriend()) return false;
+      if (hasFriend()) {
+        if (!getFriend()
+            .equals(other.getFriend())) return false;
+      }
       if (!unknownFields.equals(other.unknownFields)) return false;
       return true;
     }
@@ -571,6 +634,10 @@ public final class People {
       if (getLikesCount() > 0) {
         hash = (37 * hash) + LIKES_FIELD_NUMBER;
         hash = (53 * hash) + getLikesList().hashCode();
+      }
+      if (hasFriend()) {
+        hash = (37 * hash) + FRIEND_FIELD_NUMBER;
+        hash = (53 * hash) + getFriend().hashCode();
       }
       hash = (29 * hash) + unknownFields.hashCode();
       memoizedHashCode = hash;
@@ -724,6 +791,12 @@ public final class People {
         } else {
           likesBuilder_.clear();
         }
+        if (friendBuilder_ == null) {
+          friend_ = null;
+        } else {
+          friend_ = null;
+          friendBuilder_ = null;
+        }
         return this;
       }
 
@@ -767,6 +840,11 @@ public final class People {
           result.likes_ = likes_;
         } else {
           result.likes_ = likesBuilder_.build();
+        }
+        if (friendBuilder_ == null) {
+          result.friend_ = friend_;
+        } else {
+          result.friend_ = friendBuilder_.build();
         }
         onBuilt();
         return result;
@@ -855,6 +933,9 @@ public final class People {
               likesBuilder_.addAllMessages(other.likes_);
             }
           }
+        }
+        if (other.hasFriend()) {
+          mergeFriend(other.getFriend());
         }
         this.mergeUnknownFields(other.unknownFields);
         onChanged();
@@ -1425,6 +1506,125 @@ public final class People {
           likes_ = null;
         }
         return likesBuilder_;
+      }
+
+      private protogen.generated.People.Person friend_;
+      private com.google.protobuf.SingleFieldBuilderV3<
+          protogen.generated.People.Person, protogen.generated.People.Person.Builder, protogen.generated.People.PersonOrBuilder> friendBuilder_;
+      /**
+       * <code>.protogen.generated.Person friend = 8;</code>
+       * @return Whether the friend field is set.
+       */
+      public boolean hasFriend() {
+        return friendBuilder_ != null || friend_ != null;
+      }
+      /**
+       * <code>.protogen.generated.Person friend = 8;</code>
+       * @return The friend.
+       */
+      public protogen.generated.People.Person getFriend() {
+        if (friendBuilder_ == null) {
+          return friend_ == null ? protogen.generated.People.Person.getDefaultInstance() : friend_;
+        } else {
+          return friendBuilder_.getMessage();
+        }
+      }
+      /**
+       * <code>.protogen.generated.Person friend = 8;</code>
+       */
+      public Builder setFriend(protogen.generated.People.Person value) {
+        if (friendBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          friend_ = value;
+          onChanged();
+        } else {
+          friendBuilder_.setMessage(value);
+        }
+
+        return this;
+      }
+      /**
+       * <code>.protogen.generated.Person friend = 8;</code>
+       */
+      public Builder setFriend(
+          protogen.generated.People.Person.Builder builderForValue) {
+        if (friendBuilder_ == null) {
+          friend_ = builderForValue.build();
+          onChanged();
+        } else {
+          friendBuilder_.setMessage(builderForValue.build());
+        }
+
+        return this;
+      }
+      /**
+       * <code>.protogen.generated.Person friend = 8;</code>
+       */
+      public Builder mergeFriend(protogen.generated.People.Person value) {
+        if (friendBuilder_ == null) {
+          if (friend_ != null) {
+            friend_ =
+              protogen.generated.People.Person.newBuilder(friend_).mergeFrom(value).buildPartial();
+          } else {
+            friend_ = value;
+          }
+          onChanged();
+        } else {
+          friendBuilder_.mergeFrom(value);
+        }
+
+        return this;
+      }
+      /**
+       * <code>.protogen.generated.Person friend = 8;</code>
+       */
+      public Builder clearFriend() {
+        if (friendBuilder_ == null) {
+          friend_ = null;
+          onChanged();
+        } else {
+          friend_ = null;
+          friendBuilder_ = null;
+        }
+
+        return this;
+      }
+      /**
+       * <code>.protogen.generated.Person friend = 8;</code>
+       */
+      public protogen.generated.People.Person.Builder getFriendBuilder() {
+        
+        onChanged();
+        return getFriendFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.protogen.generated.Person friend = 8;</code>
+       */
+      public protogen.generated.People.PersonOrBuilder getFriendOrBuilder() {
+        if (friendBuilder_ != null) {
+          return friendBuilder_.getMessageOrBuilder();
+        } else {
+          return friend_ == null ?
+              protogen.generated.People.Person.getDefaultInstance() : friend_;
+        }
+      }
+      /**
+       * <code>.protogen.generated.Person friend = 8;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilderV3<
+          protogen.generated.People.Person, protogen.generated.People.Person.Builder, protogen.generated.People.PersonOrBuilder> 
+          getFriendFieldBuilder() {
+        if (friendBuilder_ == null) {
+          friendBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
+              protogen.generated.People.Person, protogen.generated.People.Person.Builder, protogen.generated.People.PersonOrBuilder>(
+                  getFriend(),
+                  getParentForChildren(),
+                  isClean());
+          friend_ = null;
+        }
+        return friendBuilder_;
       }
       @java.lang.Override
       public final Builder setUnknownFields(
@@ -2956,15 +3156,16 @@ public final class People {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\014people.proto\022\022protogen.generated\"\210\001\n\006P" +
+      "\n\014people.proto\022\022protogen.generated\"\264\001\n\006P" +
       "erson\022\n\n\002id\030\001 \001(\005\022\014\n\004name\030\002 \001(\t\022\r\n\005email" +
       "\030\003 \001(\t\022,\n\007address\030\004 \001(\0132\033.protogen.gener" +
       "ated.Address\022\'\n\005likes\030\007 \003(\0132\030.protogen.g" +
-      "enerated.Like\":\n\007Address\022\014\n\004city\030\001 \001(\t\022\016" +
-      "\n\006street\030\002 \001(\t\022\021\n\thouse_num\030\003 \001(\005\">\n\004Lik" +
-      "e\022\014\n\004desc\030\001 \001(\t\022(\n\005level\030\002 \001(\0162\031.protoge" +
-      "n.generated.Level*&\n\005Level\022\007\n\003LOW\020\000\022\n\n\006M" +
-      "EDIUM\020\005\022\010\n\004HIGH\020\nb\006proto3"
+      "enerated.Like\022*\n\006friend\030\010 \001(\0132\032.protogen" +
+      ".generated.Person\":\n\007Address\022\014\n\004city\030\001 \001" +
+      "(\t\022\016\n\006street\030\002 \001(\t\022\021\n\thouse_num\030\003 \001(\005\">\n" +
+      "\004Like\022\014\n\004desc\030\001 \001(\t\022(\n\005level\030\002 \001(\0162\031.pro" +
+      "togen.generated.Level*&\n\005Level\022\007\n\003LOW\020\000\022" +
+      "\n\n\006MEDIUM\020\005\022\010\n\004HIGH\020\nb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -2975,7 +3176,7 @@ public final class People {
     internal_static_protogen_generated_Person_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_protogen_generated_Person_descriptor,
-        new java.lang.String[] { "Id", "Name", "Email", "Address", "Likes", });
+        new java.lang.String[] { "Id", "Name", "Email", "Address", "Likes", "Friend", });
     internal_static_protogen_generated_Address_descriptor =
       getDescriptor().getMessageTypes().get(1);
     internal_static_protogen_generated_Address_fieldAccessorTable = new
