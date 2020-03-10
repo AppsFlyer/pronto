@@ -8,13 +8,18 @@ message Person {
   string email = 3;
   Address address = 4;
   repeated Like likes = 7;
-  Person friend = 8;
+  map<string, Person> relations = 8;
+  repeated string pet_names = 9;
 }
 
 message Address {
   string city = 1;
   string street = 2;
   int32 house_num = 3;
+  oneof home {
+    House house = 4;
+    Apartment apartment = 5;
+  }
 }
 
 enum Level {
@@ -26,4 +31,12 @@ enum Level {
 message Like {
   string desc = 1;
   Level level = 2;
+}
+
+message House {
+  int32 num_rooms = 1;
+}
+
+message Apartment {
+  int32 floor_num = 1;
 }
