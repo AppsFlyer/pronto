@@ -278,11 +278,12 @@
             (~add-all-method (~clear-method builder#) al#))))
 
       (gen-getter [_ o k]
-        (let [v (with-meta (gensym 'v) {:tag 'java.util.List})]
+        (let [v (with-meta (gensym 'v) {:tag 'java.util.List})
+              x (gensym 'x)]
           `(let [~v (~(symbol (str ".get" cc "List")) ~o)
                  al# (java.util.ArrayList. (.size ~v))]
-             (doseq [x# al#]
-               (.add al# ~(wrap wrapper v)))
+             (doseq [~x ~v]
+               (.add al# ~(wrap wrapper x)))
              (clojure.lang.PersistentVector/create al#)))))))
 
 (defn get-fields [^Class clazz]
