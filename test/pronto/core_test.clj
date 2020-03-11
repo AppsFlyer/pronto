@@ -76,7 +76,27 @@
         p (make-person :pet-names pet-names)
         w (->wrapped-protogen-generated-People$Person p)]
     (is (= pet-names (:pet-names w)))
-    ))
+    (is (= ["ccc"] (:pet-names (assoc w :pet-names ["ccc"]))))
+    (is (thrown? IllegalArgumentException (assoc w :pet-names 123)))
+    (is (thrown? IllegalArgumentException (assoc w :pet-names [1 2 3])))
+    (is (= ["AAA" "BBB"] (:pet-names (update w :pet-names (partial map clojure.string/upper-case)))))
+    (is (= ["hello" "aaa" "bbb"] (:pet-names (update w :pet-names cons "hello"))))))
+
+(deftest repeated-message
+  (let [likes [(make-like :desc "desc1" :level People$Level/LOW)
+               (make-like :desc "desc2" :level People$Level/MEDIUM)]
+        p     (make-person :likes likes)
+        w     (->wrapped-protogen-generated-People$Person p)]
+    ;; TODO: fix equality
+    #_(is (= likes (:likes w)))
+    #_(is (= [(make-like :desc "desc3" :level People$Level/HIGH)] (:likes (assoc w :likes [(make-like :desc "desc3" :level People$Level/HIGH)]))))
+    (is (thrown? IllegalArgumentException (assoc w :likes 123)))
+    (is (thrown? IllegalArgumentException (assoc w :likes [1 2 3])))
+
+    ;; TODO: fix equality
+
+    #_(is (= [(make-like :desc "desc1" :level People$Level/HIGH)
+            (make-like :desc "desc2" :level People$Level/HIGH)] (:likes (update w :likes (partial map (fn [x] (assoc x :level :high)))))))))
 
 #_(deftest assoc-test
   

@@ -2,7 +2,8 @@
   (:import [clojure.lang Reflector Associative APersistentMap ILookup Counted IPersistentMap
             MapEntry IPersistentCollection MapEquivalence Seqable ArrayIter ArraySeq]
            [protogen.generated People$Person People$Person$Builder
-            People$Address People$Address$Builder People$Like People$Level]
+            People$Address People$Address$Builder People$Like People$Level
+            People$House People$Apartment]
            [com.google.protobuf Descriptors 
             Descriptors$Descriptor
             Descriptors$FieldDescriptor
@@ -184,13 +185,9 @@
         (throw (UnsupportedOperationException. (str "can't infer type for " (.getName fd))))))
     (fd->java-type fd)))
 
-(def get-map-inner-type (partial get-parameterized-type 1))
-
 (def get-repeated-inner-type (partial get-parameterized-type 0))
 
-(defmethod get-type-gen
-  :simple
-  [^Class clazz ^Descriptors$FieldDescriptor fd]
+(defn get-simple-type-gen [^Class clazz ^Descriptors$FieldDescriptor fd]
   (let [kw         (fd->field-keyword fd)
         cc         (field->camel-case fd)
         setter     (symbol (str ".set" cc))
@@ -201,7 +198,7 @@
       (get-class [_] field-type)
 
       (gen-setter [_ o k v]
-        (let [res (with-type-hint (gensym 'res) field-type) #_ (with-meta (gensym 'res) {:tag (symbol (.getName field-type))})]
+        (let [res (with-type-hint (gensym 'res) field-type)]
           `(let [b# (.toBuilder ~o)
                  ~res ~(unwrap wrapper v)]
              (~setter b# ~res))))
@@ -211,16 +208,22 @@
              ~(wrap wrapper v)))))))
 
 (defmethod get-type-gen
+  :simple
+  [^Class clazz ^Descriptors$FieldDescriptor fd]
+  (get-simple-type-gen clazz fd))
+
+(defmethod get-type-gen
   :map
   [^Class clazz ^Descriptors$FieldDescriptor fd]
   (let [cc             (field->camel-case fd)
-        inner-type     (get-map-inner-type clazz fd)
-        wrapper        (gen-wrapper inner-type)
+        key-type       (get-parameterized-type 0 clazz fd)
+        val-type       (get-parameterized-type 1 clazz fd)
+        wrapper        (gen-wrapper val-type)
         clear-method   (symbol (str ".clear" cc))
         put-all-method (symbol (str ".putAll" cc))]
     (reify TypeGen
 
-      (get-class [_] inner-type)
+      (get-class [_] val-type)
 
       (gen-setter [_ o k v]
         `(if-not (.isAssignableFrom Iterable (class ~v))
@@ -233,7 +236,7 @@
 
       (gen-getter [_ o k]
         (let [v (with-meta (gensym 'v) {:tag 'java.util.Map})]
-          `(let [~v (~(symbol (str ".get" cc "Map")) ~o)
+          `(let [~v  (~(symbol (str ".get" cc "Map")) ~o)
                  al# (java.util.ArrayList. (.size ~v))]
              (doseq [x# al#]
                (.add al# ~(wrap wrapper v)))
@@ -242,28 +245,30 @@
 (defmethod get-type-gen
   :one-of
   [^Class clazz ^Descriptors$FieldDescriptor fd]
-  (let [kw (fd->field-keyword fd)
-        cc (field->camel-case fd)
-        setter (symbol (str ".set" cc))
-        getter (symbol (str ".get" cc))]
+  (let [g                (get-simple-type-gen clazz fd)
+        containing-oneof (.getContainingOneof fd)
+        cc               (field->camel-case containing-oneof)
+        case-enum-getter (symbol (str ".get" cc "Case"))
+        field-num        (.getNumber fd)]
     (reify TypeGen
-      (get-class [_]
-        String)
+      (get-class [_] (get-class g))
 
-      (gen-setter [_ o k v]
-        )
-      (gen-getter [_ o k]
-        ))))
+      (gen-setter [_ o k v] (gen-setter g o k v))
+
+      (gen-getter [_ o k] 
+        `(when (= ~field-num (.getNumber (~case-enum-getter ~o)))
+           ~(gen-getter g o k))))))
 
 
 (defmethod get-type-gen
   :repeated
   [^Class clazz ^Descriptors$FieldDescriptor fd]
   (let [cc             (field->camel-case fd)
-        inner-type     (get-repeated-inner-type clazz fd)
+        inner-type     (get-parameterized-type 0 clazz fd)
         wrapper        (gen-wrapper inner-type)
         clear-method   (symbol (str ".clear" cc))
-        add-all-method (symbol (str ".addAll" cc))]
+        add-all-method (symbol (str ".addAll" cc))
+        x (gensym 'x)]
     (reify TypeGen
 
       (get-class [_] inner-type)
@@ -273,13 +278,12 @@
           (throw (IllegalArgumentException. (make-error-message ~k Iterable (type ~v))))
           (let [builder# (.toBuilder ~o)
                 al#      (java.util.ArrayList. (count ~v))]
-            (doseq [x# ~v]
-              (.add al# ~(unwrap wrapper v)))
+            (doseq [~x ~v]
+              (.add al# ~(unwrap wrapper x)))
             (~add-all-method (~clear-method builder#) al#))))
 
       (gen-getter [_ o k]
-        (let [v (with-meta (gensym 'v) {:tag 'java.util.List})
-              x (gensym 'x)]
+        (let [v (with-meta (gensym 'v) {:tag 'java.util.List})]
           `(let [~v (~(symbol (str ".get" cc "List")) ~o)
                  al# (java.util.ArrayList. (.size ~v))]
              (doseq [~x ~v]
@@ -293,8 +297,6 @@
       {:fd       fd
        :type-gen (get-type-gen clazz fd)
        :kw       (keyword (->kebab-case (.getName fd)))})))
-
-(defn get-field-descriptors [x])
 
 (defn resolve-deps
   ([^Class clazz] (first (resolve-deps clazz #{})))
@@ -364,8 +366,7 @@
                          k#)))
 
          (entryAt [this# k#]
-           (when-let [v# (.valAt this# k#)]
-             (MapEntry/create k# v#)))
+           (MapEntry/create k# (.valAt this# k#)))
 
          MapEquivalence
          IPersistentMap
@@ -425,35 +426,50 @@
                                  fields)]))))
          ))))
 
-(defn make-like [desc level]
-  (-> (People$Like/newBuilder)
-      (.setDesc desc)
-      (.setLevel level)
-      (.build)))
+
+(defn make-house [& {:keys [num-rooms]}]
+  (cond-> (People$House/newBuilder)
+    num-rooms (.setNumRooms num-rooms)
+    true (.build)))
+
+(defn make-apartment [& {:keys [floor-num]}]
+  (cond-> (People$Apartment/newBuilder)
+    floor-num (.setFloorNum floor-num)
+    true (.build)))
+
+(defn make-like [& {:keys [desc level]}]
+  (cond-> (People$Like/newBuilder)
+    desc (.setDesc desc)
+    level (.setLevel level)
+    true (.build)))
 
 (defn make-address
-  ([] (make-address "fooville" "broadway" 21213))
-  ([city street house-num]
-   (-> (People$Address/newBuilder)
-       (.setCity city)
-       (.setStreet street)
-       (.setHouseNum house-num)
-       (.build))))
+  ([] (make-address :city "fooville" :street "broadway" :house-num 21213))
+  ([& {:keys [city street house-num]}]
+   (cond-> (People$Address/newBuilder)
+     city (.setCity city)
+     street (.setStreet street)
+     house-num (.setHouseNum house-num)
+     true (.build))))
 
 (defn make-person
-  ([] (make-person 5 "Foo"
-                   "foo@bar.com"
-                   (make-address)
+  ([] (make-person :id 5 :name "Foo"
+                   :email "foo@bar.com"
+                   :address (make-address)
+                   :pet-names ["bla" "booga"]
+                   :likes
                    [(make-like "low" People$Level/LOW)
                     (make-like "medium" People$Level/MEDIUM)
                     (make-like "high" People$Level/HIGH)]))
-  ([id name email address likes]
-   (-> (People$Person/newBuilder)
-       (.setId id)
-       (.setName name)
-       (.setEmail email)
-       (.setAddress address)
-       (.addAllLikes likes)
-       (.build))))
+  ([& {:keys [id name email address likes pet-names]}]
+   (cond-> (People$Person/newBuilder)
+     id (.setId id)
+     name (.setName name)
+     email (.setEmail email)
+     address (.setAddress address)
+     likes (.addAllLikes likes)
+     pet-names (.addAllPetNames pet-names)
+     true (.build))))
 
 
+(defproto People$Address)
