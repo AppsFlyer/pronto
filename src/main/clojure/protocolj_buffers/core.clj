@@ -10,6 +10,8 @@
             Descriptors$FieldDescriptor$JavaType]
            [java.lang.reflect Field Method ParameterizedType]))
 
+(defprotocol IProtoMap
+  (get-proto [this]))
 
 (defn descriptor [^Class clazz]
   (Reflector/invokeStaticMethod clazz "getDescriptor" (to-array nil)))
@@ -64,6 +66,8 @@
 (defn descriptor->deftype-class [^Descriptors$Descriptor descriptor]
   (symbol (str 'wrapped- (clojure.string/replace (.getFullName descriptor) "." "-"))))
 
+(defn with-type-hint [sym ^Class clazz]
+  (with-meta sym {:tag (symbol (.getName clazz))}))
 
 (defn descriptor-type [^Descriptors$FieldDescriptor fd]
   (cond
@@ -77,6 +81,8 @@
        ^Descriptors$FieldDescriptor$Type fd]
     (descriptor-type fd)))
 
+(defn ^String make-error-message [key-name expected-type actual-type]
+  (str "wrong value type for key " key-name ": expected " expected-type ", got " actual-type))
 
 (defprotocol TypeGen
   (get-class [this])
@@ -88,7 +94,7 @@
   (unwrap [this v]))
 
 (defmulti gen-wrapper
-  (fn [^Class clazz]    
+  (fn [^Class clazz]
     (cond
       (.isEnum clazz) :enum
       (not (primitive? clazz)) :message
@@ -97,22 +103,26 @@
 (defmethod gen-wrapper
   :enum
   [^Class clazz]
-  (let [enum->kw (map (fn [^Enum e] [(.name e) (keyword (->kebab-case (.name e)))])
-                      (.getEnumConstants clazz))]
-    ;; TODO: what about `unrecognized`?
+  ;; TODO: what about `unrecognized`?
+  (let [values (Reflector/invokeStaticMethod clazz "values" (to-array nil))
+        enum->kw (map-indexed #(vector %1 (keyword (->kebab-case (.name %2))))
+                              values)
+        kw->enum (map #(vector (keyword (->kebab-case (.name %1)))
+                               (symbol (str (.getName clazz) "/" (.name %1))))
+                      values)]
     (reify Wrapper
       (wrap [_ v]
-        `(case ~v
-            ~@(interleave
-               (map first enum->kw)
-               (map second enum->kw))
-            (throw (IllegalArgumentException. (str "don't know " ~v)))))
+        `(case (.ordinal ~v)
+           ~@(interleave
+             (map first enum->kw)
+             (map second enum->kw))
+          (throw (IllegalArgumentException. (str "can't wrap " ~v)))))
       (unwrap [_ v]
         `(case ~v
             ~@(interleave
-               (map second enum->kw)
-               (map first enum->kw))
-            (throw (IllegalArgumentException. (str "don't know " ~v))))))))
+               (map first kw->enum)
+               (map second kw->enum))
+            (throw (IllegalArgumentException. (str "can't unwrap " ~v))))))))
 
 (defmethod gen-wrapper
   :message
@@ -131,17 +141,30 @@
                  (pronto.core/get-proto ~u)))
            :else                 (throw (IllegalArgumentException. "blarg")))))))
 
+(def primitive-mapping
+  {Integer/TYPE Integer
+   Integer Integer/TYPE
+   Long/TYPE Long
+   Long Long/TYPE
+   Double/TYPE Double
+   Double Double/TYPE
+   Float/TYPE Float
+   Float Float/TYPE
+   Boolean/TYPE Boolean
+   Boolean Boolean/TYPE})
+
 (defmethod gen-wrapper
   :primitive
   [^Class clazz]
   (let [wrapper-type (class-name->wrapper-class-name (.getName clazz))]
-    (reify Wrapper
-      (wrap [_ v] v)
+    (let [clazz' (primitive-mapping clazz)]
+      (reify Wrapper
+        (wrap [_ v] v)
 
-      (unwrap [_ v]
-        `(if (= (class ~v) ~clazz)
-           ~v
-           (throw (IllegalArgumentException. "blarg")))))))
+        (unwrap [_ v]
+          `(if (or (= (class ~v) ~clazz) (= (class ~v) ~clazz'))
+             ~v
+             (throw (IllegalArgumentException. (str "got " (class ~v) " instead of " ~clazz)))))))))
 
 (defn get-field-type [^Class clazz fd]
   (let [^Method m (.getDeclaredMethod clazz (str "get" (field->camel-case fd))
@@ -178,7 +201,7 @@
       (get-class [_] field-type)
 
       (gen-setter [_ o k v]
-        (let [res (with-meta (gensym 'res) {:tag (symbol (.getName field-type))})]
+        (let [res (with-type-hint (gensym 'res) field-type) #_ (with-meta (gensym 'res) {:tag (symbol (.getName field-type))})]
           `(let [b# (.toBuilder ~o)
                  ~res ~(unwrap wrapper v)]
              (~setter b# ~res))))
@@ -231,9 +254,6 @@
         )
       (gen-getter [_ o k]
         ))))
-
-(defn ^String make-error-message [key-name expected-type actual-type]
-  (str "wrong value type for key " key-name ": expected " expected-type ", got " actual-type))
 
 
 (defmethod get-type-gen
@@ -296,9 +316,6 @@
 (defn static-call [^Class class method-name]
   (symbol (str (.getName class) "/" method-name)))
 
-
-(defprotocol IProtoMap
-  (get-proto [this]))
 
 (defn get-builder-class [^Class clazz]
   (.getReturnType (.getDeclaredMethod clazz "toBuilder" (make-array Class 0))))
@@ -406,3 +423,36 @@
                                    `(.entryAt ~this ~(:kw fd)))
                                  fields)]))))
          ))))
+
+(defn make-like [desc level]
+  (-> (People$Like/newBuilder)
+      (.setDesc desc)
+      (.setLevel level)
+      (.build)))
+
+(defn make-address
+  ([] (make-address "fooville" "broadway" 21213))
+  ([city street house-num]
+   (-> (People$Address/newBuilder)
+       (.setCity city)
+       (.setStreet street)
+       (.setHouseNum house-num)
+       (.build))))
+
+(defn make-person
+  ([] (make-person 5 "Foo"
+                   "foo@bar.com"
+                   (make-address)
+                   [(make-like "low" People$Level/LOW)
+                    (make-like "medium" People$Level/MEDIUM)
+                    (make-like "high" People$Level/HIGH)]))
+  ([id name email address likes]
+   (-> (People$Person/newBuilder)
+       (.setId id)
+       (.setName name)
+       (.setEmail email)
+       (.setAddress address)
+       (.addAllLikes likes)
+       (.build))))
+
+
