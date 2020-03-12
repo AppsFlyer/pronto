@@ -80,7 +80,7 @@
     (is (thrown? IllegalArgumentException (assoc w :pet-names 123)))
     (is (thrown? IllegalArgumentException (assoc w :pet-names [1 2 3])))
     (is (= ["AAA" "BBB"] (:pet-names (update w :pet-names (partial map clojure.string/upper-case)))))
-    (is (= ["hello" "aaa" "bbb"] (:pet-names (update w :pet-names cons "hello"))))))
+    (is (= ["hello" "aaa" "bbb"] (:pet-names (update w :pet-names (partial cons "hello")))))))
 
 (deftest repeated-message
   (let [likes [(make-like :desc "desc1" :level People$Level/LOW)

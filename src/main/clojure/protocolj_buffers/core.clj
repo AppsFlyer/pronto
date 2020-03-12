@@ -9,7 +9,8 @@
             Descriptors$FieldDescriptor
             Descriptors$FieldDescriptor$Type
             Descriptors$FieldDescriptor$JavaType]
-           [java.lang.reflect Field Method ParameterizedType]))
+           [java.lang.reflect Field Method ParameterizedType]
+           [java.util Map]))
 
 (defprotocol IProtoMap
   (get-proto [this]))
@@ -46,8 +47,8 @@
       Descriptors$FieldDescriptor$JavaType/STRING String
       :else (throw (UnsupportedOperationException. (str "don't know type " (.getJavaType fd)))))))
 
-(defn descriptor->deftype-class [^Descriptors$Descriptor descriptor]
-  (symbol (str 'wrapped- (clojure.string/replace (.getFullName descriptor) "." "-"))))
+(defn clojurify-descriptor-name [^Descriptors$Descriptor descriptor]
+  (clojure.string/replace (.getFullName descriptor) "." "-"))
 
 (defn class-name->wrapper-class-name [class-name]
   (symbol (str 'wrapped- (clojure.string/replace class-name "." "-"))))
@@ -63,9 +64,6 @@
                   Integer/TYPE
                   String}
                 clazz))))
-
-(defn descriptor->deftype-class [^Descriptors$Descriptor descriptor]
-  (symbol (str 'wrapped- (clojure.string/replace (.getFullName descriptor) "." "-"))))
 
 (defn with-type-hint [sym ^Class clazz]
   (with-meta sym {:tag (symbol (.getName clazz))}))
@@ -215,32 +213,47 @@
 (defmethod get-type-gen
   :map
   [^Class clazz ^Descriptors$FieldDescriptor fd]
-  (let [cc             (field->camel-case fd)
-        key-type       (get-parameterized-type 0 clazz fd)
-        val-type       (get-parameterized-type 1 clazz fd)
-        wrapper        (gen-wrapper val-type)
-        clear-method   (symbol (str ".clear" cc))
-        put-all-method (symbol (str ".putAll" cc))]
+  (let [cc           (field->camel-case fd)
+        key-type     (get-parameterized-type 0 clazz fd)
+        val-type     (get-parameterized-type 1 clazz fd)
+        key-wrapper  (gen-wrapper key-type)
+        val-wrapper  (gen-wrapper val-type)
+        clear-method (symbol (str ".clear" cc))
+        put-method   (symbol (str ".put" cc))
+        entry-key    (gensym 'entry-key)
+        entry-val    (gensym 'entry-val)]
     (reify TypeGen
 
       (get-class [_] val-type)
 
       (gen-setter [_ o k v]
-        `(if-not (.isAssignableFrom Iterable (class ~v))
-          (throw (IllegalArgumentException. (make-error-message ~k Iterable (type ~v))))
-          (let [builder# (.toBuilder ~o)
-                al#      (java.util.ArrayList. (count ~v))]
-            (doseq [x# ~v]
-              (.add al# ~(unwrap wrapper v)))
-            (~put-all-method (~clear-method builder#) al#))))
+        (let [m (with-type-hint (gensym 'm) java.util.Map)]
+          `(if-not (.isAssignableFrom java.util.Map (class ~v))
+             (throw (IllegalArgumentException. (make-error-message ~k java.util.Map (type ~v))))
+             (let [~m       ~v
+                   builder# (~clear-method (.toBuilder ~o))]
+               (doseq [x# (.entrySet ~v)]
+                 (let [~entry-key (.getKey x#)
+                       ~entry-val (.getValue x#)]
+                   (~put-method builder#
+                    ~(unwrap key-wrapper entry-key)
+                    ~(unwrap key-wrapper entry-val))))
+               builder#))))
 
       (gen-getter [_ o k]
         (let [v (with-meta (gensym 'v) {:tag 'java.util.Map})]
-          `(let [~v  (~(symbol (str ".get" cc "Map")) ~o)
-                 al# (java.util.ArrayList. (.size ~v))]
-             (doseq [x# al#]
-               (.add al# ~(wrap wrapper v)))
-             (clojure.lang.PersistentVector/create al#)))))))
+          `(let [~v       (~(symbol (str ".get" cc "Map")) ~o)
+                 new-map# (java.util.HashMap. (.size ~v))]
+             (doseq [x# (.entrySet ~v)]
+               (let [~entry-key   (.getKey x#)
+                     ~entry-val   (.getValue x#)
+                     wrapped-key# ~(wrap key-wrapper entry-key)]
+                 (.put new-map#
+                       (if (string? wrapped-key#)
+                         (keyword wrapped-key#)
+                         wrapped-key#)
+                       ~(wrap val-wrapper entry-val))))
+             (clojure.lang.PersistentHashMap/create new-map#)))))))
 
 (defmethod get-type-gen
   :one-of
@@ -333,7 +346,9 @@
         fields             (get-fields clazz)
         o                  (with-meta (gensym 'o) {:tag (symbol (.getName clazz))})
         builder-class      (get-builder-class clazz)
-        wrapper-class-name (class-name->wrapper-class-name (.getName clazz))]
+        wrapper-class-name (class-name->wrapper-class-name (.getName clazz))
+        deftype-ctor-name  (symbol (str '-> wrapper-class-name))
+        ctor-name          (symbol (str 'proto-> (.getName clazz)))]
     `(do
        ~@(for [dep deps]
            `(defproto ~dep))
@@ -424,7 +439,16 @@
                          [~@(map (fn [fd]
                                    `(.entryAt ~this ~(:kw fd)))
                                  fields)]))))
-         ))))
+
+         java.util.Map
+
+         (clear [this#] (throw (UnsupportedOperationException.)))
+
+         (containsValue [this# value#]
+           )
+         )
+
+       (def ~ctor-name (fn [o#])))))
 
 
 (defn make-house [& {:keys [num-rooms]}]
@@ -461,7 +485,7 @@
                    [(make-like "low" People$Level/LOW)
                     (make-like "medium" People$Level/MEDIUM)
                     (make-like "high" People$Level/HIGH)]))
-  ([& {:keys [id name email address likes pet-names]}]
+  ([& {:keys [id name email address likes pet-names relations]}]
    (cond-> (People$Person/newBuilder)
      id (.setId id)
      name (.setName name)
@@ -469,6 +493,7 @@
      address (.setAddress address)
      likes (.addAllLikes likes)
      pet-names (.addAllPetNames pet-names)
+     relations (.putAllRelations relations)
      true (.build))))
 
 
