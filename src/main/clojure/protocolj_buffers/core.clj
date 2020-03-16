@@ -21,9 +21,6 @@
 (defn field-descriptors [^Descriptors$Descriptor descriptor]
   (.getFields descriptor))
 
-(defn field-name->keyword [field-name]
-  (keyword field-name))
-
 (defn field->camel-case [field]
   (->> (clojure.string/split (.getName field) #"_")
        (map #(clojure.string/capitalize %))
@@ -102,7 +99,6 @@
 (defmethod gen-wrapper
   :enum
   [^Class clazz]
-  ;; TODO: what about `unrecognized`?
   (let [values (Reflector/invokeStaticMethod clazz "values" (to-array nil))
         enum->kw (map-indexed #(vector %1 (keyword (->kebab-case (.name %2))))
                               values)
@@ -133,12 +129,12 @@
 
       (unwrap [_ v]
         `(cond
-           (= (class ~v) ~clazz) ~v
-           (= (class ~v) ~wrapper-type)
-           ~(let [u (with-meta (gensym 'u) {:tag 'IProtoMap})]
-              `(let [~u ~v]
-                 (pronto.core/get-proto ~u)))
-           :else                 (throw (IllegalArgumentException. "blarg")))))))
+          (= (class ~v) ~clazz) ~v
+          (= (class ~v) ~wrapper-type)
+          ~(let [u (with-meta (gensym 'u) {:tag 'IProtoMap})]
+             `(let [~u ~v]
+                (pronto.core/get-proto ~u)))
+          :else                 (throw (IllegalArgumentException. "blarg")))))))
 
 (def primitive-mapping
   {Integer/TYPE Integer
@@ -336,6 +332,9 @@
 (defn get-builder-class [^Class clazz]
   (.getReturnType (.getDeclaredMethod clazz "toBuilder" (make-array Class 0))))
 
+
+(def loaded-classes (atom #{}))
+
 (defmacro defproto [class-sym]
   (let [^Class clazz       (cond
                              (class? class-sym)  class-sym
@@ -348,107 +347,160 @@
         builder-class      (get-builder-class clazz)
         wrapper-class-name (class-name->wrapper-class-name (.getName clazz))
         deftype-ctor-name  (symbol (str '-> wrapper-class-name))
-        ctor-name          (symbol (str 'proto-> (.getName clazz)))]
-    `(do
-       ~@(for [dep deps]
-           `(defproto ~dep))
+        ;; TODO: refactor duplicated code
+        ctor-name          (symbol (str 'proto-> (clojure.string/replace (.getName clazz) "." "-")))
+        class-key          [*ns* clazz]]
+    (locking loaded-classes
+      (when (and (not (get @loaded-classes class-key)))
+        (swap! loaded-classes conj class-key)
+        `(do
+           ~@(for [dep deps]
+               `(defproto ~dep))
 
-       (deftype ~wrapper-class-name [~o]
+           (deftype ~wrapper-class-name [~o]
 
-         pronto.core.IProtoMap 
+             pronto.core.IProtoMap 
 
-         (~'get-proto [this#] ~o)
+             (~'get-proto [this#] ~o)
 
-         Associative
+             Associative
 
-         ~(let [this (gensym 'this)
-                k    (gensym 'k)
-                v    (gensym 'v)
-                b    (with-meta (gensym 'builder) {:tag (symbol (.getName builder-class))})]
-            `(~'assoc [~this ~k ~v]
-              (let [~b (case ~k
-                         ~@(interleave
-                            (map :kw fields)
-                            (map #(gen-setter (:type-gen %) o k v) fields))
-                         
-
-                         (throw (IllegalArgumentException. (str "cannot assoc " ~k))))]
-                (new ~wrapper-class-name (.build ~b)))))
-
-
-         (containsKey [this# k#]
-           (boolean (get ~(into #{} (map :kw fields))
-                         k#)))
-
-         (entryAt [this# k#]
-           (MapEntry/create k# (.valAt this# k#)))
-
-         MapEquivalence
-         IPersistentMap
-
-         (without [this# k#]
-           (throw (UnsupportedOperationException. "cannot dissoc from a proto map")))
-
-         ILookup
-
-         ~(let [k (gensym 'k)]
-            `(valAt [this# ~k]
-                   (case ~k
-
-                     ~@(interleave
-                        (map :kw fields)
-                        (map #(gen-getter (:type-gen %) o k) fields))
-
-                     nil)))
-
-         (valAt [this# k# not-found#]
-           (.valAt this# k#))
+             ~(let [this (gensym 'this)
+                    k    (gensym 'k)
+                    v    (gensym 'v)
+                    b    (with-meta (gensym 'builder) {:tag (symbol (.getName builder-class))})]
+                `(~'assoc [~this ~k ~v]
+                  (let [~b (case ~k
+                             ~@(interleave
+                                (map :kw fields)
+                                (map #(gen-setter (:type-gen %) o k v) fields))
+                             (throw (IllegalArgumentException. (str "cannot assoc " ~k))))]
+                    (new ~wrapper-class-name (.build ~b)))))
 
 
-         IPersistentCollection
+             (containsKey [this# k#]
+               (boolean (get ~(into #{} (map :kw fields))
+                             k#)))
 
-         (cons [this# o#] (throw (Exception. "not implemented yet")))
+             (entryAt [this# k#]
+               (MapEntry/create k# (.valAt this# k#)))
 
-         (empty [this#]
-           (new ~wrapper-class-name
-                (.build (~(static-call clazz "newBuilder")))))
+             MapEquivalence
+             IPersistentMap
 
-         (count [this#] ~(count fields))
+             (without [this# k#]
+               (throw (UnsupportedOperationException. "cannot dissoc from a proto map")))
 
-         (equiv [this# other#]
-           (and (map? other#)
-                ))
+             ILookup
 
-         Seqable
+             ~(let [k (gensym 'k)]
+                `(valAt [this# ~k]
+                        (case ~k
 
-         ~(let [this (gensym 'this)]
-            `(seq [~this]
-                  (ArraySeq/create
-                   (object-array
-                    [~@(map (fn [fd]
-                              `(.entryAt ~this ~(:kw fd)))
-                            fields)]))))
+                          ~@(interleave
+                             (map :kw fields)
+                             (map #(gen-getter (:type-gen %) o k) fields))
+
+                          nil)))
+
+             (valAt [this# k# not-found#]
+               (.valAt this# k#))
 
 
-         java.lang.Iterable
+             IPersistentCollection
 
-         ~(let [this (gensym 'this)]
-            `(iterator [~this]
-                       (ArrayIter/create
-                        (object-array
-                         [~@(map (fn [fd]
-                                   `(.entryAt ~this ~(:kw fd)))
-                                 fields)]))))
+             (cons [this# o#]
+               (pronto.PersistentMapHelpers/cons this# o#))
 
-         java.util.Map
+             (empty [this#]
+               (new ~wrapper-class-name
+                    (.build (~(static-call clazz "newBuilder")))))
 
-         (clear [this#] (throw (UnsupportedOperationException.)))
+             (count [this#] ~(count fields))
 
-         (containsValue [this# value#]
-           )
-         )
+             (equiv [this# other#]
+               (pronto.PersistentMapHelpers/equiv this# other#))
 
-       (def ~ctor-name (fn [o#])))))
+             Seqable
+
+             ~(let [this (gensym 'this)]
+                `(seq [~this]
+                      (ArraySeq/create
+                       (object-array
+                        [~@(map (fn [fd]
+                                  `(.entryAt ~this ~(:kw fd)))
+                                fields)]))))
+
+             pronto.DefaultingFn
+
+             (invoke [this# arg1#]
+               (pronto.PersistentMapHelpers/invoke this# arg1#))
+
+             (invoke [this# arg1# not-found#]
+               (pronto.PersistentMapHelpers/invoke this# arg1# not-found#))
+
+
+             java.lang.Iterable
+
+             ~(let [this (gensym 'this)]
+                `(iterator [~this]
+                           (ArrayIter/create
+                            (object-array
+                             [~@(map (fn [fd]
+                                       `(.entryAt ~this ~(:kw fd)))
+                                     fields)]))))
+
+             java.util.Map
+
+             (clear [this#] (throw (UnsupportedOperationException.)))
+
+             (containsValue [this# value#]
+               (pronto.PersistentMapHelpers/containsValue this# value#))
+
+             (entrySet [this#]
+               (pronto.PersistentMapHelpers/entrySet this#))
+
+             (keySet [this#]
+               (pronto.PersistentMapHelpers/keySet this#))
+
+             (values [this#]
+               (pronto.PersistentMapHelpers/values this#))
+
+             (get [this# key#]
+               (pronto.PersistentMapHelpers/get this# key#))
+
+             (isEmpty [this#]
+               (pronto.PersistentMapHelpers/isEmpty this#))
+
+             (put [this# k# v#] (throw (UnsupportedOperationException.)))
+
+             (putAll [this# m#] (throw (UnsupportedOperationException.)))
+
+             (remove [this# k#] (throw (UnsupportedOperationException.)))
+
+             (size [this#] (.count this#))
+
+             Object
+
+             (toString [this#]
+               (pronto.PersistentMapHelpers/toString this#))
+
+             (equals [this# obj#]
+               (pronto.PersistentMapHelpers/equals this# obj#))
+             )
+
+           (def ~ctor-name
+             (fn [o#]
+               (cond
+                 (instance? ~clazz o#) (new ~wrapper-class-name o#)
+                 (map? o#)
+                 (let [res# (new ~wrapper-class-name (.build (~(static-call clazz "newBuilder"))))]
+                   (reduce (fn [acc# [k# v#]]
+                             (assoc res# k# v#))
+                           res#
+                           o#))
+                 :else
+                 (throw (IllegalArgumentException. (str "cannot wrap " (class o#))))))))))))
 
 
 (defn make-house [& {:keys [num-rooms]}]
