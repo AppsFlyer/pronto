@@ -82,7 +82,7 @@
 
 (defprotocol TypeGen
   (get-class [this])
-  (gen-setter [this o k v])
+  (gen-setter [this builder k v])
   (gen-getter [this o k]))
 
 (defprotocol Wrapper
@@ -191,11 +191,11 @@
     (reify TypeGen
       (get-class [_] field-type)
 
-      (gen-setter [_ o k v]
+      (gen-setter [_ builder k v]
         (let [res (with-type-hint (gensym 'res) field-type)]
-          `(let [b# (.toBuilder ~o)
-                 ~res ~(unwrap wrapper v)]
-             (~setter b# ~res))))
+          `(let [~res ~(unwrap wrapper v)]
+             (~setter ~builder ~res))))
+
       (gen-getter [_ o k]
         (let [v (gensym 'v)]
           `(let [~v (~getter ~o)]
@@ -222,19 +222,18 @@
 
       (get-class [_] val-type)
 
-      (gen-setter [_ o k v]
+      (gen-setter [_ builder k v]
         (let [m (with-type-hint (gensym 'm) java.util.Map)]
           `(if-not (.isAssignableFrom java.util.Map (class ~v))
              (throw (IllegalArgumentException. (make-error-message ~k java.util.Map (type ~v))))
              (let [~m       ~v
-                   builder# (~clear-method (.toBuilder ~o))]
+                   ~builder (~clear-method ~builder)]
                (doseq [x# (.entrySet ~v)]
                  (let [~entry-key (.getKey x#)
                        ~entry-val (.getValue x#)]
-                   (~put-method builder#
+                   (~put-method ~builder
                     ~(unwrap key-wrapper entry-key)
-                    ~(unwrap key-wrapper entry-val))))
-               builder#))))
+                    ~(unwrap key-wrapper entry-val))))))))
 
       (gen-getter [_ o k]
         (let [v (with-meta (gensym 'v) {:tag 'java.util.Map})]
@@ -262,7 +261,7 @@
     (reify TypeGen
       (get-class [_] (get-class g))
 
-      (gen-setter [_ o k v] (gen-setter g o k v))
+      (gen-setter [_ builder k v] (gen-setter g builder k v))
 
       (gen-getter [_ o k] 
         `(when (= ~field-num (.getNumber (~case-enum-getter ~o)))
@@ -282,14 +281,13 @@
 
       (get-class [_] inner-type)
 
-      (gen-setter [_ o k v]
+      (gen-setter [_ builder k v]
         `(if-not (.isAssignableFrom Iterable (class ~v))
           (throw (IllegalArgumentException. (make-error-message ~k Iterable (type ~v))))
-          (let [builder# (.toBuilder ~o)
-                al#      (java.util.ArrayList. (count ~v))]
+          (let [al#      (java.util.ArrayList. (count ~v))]
             (doseq [~x ~v]
               (.add al# ~(unwrap wrapper x)))
-            (~add-all-method (~clear-method builder#) al#))))
+            (~add-all-method (~clear-method ~builder) al#))))
 
       (gen-getter [_ o k]
         (let [v (with-meta (gensym 'v) {:tag 'java.util.List})]
@@ -368,13 +366,14 @@
              ~(let [this (gensym 'this)
                     k    (gensym 'k)
                     v    (gensym 'v)
-                    b    (with-meta (gensym 'builder) {:tag (symbol (.getName builder-class))})]
+                    b    (with-type-hint (gensym 'builder) builder-class)]
                 `(~'assoc [~this ~k ~v]
-                  (let [~b (case ~k
-                             ~@(interleave
-                                (map :kw fields)
-                                (map #(gen-setter (:type-gen %) o k v) fields))
-                             (throw (IllegalArgumentException. (str "cannot assoc " ~k))))]
+                  (let [~b (.toBuilder ~o)]
+                    (case ~k
+                      ~@(interleave
+                         (map :kw fields)
+                         (map #(gen-setter (:type-gen %) b k v) fields))
+                      (throw (IllegalArgumentException. (str "cannot assoc " ~k))))
                     (new ~wrapper-class-name (.build ~b)))))
 
 
@@ -486,8 +485,7 @@
                (pronto.PersistentMapHelpers/toString this#))
 
              (equals [this# obj#]
-               (pronto.PersistentMapHelpers/equals this# obj#))
-             )
+               (pronto.PersistentMapHelpers/equals this# obj#)))
 
            (def ~ctor-name
              (fn [o#]
