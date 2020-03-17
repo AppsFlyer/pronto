@@ -56,14 +56,13 @@
     (class-name->wrapper-class-name (.getFullName fd))
     (throw (IllegalArgumentException. (str "no wrapper type for " (.getType fd))))))
 
-(defn primitive? [^Class clazz]
-  (boolean (or (.isEnum clazz)
-               (#{Integer
-                  Integer/TYPE
-                  String
-                  Boolean/TYPE
-                  ByteString}
-                clazz))))
+(def primitive?
+  (comp boolean
+        #{Integer/TYPE Integer
+          Long/TYPE      Long
+          Double/TYPE    Double
+          Float/TYPE     Float
+          Boolean/TYPE   Boolean}))
 
 (def numeric-scalar?
   (comp boolean #{Integer/TYPE Long/TYPE Double/TYPE Float/TYPE}))
@@ -117,6 +116,7 @@
         kw->enum (map #(vector (keyword (->kebab-case (.name %1)))
                                (symbol (str (.getName clazz) "/" (.name %1))))
                       values)]
+    
     (reify Wrapper
       (wrap [_ v]
         `(case (.ordinal ~v)
@@ -164,18 +164,6 @@
                                         ;(coll? ~v)
          ;; TODO: what about other types of sequences?
          :else (UnsupportedOperationException. (str "can't unwrap a " ~(class v)))))))
-
-(def primitive-mapping
-  {Integer/TYPE Integer
-   Integer Integer/TYPE
-   Long/TYPE Long
-   Long Long/TYPE
-   Double/TYPE Double
-   Double Double/TYPE
-   Float/TYPE Float
-   Float Float/TYPE
-   Boolean/TYPE Boolean
-   Boolean Boolean/TYPE})
 
 (defmethod gen-wrapper
   :scalar
