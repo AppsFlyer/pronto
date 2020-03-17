@@ -11,6 +11,8 @@ message Person {
   map<string, Person> relations = 8;
   repeated string pet_names = 9;
   bytes private_key = 10;
+  int64 age_millis = 11;
+  bool is_vegetarian = 12;
 }
 
 message Address {
