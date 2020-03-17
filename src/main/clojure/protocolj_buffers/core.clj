@@ -8,7 +8,8 @@
             Descriptors$Descriptor
             Descriptors$FieldDescriptor
             Descriptors$FieldDescriptor$Type
-            Descriptors$FieldDescriptor$JavaType]
+            Descriptors$FieldDescriptor$JavaType
+            ByteString]
            [java.lang.reflect Field Method ParameterizedType]
            [java.util Map]))
 
@@ -59,8 +60,18 @@
   (boolean (or (.isEnum clazz)
                (#{Integer
                   Integer/TYPE
-                  String}
+                  String
+                  Boolean/TYPE
+                  ByteString}
                 clazz))))
+
+(def numeric-scalar?
+  (comp boolean #{Integer/TYPE Long/TYPE Double/TYPE Float/TYPE}))
+
+(defn protobuf-scalar? [^Class clazz]
+  (boolean (or (numeric-scalar? clazz)
+               (#{Boolean/TYPE String ByteString} clazz))))
+
 
 (defn with-type-hint [sym ^Class clazz]
   (with-meta sym {:tag (symbol (.getName clazz))}))
@@ -93,8 +104,9 @@
   (fn [^Class clazz]
     (cond
       (.isEnum clazz) :enum
-      (not (primitive? clazz)) :message
-      :else :primitive)))
+      (= ByteString clazz) :bytes
+      (not (protobuf-scalar? clazz)) :message
+      :else :scalar)))
 
 (defmethod gen-wrapper
   :enum
@@ -111,7 +123,8 @@
            ~@(interleave
              (map first enum->kw)
              (map second enum->kw))
-          (throw (IllegalArgumentException. (str "can't wrap " ~v)))))
+           (throw (IllegalArgumentException. (str "can't wrap " ~v)))))
+
       (unwrap [_ v]
         `(case ~v
             ~@(interleave
@@ -136,6 +149,22 @@
                 (pronto.core/get-proto ~u)))
           :else                 (throw (IllegalArgumentException. "blarg")))))))
 
+(defmethod gen-wrapper
+  :bytes
+  [_]
+  ;; the class must be `ByteString`
+  (reify Wrapper
+    (wrap [_ v]
+      `(pronto.ByteStringColl. ~v))
+
+    (unwrap [_ v]
+      `(cond
+         (instance? pronto.ByteStringWrapper ~v)
+         (.getByteString ~(with-type-hint v pronto.ByteStringWrapper))
+                                        ;(coll? ~v)
+         ;; TODO: what about other types of sequences?
+         :else (UnsupportedOperationException. (str "can't unwrap a " ~(class v)))))))
+
 (def primitive-mapping
   {Integer/TYPE Integer
    Integer Integer/TYPE
@@ -149,17 +178,18 @@
    Boolean Boolean/TYPE})
 
 (defmethod gen-wrapper
-  :primitive
+  :scalar
   [^Class clazz]
   (let [wrapper-type (class-name->wrapper-class-name (.getName clazz))]
-    (let [clazz' (primitive-mapping clazz)]
-      (reify Wrapper
-        (wrap [_ v] v)
+    (reify Wrapper
+      (wrap [_ v] v)
 
-        (unwrap [_ v]
-          `(if (or (= (class ~v) ~clazz) (= (class ~v) ~clazz'))
-             ~v
-             (throw (IllegalArgumentException. (str "got " (class ~v) " instead of " ~clazz)))))))))
+      (unwrap [_ v]
+        (if-not (numeric-scalar? clazz)
+           v
+           (let [vn (with-type-hint v Number)]
+             `(let [~vn ~v]
+                (~(symbol (str "." (str clazz) "Value")) ~vn))))))))
 
 (defn get-field-type [^Class clazz fd]
   (let [^Method m (.getDeclaredMethod clazz (str "get" (field->camel-case fd))
@@ -192,7 +222,13 @@
       (get-class [_] field-type)
 
       (gen-setter [_ builder k v]
-        (let [res (with-type-hint (gensym 'res) field-type)]
+        (let [res (gensym 'res)
+              ;; if field is primitive, don't add any additional type info
+              ;; as it is already hinted
+              ;; TODO: should we delegate all type hinting to wrappers?
+              res (if (primitive? field-type)
+                    res
+                    (with-type-hint (gensym 'res) field-type))]
           `(let [~res ~(unwrap wrapper v)]
              (~setter ~builder ~res))))
 
@@ -311,7 +347,9 @@
    (let [fields       (get-fields clazz)
          deps-classes (->> fields
                            (map #(get-class (:type-gen %)))
-                           (filter (complement primitive?)))
+                           (filter (fn [^Class clazz]
+                                     (and (not (.isEnum clazz))
+                                          (not (protobuf-scalar? clazz))))))
          seen-classes (conj seen-classes clazz)]
      (reduce (fn [[deps seen :as acc] dep-class]
                (if (get seen dep-class)
@@ -341,7 +379,7 @@
         descriptor         (descriptor clazz)
         deps               (reverse (flatten (resolve-deps clazz)))
         fields             (get-fields clazz)
-        o                  (with-meta (gensym 'o) {:tag (symbol (.getName clazz))})
+        o                  (with-type-hint (gensym 'o) clazz)
         builder-class      (get-builder-class clazz)
         wrapper-class-name (class-name->wrapper-class-name (.getName clazz))
         deftype-ctor-name  (symbol (str '-> wrapper-class-name))
@@ -349,13 +387,15 @@
         ctor-name          (symbol (str 'proto-> (clojure.string/replace (.getName clazz) "." "-")))
         class-key          [*ns* clazz]]
     (locking loaded-classes
-      (when (and (not (get @loaded-classes class-key)))
+      (when (not (get @loaded-classes class-key))
         (swap! loaded-classes conj class-key)
         `(do
            ~@(for [dep deps]
                `(defproto ~dep))
 
            (deftype ~wrapper-class-name [~o]
+
+             java.io.Serializable
 
              pronto.core.IProtoMap 
 
