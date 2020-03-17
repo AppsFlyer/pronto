@@ -10,6 +10,7 @@ message Person {
   repeated Like likes = 7;
   map<string, Person> relations = 8;
   repeated string pet_names = 9;
+  bytes private_key = 10;
 }
 
 message Address {

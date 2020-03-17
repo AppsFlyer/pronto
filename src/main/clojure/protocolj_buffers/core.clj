@@ -116,7 +116,7 @@
         kw->enum (map #(vector (keyword (->kebab-case (.name %1)))
                                (symbol (str (.getName clazz) "/" (.name %1))))
                       values)]
-    
+
     (reify Wrapper
       (wrap [_ v]
         `(case (.ordinal ~v)
@@ -155,7 +155,7 @@
   ;; the class must be `ByteString`
   (reify Wrapper
     (wrap [_ v]
-      `(pronto.ByteStringColl. ~v))
+      `(pronto.ByteStringColl/fromByteString ~v))
 
     (unwrap [_ v]
       `(cond

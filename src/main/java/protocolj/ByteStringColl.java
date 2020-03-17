@@ -10,8 +10,18 @@ public class ByteStringColl implements IPersistentCollection, RandomAccess, IRed
 
     private static final ByteStringColl EMPTY = new ByteStringColl(ByteString.EMPTY);
 
-    public ByteStringColl(ByteString bs) {
+    private ByteStringColl(ByteString bs) {
         this.bs = bs;
+    }
+
+    public static ByteStringColl fromByteString(ByteString bs) {
+        if (bs == null) {
+            throw new NullPointerException("Cannot create ByteStringColl from null");
+        }
+        if (bs.isEmpty()) {
+            return EMPTY;
+        }
+        return new ByteStringColl(bs);
     }
 
     @Override
@@ -63,6 +73,10 @@ public class ByteStringColl implements IPersistentCollection, RandomAccess, IRed
     }
 
     private Object reduce(IFn f, int startOffset) {
+        if (bs.isEmpty()) {
+            return f.invoke();
+        }
+        
         Object ret = bs.byteAt(startOffset);
 
         for(int x = startOffset + 1; x < bs.size(); ++x) {
@@ -81,6 +95,10 @@ public class ByteStringColl implements IPersistentCollection, RandomAccess, IRed
     }
 
     public Object reduce(IFn f, Object start, int startOffset) {
+        if (bs.isEmpty()) {
+            return start;
+        }
+
         Object ret = f.invoke(start, byteAt(startOffset));
 
         for(int x = startOffset + 1; x < bs.size(); ++x) {
