@@ -2,8 +2,18 @@
   (:require [clojure.test :refer :all]
             [pronto.core :refer [defproto]])
   (:import [protogen.generated People$Person People$Person$Builder
-            People$Address People$Address$Builder People$Like People$Level]))
+            People$Address People$Address$Builder People$Like People$Level
+            People$House People$Apartment]))
 
+(defn make-house [& {:keys [num-rooms]}]
+  (cond-> (People$House/newBuilder)
+    num-rooms (.setNumRooms num-rooms)
+    true (.build)))
+
+(defn make-apartment [& {:keys [floor-num]}]
+  (cond-> (People$Apartment/newBuilder)
+    floor-num (.setFloorNum floor-num)
+    true (.build)))
 
 (defn make-like [& {:keys [desc level]}]
   (cond-> (People$Like/newBuilder)
@@ -12,32 +22,25 @@
     true (.build)))
 
 (defn make-address
-  ([] (make-address :city "fooville" :street "broadway" :house-num 21213))
-  ([& {:keys [city street house-num]}]
-   (cond-> (People$Address/newBuilder)
-     city (.setCity city)
-     street (.setStreet street)
-     house-num (.setHouseNum house-num)
-     true (.build))))
+  [& {:keys [city street house-num]}]
+  (cond-> (People$Address/newBuilder)
+    city (.setCity city)
+    street (.setStreet street)
+    house-num (.setHouseNum house-num)
+    true (.build)))
 
 (defn make-person
-  ([] (make-person :id 5 :name "Foo"
-                   :email "foo@bar.com"
-                   :address (make-address)
-                   :pet-names ["bla" "booga"]
-                   :likes
-                   [(make-like "low" People$Level/LOW)
-                    (make-like "medium" People$Level/MEDIUM)
-                    (make-like "high" People$Level/HIGH)]))
-  ([& {:keys [id name email address likes pet-names]}]
-   (cond-> (People$Person/newBuilder)
-     id (.setId id)
-     name (.setName name)
-     email (.setEmail email)
-     address (.setAddress address)
-     likes (.addAllLikes likes)
-     pet-names (.addAllPetNames pet-names)
-     true (.build))))
+  [& {:keys [id name email address likes pet-names relations private-key]}]
+  (cond-> (People$Person/newBuilder)
+    id (.setId id)
+    name (.setName name)
+    email (.setEmail email)
+    address (.setAddress address)
+    likes (.addAllLikes likes)
+    pet-names (.addAllPetNames pet-names)
+    relations (.putAllRelations relations)
+    private-key (.setPrivateKey private-key)
+    true (.build)))
 
 (defmacro ensure-immutable [w & body]
   `(do ~@(map (fn [expr]

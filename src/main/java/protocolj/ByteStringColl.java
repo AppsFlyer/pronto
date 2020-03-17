@@ -42,7 +42,40 @@ public class ByteStringColl implements IPersistentCollection, RandomAccess, IRed
 
     @Override
     public boolean equiv(Object o) {
+        if (this == o) {
+            return true;
+        }
+
+        if (o instanceof ByteStringWrapper) {
+            return bs.equals(((ByteStringWrapper) o).getByteString());
+        }
+
+        if (o instanceof Sequential) {
+            ISeq seq = RT.seq(o);
+
+            if (seq instanceof Counted && ((Counted) seq).count() != bs.size()) {
+                return false;
+            }
+
+            for (int i = 0; i < bs.size(); i++, seq = seq.next()) {
+                if (seq == null || !Util.equiv(byteAt(i), seq.first())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return bs.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return equiv(obj);
     }
 
     @Override
@@ -76,7 +109,7 @@ public class ByteStringColl implements IPersistentCollection, RandomAccess, IRed
         if (bs.isEmpty()) {
             return f.invoke();
         }
-        
+
         Object ret = bs.byteAt(startOffset);
 
         for(int x = startOffset + 1; x < bs.size(); ++x) {
