@@ -13,6 +13,8 @@ message Person {
   bytes private_key = 10;
   int64 age_millis = 11;
   bool is_vegetarian = 12;
+  double height_cm = 13;
+  float weight_kg = 14;
 }
 
 message Address {

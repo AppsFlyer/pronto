@@ -13,6 +13,9 @@
 (defprotocol IProtoMap
   (get-proto [this]))
 
+(defn ctor-name [^Class clazz]
+  (symbol (str 'proto-> (clojure.string/replace (.getName clazz) "." "-"))))
+
 (defn descriptor [^Class clazz]
   (Reflector/invokeStaticMethod clazz "getDescriptor" (to-array nil)))
 
@@ -38,9 +41,9 @@
   (if (message? fd)
     (Class/forName (.getFullName (.getMessageType fd)))
     (condp = (.getJavaType fd)
-      Descriptors$FieldDescriptor$JavaType/INT Integer
+      Descriptors$FieldDescriptor$JavaType/INT    Integer
       Descriptors$FieldDescriptor$JavaType/STRING String
-      :else (throw (UnsupportedOperationException. (str "don't know type " (.getJavaType fd)))))))
+      :else                                       (throw (UnsupportedOperationException. (str "don't know type " (.getJavaType fd)))))))
 
 (defn clojurify-descriptor-name [^Descriptors$Descriptor descriptor]
   (clojure.string/replace (.getFullName descriptor) "." "-"))
@@ -74,10 +77,10 @@
 
 (defn descriptor-type [^Descriptors$FieldDescriptor fd]
   (cond
-    (.isMapField fd) :map
-    (.isRepeated fd) :repeated
+    (.isMapField fd)         :map
+    (.isRepeated fd)         :repeated
     (.getContainingOneof fd) :one-of
-    :else :simple))
+    :else                    :simple))
 
 (defmulti get-type-gen
   (fn [^Class clazz
@@ -99,15 +102,15 @@
 (defmulti gen-wrapper
   (fn [^Class clazz]
     (cond
-      (.isEnum clazz) :enum
-      (= ByteString clazz) :bytes
+      (.isEnum clazz)                :enum
+      (= ByteString clazz)           :bytes
       (not (protobuf-scalar? clazz)) :message
-      :else :scalar)))
+      :else                          :scalar)))
 
 (defmethod gen-wrapper
   :enum
   [^Class clazz]
-  (let [values (Reflector/invokeStaticMethod clazz "values" (to-array nil))
+  (let [values   (Reflector/invokeStaticMethod clazz "values" (to-array nil))
         enum->kw (map-indexed #(vector %1 (keyword (->kebab-case (.name %2))))
                               values)
         kw->enum (map #(vector (keyword (->kebab-case (.name %1)))
@@ -118,16 +121,16 @@
       (wrap [_ v]
         `(case (.ordinal ~v)
            ~@(interleave
-             (map first enum->kw)
-             (map second enum->kw))
+               (map first enum->kw)
+               (map second enum->kw))
            (throw (IllegalArgumentException. (str "can't wrap " ~v)))))
 
       (unwrap [_ v]
         `(case ~v
-            ~@(interleave
+           ~@(interleave
                (map first kw->enum)
                (map second kw->enum))
-            (throw (IllegalArgumentException. (str "can't unwrap " ~v))))))))
+           (throw (IllegalArgumentException. (str "can't unwrap " ~v))))))))
 
 (defmethod gen-wrapper
   :message
@@ -139,28 +142,36 @@
 
       (unwrap [_ v]
         `(cond
-          (= (class ~v) ~clazz) ~v
-          (= (class ~v) ~wrapper-type)
-          ~(let [u (with-meta (gensym 'u) {:tag 'IProtoMap})]
-             `(let [~u ~v]
-                (pronto.core/get-proto ~u)))
-          :else                 (throw (IllegalArgumentException. "blarg")))))))
+           (= (class ~v) ~clazz) ~v
 
+           (= (class ~v) ~wrapper-type)
+           ~(let [u (with-meta (gensym 'u) {:tag 'IProtoMap})]
+              `(let [~u ~v]
+                 (pronto.core/get-proto ~u)))
+
+           (map? ~v)
+           ;; TODO: duplicate code
+           ~(let [u (with-meta (gensym 'u) {:tag 'IProtoMap})]
+              `(let [~u (~(ctor-name clazz) ~v)]
+                 (pronto.core/get-proto ~u)))
+
+           :else (throw (IllegalArgumentException. (str "blarg " ~clazz))))))))
+
+
+;; TODO: Get rid of this method, collapse into regular scalar
 (defmethod gen-wrapper
   :bytes
   [_]
   ;; the class must be `ByteString`
   (reify Wrapper
     (wrap [_ v]
-      `(pronto.ByteStringColl/fromByteString ~v))
+      v)
 
     (unwrap [_ v]
-      `(cond
-         (instance? pronto.ByteStringWrapper ~v)
-         (.getByteString ~(with-type-hint v pronto.ByteStringWrapper))
-                                        ;(coll? ~v)
-         ;; TODO: what about other types of sequences?
-         :else (UnsupportedOperationException. (str "can't unwrap a " ~(class v)))))))
+      `(if (instance? com.google.protobuf.ByteString ~v)
+         ~v
+         (throw (IllegalArgumentException. (str "can't unwrap " (class ~v) " when expecting a ByteString")))))))
+
 
 (defmethod gen-wrapper
   :scalar
@@ -174,16 +185,18 @@
         (cond
           (= String clazz)
           `(if-not (= String (class ~v))
-             (throw (IllegalArgumentException. "blarg"))
+             (throw (IllegalArgumentException. (str "blarg " ~clazz)))
              ~v)
           (= Boolean/TYPE clazz)
-          `(if-not (= Boolean/TYPE (class ~v))
-             (throw (IllegalArgumentException. "blarg"))
+          `(if-not (= Boolean (class ~v))
+             (throw (IllegalArgumentException. (str "blarg " ~clazz)))
              ~v)
           (numeric-scalar? clazz)
           (let [vn (with-type-hint v Number)]
-            `(let [~vn ~v]
-               (~(symbol (str "." (str clazz) "Value")) ~vn)))
+            `(if-not (instance? Number ~vn)
+               (throw (IllegalArgumentException. (str "blarg " ~clazz)))
+               (let [~vn ~v]
+                 (~(symbol (str "." (str clazz) "Value")) ~vn))))
           :else (throw (IllegalArgumentException. (str "cant unwrap scalar for " (class ~v)))))))))
 
 (defn get-field-type [^Class clazz fd]
@@ -196,9 +209,9 @@
 
 (defn get-parameterized-type [parameter-index ^Class clazz ^Descriptors$FieldDescriptor fd]
   (if (message? fd)
-    (let [field-name (-> fd field->camel-case uncapitalize (str "_"))
+    (let [field-name   (-> fd field->camel-case uncapitalize (str "_"))
           ^Field field (.getDeclaredField clazz field-name)
-          ^Type type (.getGenericType field)]
+          ^Type type   (.getGenericType field)]
       (if (instance? ParameterizedType type)
         (aget (.getActualTypeArguments ^ParameterizedType type) parameter-index )
         (throw (UnsupportedOperationException. (str "can't infer type for " (.getName fd))))))
@@ -240,10 +253,19 @@
 (defmethod get-type-gen
   :map
   [^Class clazz ^Descriptors$FieldDescriptor fd]
-  (let [cc           (field->camel-case fd)
-        key-type     (get-parameterized-type 0 clazz fd)
-        val-type     (get-parameterized-type 1 clazz fd)
-        key-wrapper  (gen-wrapper key-type)
+  (let [cc          (field->camel-case fd)
+        key-type    (get-parameterized-type 0 clazz fd)
+        val-type    (get-parameterized-type 1 clazz fd)
+        key-wrapper (if (= String key-type)
+                      (reify Wrapper
+                        (wrap [_ v]
+                          ;; -> keyword
+                          `(keyword ~v))
+
+                        (unwrap [_ v]
+                          ;; -> string
+                          `(name ~v)))
+                      (gen-wrapper key-type))
         val-wrapper  (gen-wrapper val-type)
         clear-method (symbol (str ".clear" cc))
         put-method   (symbol (str ".put" cc))
@@ -264,7 +286,7 @@
                        ~entry-val (.getValue x#)]
                    (~put-method ~builder
                     ~(unwrap key-wrapper entry-key)
-                    ~(unwrap key-wrapper entry-val))))))))
+                    ~(unwrap val-wrapper entry-val))))))))
 
       (gen-getter [_ o k]
         (let [v (with-meta (gensym 'v) {:tag 'java.util.Map})]
@@ -307,22 +329,22 @@
         wrapper        (gen-wrapper inner-type)
         clear-method   (symbol (str ".clear" cc))
         add-all-method (symbol (str ".addAll" cc))
-        x (gensym 'x)]
+        x              (gensym 'x)]
     (reify TypeGen
 
       (get-class [_] inner-type)
 
       (gen-setter [_ builder k v]
         `(if-not (.isAssignableFrom Iterable (class ~v))
-          (throw (IllegalArgumentException. (make-error-message ~k Iterable (type ~v))))
-          (let [al#      (java.util.ArrayList. (count ~v))]
-            (doseq [~x ~v]
-              (.add al# ~(unwrap wrapper x)))
-            (~add-all-method (~clear-method ~builder) al#))))
+           (throw (IllegalArgumentException. (make-error-message ~k Iterable (type ~v))))
+           (let [al# (java.util.ArrayList. (count ~v))]
+             (doseq [~x ~v]
+               (.add al# ~(unwrap wrapper x)))
+             (~add-all-method (~clear-method ~builder) al#))))
 
       (gen-getter [_ o k]
         (let [v (with-meta (gensym 'v) {:tag 'java.util.List})]
-          `(let [~v (~(symbol (str ".get" cc "List")) ~o)
+          `(let [~v  (~(symbol (str ".get" cc "List")) ~o)
                  al# (java.util.ArrayList. (.size ~v))]
              (doseq [~x ~v]
                (.add al# ~(wrap wrapper x)))
@@ -349,8 +371,8 @@
      (reduce (fn [[deps seen :as acc] dep-class]
                (if (get seen dep-class)
                  acc
-                 (let [new-deps  (conj deps dep-class)
-                       [x y] (resolve-deps dep-class seen-classes)]
+                 (let [new-deps (conj deps dep-class)
+                       [x y]    (resolve-deps dep-class seen-classes)]
                    [(into new-deps x) y])))
              [[] seen-classes]
              deps-classes))))
@@ -366,6 +388,8 @@
 
 (def loaded-classes (atom #{}))
 
+(defn unload-classes [] (swap! loaded-classes empty))
+
 (defmacro defproto [class-sym]
   (let [^Class clazz       (cond
                              (class? class-sym)  class-sym
@@ -379,7 +403,7 @@
         wrapper-class-name (class-name->wrapper-class-name (.getName clazz))
         deftype-ctor-name  (symbol (str '-> wrapper-class-name))
         ;; TODO: refactor duplicated code
-        ctor-name          (symbol (str 'proto-> (clojure.string/replace (.getName clazz) "." "-")))
+        ctor-name          (ctor-name clazz)
         class-key          [*ns* clazz]]
     (locking loaded-classes
       (when (not (get @loaded-classes class-key))
@@ -387,6 +411,8 @@
         `(do
            ~@(for [dep deps]
                `(defproto ~dep))
+
+           (declare ~ctor-name)
 
            (deftype ~wrapper-class-name [~o]
 
@@ -406,8 +432,8 @@
                   (let [~b (.toBuilder ~o)]
                     (case ~k
                       ~@(interleave
-                         (map :kw fields)
-                         (map #(gen-setter (:type-gen %) b k v) fields))
+                          (map :kw fields)
+                          (map #(gen-setter (:type-gen %) b k v) fields))
                       (throw (IllegalArgumentException. (str "cannot assoc " ~k))))
                     (new ~wrapper-class-name (.build ~b)))))
 
@@ -432,8 +458,8 @@
                         (case ~k
 
                           ~@(interleave
-                             (map :kw fields)
-                             (map #(gen-getter (:type-gen %) o k) fields))
+                              (map :kw fields)
+                              (map #(gen-getter (:type-gen %) o k) fields))
 
                           nil)))
 
@@ -453,17 +479,20 @@
              (count [this#] ~(count fields))
 
              (equiv [this# other#]
-               (pronto.PersistentMapHelpers/equiv this# other#))
+               (pronto.PersistentMapHelpers/equiv this#
+                                                     (if (instance? ~clazz other#)
+                                                       (~ctor-name other#)
+                                                       other#)))
 
              Seqable
 
              ~(let [this (gensym 'this)]
                 `(seq [~this]
                       (ArraySeq/create
-                       (object-array
-                        [~@(map (fn [fd]
-                                  `(.entryAt ~this ~(:kw fd)))
-                                fields)]))))
+                        (object-array
+                          [~@(map (fn [fd]
+                                    `(.entryAt ~this ~(:kw fd)))
+                                  fields)]))))
 
              pronto.DefaultingFn
 
@@ -479,10 +508,10 @@
              ~(let [this (gensym 'this)]
                 `(iterator [~this]
                            (ArrayIter/create
-                            (object-array
-                             [~@(map (fn [fd]
-                                       `(.entryAt ~this ~(:kw fd)))
-                                     fields)]))))
+                             (object-array
+                               [~@(map (fn [fd]
+                                         `(.entryAt ~this ~(:kw fd)))
+                                       fields)]))))
 
              java.util.Map
 
@@ -529,7 +558,7 @@
                  (map? o#)
                  (let [res# (new ~wrapper-class-name (.build (~(static-call clazz "newBuilder"))))]
                    (reduce (fn [acc# [k# v#]]
-                             (assoc res# k# v#))
+                             (assoc acc# k# v#))
                            res#
                            o#))
                  :else
