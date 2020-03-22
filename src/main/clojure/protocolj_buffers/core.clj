@@ -297,9 +297,7 @@
                      ~entry-val   (.getValue x#)
                      wrapped-key# ~(wrap key-wrapper entry-key)]
                  (.put new-map#
-                       (if (string? wrapped-key#)
-                         (keyword wrapped-key#)
-                         wrapped-key#)
+                       wrapped-key#
                        ~(wrap val-wrapper entry-val))))
              (clojure.lang.PersistentHashMap/create new-map#)))))))
 

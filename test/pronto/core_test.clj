@@ -152,7 +152,7 @@
     (is (thrown? IllegalArgumentException (assoc p :is-vegetarian "1")))))
 
 
-(deftest repeated-primitive
+(deftest repeated-primitive-test
   (let [pet-names ["aaa" "bbb"]
         p         (make-person :pet-names pet-names)
         w         (proto->protogen-generated-People$Person p)]
@@ -163,7 +163,7 @@
     (is (= ["AAA" "BBB"] (:pet-names (update w :pet-names (partial map clojure.string/upper-case)))))
     (is (= ["hello" "aaa" "bbb"] (:pet-names (update w :pet-names (partial cons "hello")))))))
 
-(deftest repeated-message
+(deftest repeated-message-test
   (let [likes [(make-like :desc "desc1" :level People$Level/LOW)
                (make-like :desc "desc2" :level People$Level/MEDIUM)]
         p     (make-person :likes likes)
@@ -177,7 +177,7 @@
             (make-like :desc "desc2" :level People$Level/HIGH)]
            (:likes (update w :likes (partial map (fn [x] (assoc x :level :high)))))))))
 
-(deftest one-of
+(deftest one-of-test
   (let [address   (proto->protogen-generated-People$Address {})
         house     (make-house :num-rooms 5)
         apartment (make-apartment :floor-num 4)
@@ -192,7 +192,7 @@
     (is (= apartment (:apartment address3)))
     (is (nil? (:house address3)))))
 
-(deftest maps
+(deftest maps-test
   (let [bff    (make-person :name "bar")
         sister (make-person :name "baz")
         person (make-person :name "foo" :relations {"bff" bff})
@@ -200,6 +200,8 @@
     (is (= {:bff bff} (:relations (assoc-in w [:relations :bff] bff))))
     (is (= {:bff bff :sister sister} (:relations (assoc-in w [:relations :sister] sister))))))
 
-
-
-
+(deftest empty-test
+  (let [person       (make-person :name "foo" :age 100)
+        empty-person (make-person)]
+    (is (= (empty (proto->protogen-generated-People$Person person))
+           (proto->protogen-generated-People$Person empty-person)))))
