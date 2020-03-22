@@ -8,7 +8,7 @@
             Descriptors$FieldDescriptor$JavaType
             ByteString]
            [java.lang.reflect Field Method ParameterizedType]
-           [java.util Map]))
+           [java.util Map Map$Entry]))
 
 (defprotocol IProtoMap
   (get-proto [this]))
@@ -44,9 +44,6 @@
       Descriptors$FieldDescriptor$JavaType/INT    Integer
       Descriptors$FieldDescriptor$JavaType/STRING String
       :else                                       (throw (UnsupportedOperationException. (str "don't know type " (.getJavaType fd)))))))
-
-(defn clojurify-descriptor-name [^Descriptors$Descriptor descriptor]
-  (clojure.string/replace (.getFullName descriptor) "." "-"))
 
 (defn class-name->wrapper-class-name [class-name]
   (symbol (str 'wrapped- (clojure.string/replace class-name "." "-"))))
@@ -269,6 +266,8 @@
         val-wrapper  (gen-wrapper val-type)
         clear-method (symbol (str ".clear" cc))
         put-method   (symbol (str ".put" cc))
+        m            (with-type-hint (gensym 'm) java.util.Map)
+        entry        (with-type-hint (gensym 'entry) Map$Entry)
         entry-key    (gensym 'entry-key)
         entry-val    (gensym 'entry-val)]
     (reify TypeGen
@@ -276,30 +275,28 @@
       (get-class [_] val-type)
 
       (gen-setter [_ builder k v]
-        (let [m (with-type-hint (gensym 'm) java.util.Map)]
-          `(if-not (.isAssignableFrom java.util.Map (class ~v))
-             (throw (IllegalArgumentException. (make-error-message ~k java.util.Map (type ~v))))
-             (let [~m       ~v
-                   ~builder (~clear-method ~builder)]
-               (doseq [x# (.entrySet ~v)]
-                 (let [~entry-key (.getKey x#)
-                       ~entry-val (.getValue x#)]
-                   (~put-method ~builder
-                    ~(unwrap key-wrapper entry-key)
-                    ~(unwrap val-wrapper entry-val))))))))
+        `(if-not (.isAssignableFrom java.util.Map (class ~v))
+           (throw (IllegalArgumentException. (make-error-message ~k java.util.Map (type ~v))))
+           (let [~m       ~v
+                 ~builder (~clear-method ~builder)]
+             (doseq [~entry (.entrySet ~m)]
+               (let [~entry-key (.getKey ~entry)
+                     ~entry-val (.getValue ~entry)]
+                 (~put-method ~builder
+                  ~(unwrap key-wrapper entry-key)
+                  ~(unwrap val-wrapper entry-val)))))))
 
       (gen-getter [_ o k]
-        (let [v (with-meta (gensym 'v) {:tag 'java.util.Map})]
-          `(let [~v       (~(symbol (str ".get" cc "Map")) ~o)
-                 new-map# (java.util.HashMap. (.size ~v))]
-             (doseq [x# (.entrySet ~v)]
-               (let [~entry-key   (.getKey x#)
-                     ~entry-val   (.getValue x#)
-                     wrapped-key# ~(wrap key-wrapper entry-key)]
-                 (.put new-map#
-                       wrapped-key#
-                       ~(wrap val-wrapper entry-val))))
-             (clojure.lang.PersistentHashMap/create new-map#)))))))
+        `(let [~m       (~(symbol (str ".get" cc "Map")) ~o)
+               new-map# (java.util.HashMap. (.size ~m))]
+           (doseq [~entry (.entrySet ~m)]
+             (let [~entry-key   (.getKey ~entry)
+                   ~entry-val   (.getValue ~entry )
+                   wrapped-key# ~(wrap key-wrapper entry-key)]
+               (.put new-map#
+                     wrapped-key#
+                     ~(wrap val-wrapper entry-val))))
+           (clojure.lang.PersistentHashMap/create new-map#))))))
 
 (defmethod get-type-gen
   :one-of
@@ -545,7 +542,7 @@
                       res#
                       o#))
             :else
-            (throw (IllegalArgumentException. (str "cannot wrap " (class o#))))))))))
+            (throw (IllegalArgumentException. (str "cannot wrap " (or (class o#) "nil"))))))))))
 
 
 (defn emit [^Class clazz]
