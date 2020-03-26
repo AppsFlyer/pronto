@@ -1,14 +1,17 @@
 (ns pronto.type-gen
-  (:require [pronto.wrapper :as w]
-            [pronto.utils :as u])
-  (:import [clojure.lang Reflector]
-           [com.google.protobuf
-            Descriptors$Descriptor
-            Descriptors$FieldDescriptor
-            Descriptors$FieldDescriptor$Type
-            Descriptors$FieldDescriptor$JavaType]
-           [java.lang.reflect Type Field Method ParameterizedType]
-           [java.util Map$Entry]))
+  (:require
+   [clojure.string :as s]
+   [pronto.wrapper :as w]
+   [pronto.utils :as u])
+  (:import
+   [clojure.lang Reflector]
+   [com.google.protobuf
+    Descriptors$Descriptor
+    Descriptors$FieldDescriptor
+    Descriptors$FieldDescriptor$Type
+    Descriptors$FieldDescriptor$JavaType]
+   [java.lang.reflect Type Field Method ParameterizedType]
+   [java.util Map$Entry]))
 
 
 (defprotocol TypeGen
@@ -40,9 +43,9 @@
 
 
 (defn field->camel-case [field]
-  (->> (clojure.string/split (.getName field) #"_")
-       (map #(clojure.string/capitalize %))
-       (clojure.string/join "")))
+  (->> (s/split (.getName field) #"_")
+       (map #(s/capitalize %))
+       (s/join "")))
 
 
 (defn get-field-type [^Class clazz fd]
@@ -97,7 +100,7 @@
      Descriptors$FieldDescriptor$Type/MESSAGE))
 
 (defn uncapitalize [s]
-  (str (clojure.string/lower-case (subs s 0 1)) (subs s 1)))
+  (str (s/lower-case (subs s 0 1)) (subs s 1)))
 
 (defn fd->java-type [^Descriptors$FieldDescriptor fd]
   (if (message? fd)
