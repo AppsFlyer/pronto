@@ -1,8 +1,9 @@
-(ns pronto.utils)
+(ns pronto.utils
+  (:require [clojure.string :as s]))
 
 
 (defn sanitized-class-name [^Class clazz]
-  (clojure.string/replace (.getName clazz) "." "-"))
+  (s/replace (.getName clazz) "." "-"))
 
 (defn class-name->wrapper-class-name [^Class clazz]
   (symbol (str 'wrapped- (sanitized-class-name clazz))))
@@ -14,12 +15,12 @@
   (symbol (str '-> (class-name->transient-class-name clazz))))
 
 (defn ->kebab-case [s]
-  (clojure.string/lower-case (clojure.string/join "-" (clojure.string/split s #"_"))))
+  (s/lower-case (s/join "-" (s/split s #"_"))))
 
 (defn with-type-hint [sym ^Class clazz]
   (with-meta sym {:tag (symbol (.getName clazz))}))
 
 
 (defn ctor-name [^Class clazz]
-  (symbol (str 'proto-> (clojure.string/replace (.getName clazz) "." "-"))))
+  (symbol (str 'proto-> (s/replace (.getName clazz) "." "-"))))
 

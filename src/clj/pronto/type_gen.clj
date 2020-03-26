@@ -2,13 +2,13 @@
   (:require [pronto.wrapper :as w]
             [pronto.utils :as u])
   (:import [clojure.lang Reflector]
-           [com.google.protobuf 
+           [com.google.protobuf
             Descriptors$Descriptor
             Descriptors$FieldDescriptor
             Descriptors$FieldDescriptor$Type
             Descriptors$FieldDescriptor$JavaType]
-           [java.lang.reflect Field Method ParameterizedType]
-           [java.util Map Map$Entry]))
+           [java.lang.reflect Type Field Method ParameterizedType]
+           [java.util Map$Entry]))
 
 
 (defprotocol TypeGen
@@ -51,8 +51,7 @@
     (.getReturnType m)))
 
 (defn get-simple-type-gen [^Class clazz ^Descriptors$FieldDescriptor fd]
-  (let [kw         (fd->field-keyword fd)
-        cc         (field->camel-case fd)
+  (let [cc         (field->camel-case fd)
         setter     (symbol (str ".set" cc))
         getter     (symbol (str ".get" cc))
         field-type (get-field-type clazz fd)
