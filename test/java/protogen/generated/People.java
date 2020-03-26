@@ -276,6 +276,18 @@ public final class People {
      * @return The isVegetarian.
      */
     boolean getIsVegetarian();
+
+    /**
+     * <code>double height_cm = 13;</code>
+     * @return The heightCm.
+     */
+    double getHeightCm();
+
+    /**
+     * <code>float weight_kg = 14;</code>
+     * @return The weightKg.
+     */
+    float getWeightKg();
   }
   /**
    * Protobuf type {@code protogen.generated.Person}
@@ -402,6 +414,16 @@ public final class People {
             case 96: {
 
               isVegetarian_ = input.readBool();
+              break;
+            }
+            case 105: {
+
+              heightCm_ = input.readDouble();
+              break;
+            }
+            case 117: {
+
+              weightKg_ = input.readFloat();
               break;
             }
             default: {
@@ -735,6 +757,26 @@ public final class People {
       return isVegetarian_;
     }
 
+    public static final int HEIGHT_CM_FIELD_NUMBER = 13;
+    private double heightCm_;
+    /**
+     * <code>double height_cm = 13;</code>
+     * @return The heightCm.
+     */
+    public double getHeightCm() {
+      return heightCm_;
+    }
+
+    public static final int WEIGHT_KG_FIELD_NUMBER = 14;
+    private float weightKg_;
+    /**
+     * <code>float weight_kg = 14;</code>
+     * @return The weightKg.
+     */
+    public float getWeightKg() {
+      return weightKg_;
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -781,6 +823,12 @@ public final class People {
       }
       if (isVegetarian_ != false) {
         output.writeBool(12, isVegetarian_);
+      }
+      if (heightCm_ != 0D) {
+        output.writeDouble(13, heightCm_);
+      }
+      if (weightKg_ != 0F) {
+        output.writeFloat(14, weightKg_);
       }
       unknownFields.writeTo(output);
     }
@@ -839,6 +887,14 @@ public final class People {
         size += com.google.protobuf.CodedOutputStream
           .computeBoolSize(12, isVegetarian_);
       }
+      if (heightCm_ != 0D) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeDoubleSize(13, heightCm_);
+      }
+      if (weightKg_ != 0F) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeFloatSize(14, weightKg_);
+      }
       size += unknownFields.getSerializedSize();
       memoizedSize = size;
       return size;
@@ -877,6 +933,12 @@ public final class People {
           != other.getAgeMillis()) return false;
       if (getIsVegetarian()
           != other.getIsVegetarian()) return false;
+      if (java.lang.Double.doubleToLongBits(getHeightCm())
+          != java.lang.Double.doubleToLongBits(
+              other.getHeightCm())) return false;
+      if (java.lang.Float.floatToIntBits(getWeightKg())
+          != java.lang.Float.floatToIntBits(
+              other.getWeightKg())) return false;
       if (!unknownFields.equals(other.unknownFields)) return false;
       return true;
     }
@@ -918,6 +980,12 @@ public final class People {
       hash = (37 * hash) + IS_VEGETARIAN_FIELD_NUMBER;
       hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
           getIsVegetarian());
+      hash = (37 * hash) + HEIGHT_CM_FIELD_NUMBER;
+      hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
+          java.lang.Double.doubleToLongBits(getHeightCm()));
+      hash = (37 * hash) + WEIGHT_KG_FIELD_NUMBER;
+      hash = (53 * hash) + java.lang.Float.floatToIntBits(
+          getWeightKg());
       hash = (29 * hash) + unknownFields.hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -1101,6 +1169,10 @@ public final class People {
 
         isVegetarian_ = false;
 
+        heightCm_ = 0D;
+
+        weightKg_ = 0F;
+
         return this;
       }
 
@@ -1155,6 +1227,8 @@ public final class People {
         result.privateKey_ = privateKey_;
         result.ageMillis_ = ageMillis_;
         result.isVegetarian_ = isVegetarian_;
+        result.heightCm_ = heightCm_;
+        result.weightKg_ = weightKg_;
         onBuilt();
         return result;
       }
@@ -1263,6 +1337,12 @@ public final class People {
         }
         if (other.getIsVegetarian() != false) {
           setIsVegetarian(other.getIsVegetarian());
+        }
+        if (other.getHeightCm() != 0D) {
+          setHeightCm(other.getHeightCm());
+        }
+        if (other.getWeightKg() != 0F) {
+          setWeightKg(other.getWeightKg());
         }
         this.mergeUnknownFields(other.unknownFields);
         onChanged();
@@ -2157,6 +2237,66 @@ public final class People {
       public Builder clearIsVegetarian() {
         
         isVegetarian_ = false;
+        onChanged();
+        return this;
+      }
+
+      private double heightCm_ ;
+      /**
+       * <code>double height_cm = 13;</code>
+       * @return The heightCm.
+       */
+      public double getHeightCm() {
+        return heightCm_;
+      }
+      /**
+       * <code>double height_cm = 13;</code>
+       * @param value The heightCm to set.
+       * @return This builder for chaining.
+       */
+      public Builder setHeightCm(double value) {
+        
+        heightCm_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>double height_cm = 13;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearHeightCm() {
+        
+        heightCm_ = 0D;
+        onChanged();
+        return this;
+      }
+
+      private float weightKg_ ;
+      /**
+       * <code>float weight_kg = 14;</code>
+       * @return The weightKg.
+       */
+      public float getWeightKg() {
+        return weightKg_;
+      }
+      /**
+       * <code>float weight_kg = 14;</code>
+       * @param value The weightKg to set.
+       * @return This builder for chaining.
+       */
+      public Builder setWeightKg(float value) {
+        
+        weightKg_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>float weight_kg = 14;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearWeightKg() {
+        
+        weightKg_ = 0F;
         onChanged();
         return this;
       }
@@ -5195,24 +5335,25 @@ public final class People {
   static {
     java.lang.String[] descriptorData = {
       "\n\034resources/proto/people.proto\022\022protogen" +
-      ".generated\"\347\002\n\006Person\022\n\n\002id\030\001 \001(\005\022\014\n\004nam" +
+      ".generated\"\215\003\n\006Person\022\n\n\002id\030\001 \001(\005\022\014\n\004nam" +
       "e\030\002 \001(\t\022\r\n\005email\030\003 \001(\t\022,\n\007address\030\004 \001(\0132" +
       "\033.protogen.generated.Address\022\'\n\005likes\030\007 " +
       "\003(\0132\030.protogen.generated.Like\022<\n\trelatio" +
       "ns\030\010 \003(\0132).protogen.generated.Person.Rel" +
       "ationsEntry\022\021\n\tpet_names\030\t \003(\t\022\023\n\013privat" +
       "e_key\030\n \001(\014\022\022\n\nage_millis\030\013 \001(\003\022\025\n\ris_ve" +
-      "getarian\030\014 \001(\010\032L\n\016RelationsEntry\022\013\n\003key\030" +
-      "\001 \001(\t\022)\n\005value\030\002 \001(\0132\032.protogen.generate" +
-      "d.Person:\0028\001\"\242\001\n\007Address\022\014\n\004city\030\001 \001(\t\022\016" +
-      "\n\006street\030\002 \001(\t\022\021\n\thouse_num\030\003 \001(\005\022*\n\005hou" +
-      "se\030\004 \001(\0132\031.protogen.generated.HouseH\000\0222\n" +
-      "\tapartment\030\005 \001(\0132\035.protogen.generated.Ap" +
-      "artmentH\000B\006\n\004home\">\n\004Like\022\014\n\004desc\030\001 \001(\t\022" +
-      "(\n\005level\030\002 \001(\0162\031.protogen.generated.Leve" +
-      "l\"\032\n\005House\022\021\n\tnum_rooms\030\001 \001(\005\"\036\n\tApartme" +
-      "nt\022\021\n\tfloor_num\030\001 \001(\005*&\n\005Level\022\007\n\003LOW\020\000\022" +
-      "\n\n\006MEDIUM\020\005\022\010\n\004HIGH\020\nb\006proto3"
+      "getarian\030\014 \001(\010\022\021\n\theight_cm\030\r \001(\001\022\021\n\twei" +
+      "ght_kg\030\016 \001(\002\032L\n\016RelationsEntry\022\013\n\003key\030\001 " +
+      "\001(\t\022)\n\005value\030\002 \001(\0132\032.protogen.generated." +
+      "Person:\0028\001\"\242\001\n\007Address\022\014\n\004city\030\001 \001(\t\022\016\n\006" +
+      "street\030\002 \001(\t\022\021\n\thouse_num\030\003 \001(\005\022*\n\005house" +
+      "\030\004 \001(\0132\031.protogen.generated.HouseH\000\0222\n\ta" +
+      "partment\030\005 \001(\0132\035.protogen.generated.Apar" +
+      "tmentH\000B\006\n\004home\">\n\004Like\022\014\n\004desc\030\001 \001(\t\022(\n" +
+      "\005level\030\002 \001(\0162\031.protogen.generated.Level\"" +
+      "\032\n\005House\022\021\n\tnum_rooms\030\001 \001(\005\"\036\n\tApartment" +
+      "\022\021\n\tfloor_num\030\001 \001(\005*&\n\005Level\022\007\n\003LOW\020\000\022\n\n" +
+      "\006MEDIUM\020\005\022\010\n\004HIGH\020\nb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -5223,7 +5364,7 @@ public final class People {
     internal_static_protogen_generated_Person_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_protogen_generated_Person_descriptor,
-        new java.lang.String[] { "Id", "Name", "Email", "Address", "Likes", "Relations", "PetNames", "PrivateKey", "AgeMillis", "IsVegetarian", });
+        new java.lang.String[] { "Id", "Name", "Email", "Address", "Likes", "Relations", "PetNames", "PrivateKey", "AgeMillis", "IsVegetarian", "HeightCm", "WeightKg", });
     internal_static_protogen_generated_Person_RelationsEntry_descriptor =
       internal_static_protogen_generated_Person_descriptor.getNestedTypes().get(0);
     internal_static_protogen_generated_Person_RelationsEntry_fieldAccessorTable = new
