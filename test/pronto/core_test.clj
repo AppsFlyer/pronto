@@ -1,6 +1,7 @@
 (ns pronto.core-test
   (:require [clojure.test :refer :all]
-            [pronto.core :refer [defproto] :as p])
+            [pronto.core :refer [defproto] :as p]
+            [pronto.proto :as proto])
   (:import [protogen.generated People$Person People$Person$Builder
             People$Address People$Address$Builder People$Like People$Level
             People$House People$Apartment]
@@ -69,6 +70,13 @@
 
 (defproto People$Person)
 
+
+(deftest resolve-deps-test
+  (is (= [People$Address
+          People$House
+          People$Apartment
+          People$Like]
+         (p/resolve-deps People$Person))))
 
 (deftest map->wrapper-test
   (let [city      "NYC"
