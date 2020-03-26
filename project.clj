@@ -8,5 +8,4 @@
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.10.1"]
                                   [com.google.protobuf/protobuf-java "3.11.3"]
                                   [criterium "0.4.5"]]}}
-  :repl-options {:init-ns pronto.core}
-  :aot [pronto.core])
+  :repl-options {:init-ns pronto.core})
