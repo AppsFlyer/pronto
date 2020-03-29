@@ -215,3 +215,12 @@
            (proto->protogen-generated-People$Person empty-person)))))
 
 
+
+(deftest transient-test
+  (let [transient-person (transient (proto->protogen-generated-People$Person (make-person)))]
+    (assoc! transient-person :name "foo")
+    (assoc! transient-person :id 2)
+    (is (thrown? IllegalArgumentException (assoc! transient-person :fake-key "hello")))
+    (is (thrown? IllegalArgumentException (assoc! transient-person :id "foo")))
+    (is (= (persistent! transient-person) (proto->protogen-generated-People$Person (make-person :id 2 :name "foo"))))
+    (is (thrown? IllegalAccessError (get transient-person :name)))))
