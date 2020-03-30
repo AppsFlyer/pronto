@@ -29,12 +29,14 @@
 
 (defn emit [^Class clazz]
   `(do
-     (declare ~(u/ctor-name clazz))
+     (declare ~(u/proto-ctor-name clazz))
+     (declare ~(u/map-ctor-name clazz))
      (declare ~(u/transient-ctor-name clazz))
 
      ~(e/emit-deftype clazz)
      ~(e/emit-transient clazz)
-     ~(e/emit-ctor clazz)))
+     ~(e/emit-proto-ctor clazz)
+     ~(e/emit-map-ctor clazz)))
 
 
 (def loaded-classes (atom #{}))

@@ -85,7 +85,7 @@
         num-rooms 3
         addr-map  {:city      city      :street street
                    :house-num house-num :house  {:num-rooms num-rooms}}
-        addr      (proto->protogen-generated-People$Address addr-map)
+        addr      (map->protogen-generated-People$Address addr-map)
         p         (p/get-proto addr)]
     (is (= (.getCity p) (:city addr) city))
     (is (= (.getStreet p) (:street addr) street))
@@ -186,7 +186,7 @@
            (:likes (update w :likes (partial map (fn [x] (assoc x :level :high)))))))))
 
 (deftest one-of-test
-  (let [address   (proto->protogen-generated-People$Address {})
+  (let [address   (map->protogen-generated-People$Address {})
         house     (make-house :num-rooms 5)
         apartment (make-apartment :floor-num 4)
         address2  (assoc address :house (proto->protogen-generated-People$House house))
@@ -224,3 +224,4 @@
     (is (thrown? IllegalArgumentException (assoc! transient-person :id "foo")))
     (is (= (persistent! transient-person) (proto->protogen-generated-People$Person (make-person :id 2 :name "foo"))))
     (is (thrown? IllegalAccessError (get transient-person :name)))))
+

@@ -91,7 +91,7 @@
        (equiv [this# other#]
          (pronto.PersistentMapHelpers/equiv this#
                                                (if (instance? ~clazz other#)
-                                                 (~(u/ctor-name clazz) other#)
+                                                 (~(u/proto-ctor-name clazz) other#)
                                                  other#)))
 
        clojure.lang.Seqable
@@ -200,7 +200,7 @@
 
        (persistent [this#]
          (set! ~'editable? false)
-         (~(u/ctor-name clazz) (.build ~o)))
+         (~(u/proto-ctor-name clazz) (.build ~o)))
 
        (count [this#]
          (check-editable! ~'editable?)
@@ -244,20 +244,28 @@
          (.valAt this# k#)))))
 
 
-(defn emit-ctor [clazz]
+(defn emit-proto-ctor [clazz]
   (let [wrapper-class-name (u/class-name->wrapper-class-name clazz)
-        fn-name            (u/ctor-name clazz)]
+        fn-name            (u/proto-ctor-name clazz)]
+    `(def ~fn-name
+       (fn
+         [o#]
+         (if(instance? ~clazz o#)
+           (new ~wrapper-class-name o#)
+           (throw (IllegalArgumentException. (str "cannot wrap " (or (class o#) "nil")))))))))
+
+(defn emit-map-ctor [clazz]
+  (let [wrapper-class-name (u/class-name->wrapper-class-name clazz)
+        fn-name            (u/map-ctor-name clazz)]
     `(def ~fn-name
        (fn
          ([] (~fn-name {}))
          ([o#]
-          (cond
-            (instance? ~clazz o#) (new ~wrapper-class-name o#)
-            (map? o#)
+          (if (map? o#)
             (let [res# (new ~wrapper-class-name (.build (~(static-call clazz "newBuilder"))))]
               (reduce (fn [acc# [k# v#]]
                         (assoc acc# k# v#))
                       res#
                       o#))
-            :else
             (throw (IllegalArgumentException. (str "cannot wrap " (or (class o#) "nil"))))))))))
+

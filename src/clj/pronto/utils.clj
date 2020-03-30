@@ -21,6 +21,9 @@
   (with-meta sym {:tag (symbol (.getName clazz))}))
 
 
-(defn ctor-name [^Class clazz]
+(defn proto-ctor-name [^Class clazz]
   (symbol (str 'proto-> (s/replace (.getName clazz) "." "-"))))
+
+(defn map-ctor-name [^Class clazz]
+  (symbol (str 'map-> (s/replace (.getName clazz) "." "-"))))
 
