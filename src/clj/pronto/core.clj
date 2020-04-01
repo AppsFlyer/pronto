@@ -29,8 +29,8 @@
 
 (defn emit [^Class clazz]
   `(do
-     (declare ~(u/proto-ctor-name clazz))
      (declare ~(u/map-ctor-name clazz))
+     (declare ~(u/proto-ctor-name clazz))
      (declare ~(u/transient-ctor-name clazz))
 
      ~(e/emit-deftype clazz)
@@ -56,8 +56,6 @@
           `(do
              ~@(for [dep deps]
                  (emit dep))
-
-             (require '[pronto.proto])
 
              ~(emit clazz)))))))
 
