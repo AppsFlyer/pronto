@@ -36,26 +36,39 @@
      ~(e/emit-deftype clazz)
      ~(e/emit-transient clazz)
      ~(e/emit-proto-ctor clazz)
-     ~(e/emit-map-ctor clazz)))
+     ~(e/emit-map-ctor clazz)
+     ~(e/emit-bytes-ctor clazz)
+     ~(e/emit-default-ctor clazz)))
 
 
 (def loaded-classes (atom #{}))
 
 (defn unload-classes! [] (swap! loaded-classes empty))
 
+
 (defmacro defproto [class-sym]
-  (let [^Class clazz (if-not (symbol? class-sym)
-                       (throw (IllegalArgumentException. (str "defproto: expected a class, got " (class class-sym))))
-                       (resolve class-sym))]
+  (let [^Class clazz   (if-not (symbol? class-sym)
+                         (throw (IllegalArgumentException. (str "defproto: expected a class, got " (class class-sym))))
+                         (resolve class-sym))
+        map-class-name (u/class->map-class-name clazz)]
     (if (nil? clazz)
       (throw (IllegalArgumentException. (str "defproto: cannot resolve class " class-sym)))
       (let [deps      (reverse (resolve-deps clazz))
             class-key [*ns* clazz]]
-        (when (not (get @loaded-classes class-key))
-          (swap! loaded-classes conj class-key)
-          `(do
-             ~@(for [dep deps]
-                 (emit dep))
+        (if (get @loaded-classes class-key)
+          map-class-name
+          (do
+            (swap! loaded-classes conj class-key)
+            `(do
+               ~@(for [dep deps]
+                   (emit dep))
 
-             ~(emit clazz)))))))
+               ~(emit clazz)
 
+               ~map-class-name)))))))
+
+
+(comment
+  (import '(protogen.generated People$Person))
+
+  (defproto People$Person))

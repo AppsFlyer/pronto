@@ -1,6 +1,8 @@
 (ns pronto.emitters
   (:require [pronto.type-gen :as t]
-            [pronto.utils :as u]))
+            [pronto.utils :as u]
+            [pronto.proto :refer [ProtoMap get-proto]]
+            [clojure.string :as s]))
 
 (defn emit-assoc [fields builder k v]
   `(case ~k
@@ -32,7 +34,7 @@
   (let [fields              (t/get-fields clazz)
         o                   (u/with-type-hint (gensym 'o) clazz)
         builder-class       (get-builder-class clazz)
-        wrapper-class-name  (u/class-name->wrapper-class-name clazz)
+        wrapper-class-name  (u/class->map-class-name clazz)
         transient-ctor-name (u/transient-ctor-name clazz)]
     `(deftype ~wrapper-class-name [~o]
 
@@ -175,7 +177,7 @@
   (let [fields                       (t/get-fields clazz)
         builder-class                (get-builder-class clazz)
         o                            (u/with-type-hint 'o builder-class)
-        transient-wrapper-class-name (u/class-name->transient-class-name clazz)]
+        transient-wrapper-class-name (u/class->transient-class-name clazz)]
     `(deftype ~transient-wrapper-class-name [~o ~(with-meta 'editable? {:unsynchronized-mutable true})]
 
        java.io.Serializable
@@ -243,29 +245,71 @@
        (valAt [this# k# not-found#]
          (.valAt this# k#)))))
 
+(defn reverse-ctor-name [ctor-name]
+  (let [[x y] (s/split (str ctor-name) #"->")]
+    (symbol (str y "->" x))))
 
-(defn emit-proto-ctor [clazz]
-  (let [wrapper-class-name (u/class-name->wrapper-class-name clazz)
+(defn emit-proto-ctor [^Class clazz]
+  (let [wrapper-class-name (u/class->map-class-name clazz)
         fn-name            (u/proto-ctor-name clazz)]
-    `(def ~fn-name
-       (fn
-         [o#]
-         (if(instance? ~clazz o#)
-           (new ~wrapper-class-name o#)
-           (throw (IllegalArgumentException. (str "cannot wrap " (or (class o#) "nil")))))))))
+    `(do
+       (def ~fn-name
+         (fn
+           [o#]
+           (if(instance? ~clazz o#)
+             (new ~wrapper-class-name o#)
+             (throw (IllegalArgumentException. (str "cannot wrap " (or (class o#) "nil")))))))
 
-(defn emit-map-ctor [clazz]
-  (let [wrapper-class-name (u/class-name->wrapper-class-name clazz)
+       (def ~(reverse-ctor-name fn-name)
+         (fn [o#]
+           (pronto.proto/get-proto o#))))))
+
+(defn proto-map->clj-map [m]
+  (into {}
+        (map (fn [[k v]]
+               [k (if (instance? pronto.proto.ProtoMap v)
+                    (proto-map->clj-map v)
+                    v)]))
+        m))
+
+(defn emit-map-ctor [^Class clazz]
+  (let [wrapper-class-name (u/class->map-class-name clazz)
         fn-name            (u/map-ctor-name clazz)]
+    `(do
+       (def ~fn-name
+         (fn [o#]
+           (if (map? o#)
+             (let [res# (new ~wrapper-class-name (.build (~(static-call clazz "newBuilder"))))]
+               (reduce (fn [acc# [k# v#]]
+                         (assoc acc# k# v#))
+                       res#
+                       o#))
+             (throw (IllegalArgumentException. (str "cannot wrap " (or (class o#) "nil")))))))
+
+       (def ~(reverse-ctor-name fn-name)
+         (fn [o#]
+           (proto-map->clj-map o#))))))
+
+(defn emit-default-ctor [^Class clazz]
+  (let [map-ctor-name (u/map-ctor-name clazz)
+        fn-name       (u/empty-ctor-name clazz)]
     `(def ~fn-name
-       (fn
-         ([] (~fn-name {}))
-         ([o#]
-          (if (map? o#)
-            (let [res# (new ~wrapper-class-name (.build (~(static-call clazz "newBuilder"))))]
-              (reduce (fn [acc# [k# v#]]
-                        (assoc acc# k# v#))
-                      res#
-                      o#))
-            (throw (IllegalArgumentException. (str "cannot wrap " (or (class o#) "nil"))))))))))
+       (fn []
+         (~map-ctor-name {})))))
+
+(defn emit-bytes-ctor [^Class clazz]
+  (let [proto-ctor-name (u/proto-ctor-name clazz)
+        fn-name         (u/bytes-ctor-name clazz)
+        bytea           (with-meta 'bytea {:tag "[B"})
+        x               (u/with-type-hint 'x clazz)]
+    `(do
+       (def ~fn-name
+         (fn [~bytea]
+           (let [proto# (~(static-call clazz "parseFrom") ~bytea)]
+             (~proto-ctor-name proto#))))
+
+       (def ~(reverse-ctor-name fn-name)
+         (fn [y#]
+           (let [~x (pronto.proto/get-proto y#)]
+             (.toByteArray ~x)))))))
 

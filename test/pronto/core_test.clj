@@ -24,11 +24,13 @@
     true  (.build)))
 
 (defn make-address
-  [& {:keys [city street house-num]}]
+  [& {:keys [city street house-num house apartment]}]
   (cond-> (People$Address/newBuilder)
     city      (.setCity city)
     street    (.setStreet street)
     house-num (.setHouseNum house-num)
+    house     (.setHouse house)
+    apartment (.setApartment apartment)
     true      (.build)))
 
 (defn make-person
@@ -78,39 +80,36 @@
           People$Like]
          (p/resolve-deps People$Person))))
 
-(deftest map->wrapper-test
+(deftest map-test
   (let [city      "NYC"
         street    "Broadway"
         house-num 32
         num-rooms 3
-        addr-map  {:city      city      :street street
-                   :house-num house-num :house  {:num-rooms num-rooms}}
-        addr      (map->protogen-generated-People$Address addr-map)
+        addr-map  {:city      city :street street
+                   :house-num house-num
+                   :house     {:num-rooms num-rooms}}
+        addr      (map->People$AddressMap addr-map)
         p         (p/get-proto addr)]
     (is (= (.getCity p) (:city addr) city))
     (is (= (.getStreet p) (:street addr) street))
     (is (= (.getHouseNum p) (:house-num addr) house-num))
-    (is (= (.getNumRooms (.getHouse p)) (get-in addr [:house :num-rooms])))))
+    (is (= (.getNumRooms (.getHouse p)) (get-in addr [:house :num-rooms])))
 
-(deftest message-test
-  (let [p (make-person)
-        w (proto->protogen-generated-People$Person p)
-        ]
-    ))
+    (is (= addr-map (People$AddressMap->map addr)))))
 
 (deftest enum-test
 
   ;; test translations:
 
-  (is (= :low (:level (proto->protogen-generated-People$Like (make-like :level People$Level/LOW)))))
+  (is (= :low (:level (proto->People$LikeMap (make-like :level People$Level/LOW)))))
 
-  (is (= :medium (:level (proto->protogen-generated-People$Like (make-like :level People$Level/MEDIUM)))))
+  (is (= :medium (:level (proto->People$LikeMap (make-like :level People$Level/MEDIUM)))))
 
-  (is (= :high (:level (proto->protogen-generated-People$Like (make-like :level People$Level/HIGH)))))
+  (is (= :high (:level (proto->People$LikeMap (make-like :level People$Level/HIGH)))))
 
   ;; test transitions
   (let [p (make-like :desc "my description" :level People$Level/LOW)
-        w (proto->protogen-generated-People$Like p)]
+        w (proto->People$LikeMap p)]
     (is (= :low (:level w)))
     (is (= :medium (:level (assoc w :level :medium))))
     (is (= :high (:level (assoc w :level :high))))))
@@ -129,32 +128,32 @@
   (is (thrown? IllegalArgumentException (assoc m k "1"))))
 
 (deftest bad-assoc
-  (is (thrown? IllegalArgumentException (assoc (proto->protogen-generated-People$Person (make-person)) :fake-key 123))))
+  (is (thrown? IllegalArgumentException (assoc (proto->People$PersonMap (make-person)) :fake-key 123))))
 
 (deftest int-test
   (test-numeric int
-                (proto->protogen-generated-People$Person (make-person))
+                (proto->People$PersonMap (make-person))
                 :id))
 
 (deftest long-test
   (test-numeric long
-                (proto->protogen-generated-People$Person (make-person))
+                (proto->People$PersonMap (make-person))
                 :age-millis))
 
 
 (deftest double-test
   (test-numeric double
-                (proto->protogen-generated-People$Person (make-person))
+                (proto->People$PersonMap (make-person))
                 :height-cm))
 
 (deftest float-test
   (test-numeric float
-                (proto->protogen-generated-People$Person (make-person))
+                (proto->People$PersonMap (make-person))
                 :weight-kg))
 
 
 (deftest boolean-test
-  (let [p (proto->protogen-generated-People$Person (make-person :is-vegetarian false))]
+  (let [p (proto->People$PersonMap (make-person :is-vegetarian false))]
     (is (true? (check-assoc p :is-vegetarian true)))
     (is (thrown? IllegalArgumentException (assoc p :is-vegetarian nil)))
     (is (thrown? IllegalArgumentException (assoc p :is-vegetarian "1")))))
@@ -163,7 +162,7 @@
 (deftest repeated-primitive-test
   (let [pet-names ["aaa" "bbb"]
         p         (make-person :pet-names pet-names)
-        w         (proto->protogen-generated-People$Person p)]
+        w         (proto->People$PersonMap p)]
     (is (= pet-names (:pet-names w)))
     (is (= ["ccc"] (:pet-names (assoc w :pet-names ["ccc"]))))
     (is (thrown? IllegalArgumentException (assoc w :pet-names 123)))
@@ -175,7 +174,7 @@
   (let [likes [(make-like :desc "desc1" :level People$Level/LOW)
                (make-like :desc "desc2" :level People$Level/MEDIUM)]
         p     (make-person :likes likes)
-        w     (proto->protogen-generated-People$Person p)]
+        w     (proto->People$PersonMap p)]
     (is (= likes (:likes w)))
     (is (= [(make-like :desc "desc3" :level People$Level/HIGH)]
            (:likes (assoc w :likes [(make-like :desc "desc3" :level People$Level/HIGH)]))))
@@ -186,11 +185,11 @@
            (:likes (update w :likes (partial map (fn [x] (assoc x :level :high)))))))))
 
 (deftest one-of-test
-  (let [address   (map->protogen-generated-People$Address {})
+  (let [address   (map->People$AddressMap {})
         house     (make-house :num-rooms 5)
         apartment (make-apartment :floor-num 4)
-        address2  (assoc address :house (proto->protogen-generated-People$House house))
-        address3  (assoc address2 :apartment (proto->protogen-generated-People$Apartment apartment))]
+        address2  (assoc address :house (proto->People$HouseMap house))
+        address3  (assoc address2 :apartment (proto->People$ApartmentMap apartment))]
     (is (nil? (:house address)))
     (is (nil? (:apartment address)))
 
@@ -204,24 +203,34 @@
   (let [bff    (make-person :name "bar")
         sister (make-person :name "baz")
         person (make-person :name "foo" :relations {"bff" bff})
-        w      (proto->protogen-generated-People$Person person)]
+        w      (proto->People$PersonMap person)]
     (is (= {:bff bff} (:relations (assoc-in w [:relations :bff] bff))))
     (is (= {:bff bff :sister sister} (:relations (assoc-in w [:relations :sister] sister))))))
 
 (deftest empty-test
-  (let [person       (make-person :name "foo" :age 100)
-        empty-person (make-person)]
-    (is (= (empty (proto->protogen-generated-People$Person person))
-           (proto->protogen-generated-People$Person empty-person)))))
+  (let [person (make-person :name "foo" :age 100)]
+    (is (= (empty (proto->People$PersonMap person))
+           (->People$PersonMap)))))
 
 
 
 (deftest transient-test
-  (let [transient-person (transient (proto->protogen-generated-People$Person (make-person)))]
+  (let [transient-person (transient (proto->People$PersonMap (make-person)))]
     (assoc! transient-person :name "foo")
     (assoc! transient-person :id 2)
     (is (thrown? IllegalArgumentException (assoc! transient-person :fake-key "hello")))
     (is (thrown? IllegalArgumentException (assoc! transient-person :id "foo")))
-    (is (= (persistent! transient-person) (proto->protogen-generated-People$Person (make-person :id 2 :name "foo"))))
+    (is (= (persistent! transient-person) (proto->People$PersonMap (make-person :id 2 :name "foo"))))
     (is (thrown? IllegalAccessError (get transient-person :name)))))
+
+(deftest bytes-test
+  (let [person (make-person :id 5 :name "hello"
+                            :address (make-address :city "some-city" :street "broadway")
+                            :age-millis 111111)]
+    (is (= person
+           (p/get-proto (bytes->People$PersonMap (.toByteArray person)))))))
+
+
+
+
 

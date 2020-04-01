@@ -55,7 +55,7 @@
 (defmethod gen-wrapper
   :message
   [^Class clazz]
-  (let [wrapper-type (u/class-name->wrapper-class-name clazz)]
+  (let [wrapper-type (u/class->map-class-name clazz)]
     (reify Wrapper
       (wrap [_ v]
         `(new ~wrapper-type ~v))
@@ -96,26 +96,25 @@
 (defmethod gen-wrapper
   :scalar
   [^Class clazz]
-  (let [wrapper-type (u/class-name->wrapper-class-name clazz)]
-    (reify Wrapper
-      (wrap [_ v] v)
+  (reify Wrapper
+    (wrap [_ v] v)
 
-      (unwrap [_ v]
-        ;; TODO: clean this up...
-        (cond
-          (= String clazz)
-          `(if-not (= String (class ~v))
+    (unwrap [_ v]
+      ;; TODO: clean this up...
+      (cond
+        (= String clazz)
+        `(if-not (= String (class ~v))
+           (throw (IllegalArgumentException. (make-error-message ~clazz ~v)))
+           ~v)
+        (= Boolean/TYPE clazz)
+        `(if-not (= Boolean (class ~v))
+           (throw (IllegalArgumentException. (make-error-message ~clazz ~v)))
+           ~v)
+        (numeric-scalar? clazz)
+        (let [vn (u/with-type-hint v Number)]
+          `(if-not (instance? Number ~vn)
              (throw (IllegalArgumentException. (make-error-message ~clazz ~v)))
-             ~v)
-          (= Boolean/TYPE clazz)
-          `(if-not (= Boolean (class ~v))
-             (throw (IllegalArgumentException. (make-error-message ~clazz ~v)))
-             ~v)
-          (numeric-scalar? clazz)
-          (let [vn (u/with-type-hint v Number)]
-            `(if-not (instance? Number ~vn)
-               (throw (IllegalArgumentException. (make-error-message ~clazz ~v)))
-               (let [~vn ~v]
-                 (~(symbol (str "." (str clazz) "Value")) ~vn))))
-          :else (throw (IllegalArgumentException. (make-error-message ~clazz ~v))))))))
+             (let [~vn ~v]
+               (~(symbol (str "." (str clazz) "Value")) ~vn))))
+        :else (throw (IllegalArgumentException. (make-error-message ~clazz ~v)))))))
 
