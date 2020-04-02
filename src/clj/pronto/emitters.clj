@@ -44,6 +44,13 @@
 
        (~'get-proto [this#] ~o)
 
+       clojure.lang.IObj
+
+       (withMeta [this# meta-map#]
+         this#)
+
+       (meta [this#] {})
+
        clojure.lang.Associative
 
        ~(let [this (gensym 'this)
@@ -197,7 +204,7 @@
             ~this))
 
        (without [this# k#]
-         (check-editable!)
+         (check-editable! ~'editable?)
          (throw (UnsupportedOperationException. "cannot dissoc from a proto map")))
 
        (persistent [this#]
@@ -222,17 +229,17 @@
        pronto.DefaultingFn
 
        (invoke [this# arg1#]
-         (check-editable!)
+         (check-editable! ~'editable?)
          (.valAt this# arg1#))
 
        (invoke [this# arg1# not-found#]
-         (check-editable!)
+         (check-editable! ~'editable?)
          (.valAt this# arg1# not-found#))
 
        clojure.lang.ITransientCollection
 
        (conj [this# val#]
-         (check-editable!)
+         (check-editable! ~'editable?)
          (pronto.TransientMapHelpers/conj this# val#))
 
        clojure.lang.ILookup
