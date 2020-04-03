@@ -49,8 +49,8 @@
            (throw (IllegalArgumentException. (str "can't unwrap " ~v))))))))
 
 
-(defn make-error-message [expected-class value]
-  (str "expected class " expected-class ", but got " (or (class value) "nil")))
+(defn make-error-message ^String [expected-class value]
+  (str "expected " expected-class ", but got " (or (class value) "nil")))
 
 (defmethod gen-wrapper
   :message
