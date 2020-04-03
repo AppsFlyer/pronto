@@ -8,7 +8,8 @@ The guiding principles for `pronto` are:
 
 * **Idiomatic interaction**: Use Protocol Buffer POJOs (`protoc` generated) as though they were native Clojure data structures, allowing for data-driven programming.
 * **Minimalistic**: `pronto` is behavioral only: it is only considered with making POJOs mimic Clojure collections. Data is still stored in the POJOs, and no
-kind of reflective/dynamic APIs are used.
+kind of reflective/dynamic APIs are used. This also has the benefit that [unknown fields](https://developers.google.com/protocol-buffers/docs/proto3#unknowns) are not lost 
+during serialization.
 * **Runtime Type Safety**: The schema cannot be broken - `pronto` fails-fast when `assoc`ing a key not present in the schema or a value of the wrong type.
 This guarantees that schema errors are detected immediately rather than at some undefined time in the future (perhaps too late) or worse -- dropped and
 ignored completely.
@@ -196,7 +197,6 @@ message Address {
 `ByteString`s are not wrapped, and returned raw in order to provide direct access to the byte array.
 
 However, ByteString's are naturally `seqable` since they implement `java.lang.Iterable`.
-
 
 #### Transients
 
