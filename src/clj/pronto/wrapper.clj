@@ -67,13 +67,13 @@
            (= (class ~v) ~wrapper-type)
            ~(let [u (with-meta (gensym 'u) {:tag 'pronto.wrapper/ProtoMap})]
               `(let [~u ~v]
-                 (pronto.proto/get-proto ~u)))
+                 (pronto.RT/getProto ~u)))
 
            (map? ~v)
            ;; TODO: duplicate code
            ~(let [u (with-meta (gensym 'u) {:tag 'pronto.wrapper/ProtoMap})]
               `(let [~u (~(u/map-ctor-name clazz) ~v)]
-                 (pronto.proto/get-proto ~u)))
+                 (pronto.RT/getProto ~u)))
 
            :else (throw (IllegalArgumentException. (make-error-message ~clazz ~v))))))))
 

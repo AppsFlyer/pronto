@@ -2,11 +2,27 @@
   (:require [pronto.utils :as u]
             [pronto.wrapper :as w]
             [pronto.emitters :as e]
-            [pronto.type-gen :as t]
-            [pronto.proto :as proto]))
+            [pronto.type-gen :as t])
+  (:import [pronto ProtoMap]))
 
+(defn get-proto [^ProtoMap m]
+  (.getProto m))
 
-(def get-proto proto/get-proto)
+(defn clear-field [^ProtoMap m k]
+  (if (.isMutable m)
+    (throw (IllegalAccessError. "cannot clear-field on a transient"))
+    (.clearField m k)))
+
+(defn clear-field! [^ProtoMap m k]
+  (if-not (.isMutable m)
+    (throw (IllegalAccessError. "cannot clear-field! on a non-transient"))
+    (.clearField m k)))
+
+(defn has-field? [^ProtoMap m k]
+  (.hasField m k))
+
+(defn which-one-of [^ProtoMap m k]
+  (.whichOneOf m k))
 
 (defn resolve-deps
   ([^Class clazz] (first (resolve-deps clazz #{})))
@@ -27,43 +43,29 @@
              [[] seen-classes]
              deps-classes))))
 
-(defn emit [^Class clazz]
-  `(do
-     (declare ~(u/map-ctor-name clazz))
-     (declare ~(u/proto-ctor-name clazz))
-     (declare ~(u/transient-ctor-name clazz))
 
-     ~(e/emit-deftype clazz)
-     ~(e/emit-transient clazz)
-     ~(e/emit-proto-ctor clazz)
-     ~(e/emit-map-ctor clazz)
-     ~(e/emit-bytes-ctor clazz)
-     ~(e/emit-default-ctor clazz)))
-
-
-(def loaded-classes (atom #{}))
+(def ^:private loaded-classes (atom #{}))
 
 (defn unload-classes! [] (swap! loaded-classes empty))
 
-
 (defmacro defproto [class-sym]
-  (let [^Class clazz   (if-not (symbol? class-sym)
-                         (throw (IllegalArgumentException. (str "defproto: expected a class, got " (class class-sym))))
-                         (resolve class-sym))
-        map-class-name (u/class->map-class-name clazz)]
+  (let [^Class clazz (if-not (symbol? class-sym)
+                       (throw (IllegalArgumentException. (str "defproto: expected a class, got " (class class-sym))))
+                       (resolve class-sym))]
     (if (nil? clazz)
       (throw (IllegalArgumentException. (str "defproto: cannot resolve class " class-sym)))
-      (let [deps      (reverse (resolve-deps clazz))
-            class-key [*ns* clazz]]
+      (let [map-class-name (u/class->map-class-name clazz)
+            deps           (reverse (resolve-deps clazz))
+            class-key      [*ns* clazz]]
         (if (get @loaded-classes class-key)
           map-class-name
           (do
             (swap! loaded-classes conj class-key)
             `(do
                ~@(for [dep deps]
-                   (emit dep))
+                   (e/emit-proto-map dep))
 
-               ~(emit clazz)
+               ~(e/emit-proto-map clazz)
 
                ~map-class-name)))))))
 

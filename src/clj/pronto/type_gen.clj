@@ -42,19 +42,13 @@
   (keyword (.getName fd)))
 
 
-(defn field->camel-case [field]
-  (->> (s/split (.getName field) #"_")
-       (map #(s/capitalize %))
-       (s/join "")))
-
-
 (defn get-field-type [^Class clazz fd]
-  (let [^Method m (.getDeclaredMethod clazz (str "get" (field->camel-case fd))
+  (let [^Method m (.getDeclaredMethod clazz (str "get" (u/field->camel-case fd))
                                       (make-array Class 0))]
     (.getReturnType m)))
 
 (defn get-simple-type-gen [^Class clazz ^Descriptors$FieldDescriptor fd]
-  (let [cc         (field->camel-case fd)
+  (let [cc         (u/field->camel-case fd)
         setter     (symbol (str ".set" cc))
         getter     (symbol (str ".get" cc))
         field-type (get-field-type clazz fd)
@@ -82,7 +76,7 @@
   (cond
     (.isMapField fd)         :map
     (.isRepeated fd)         :repeated
-    (.getContainingOneof fd) :one-of
+    ;(.getContainingOneof fd) :one-of
     :else                    :simple))
 
 (defmulti get-type-gen
@@ -95,15 +89,11 @@
   [^Class clazz ^Descriptors$FieldDescriptor fd]
   (get-simple-type-gen clazz fd))
 
-(defn message? [^Descriptors$FieldDescriptor fd]
-  (= (.getType fd)
-     Descriptors$FieldDescriptor$Type/MESSAGE))
-
 (defn uncapitalize [s]
   (str (s/lower-case (subs s 0 1)) (subs s 1)))
 
 (defn fd->java-type [^Descriptors$FieldDescriptor fd]
-  (if (message? fd)
+  (if (u/message? fd)
     (Class/forName (.getFullName (.getMessageType fd)))
     (condp = (.getJavaType fd)
       Descriptors$FieldDescriptor$JavaType/INT    Integer
@@ -111,8 +101,8 @@
       :else                                       (throw (UnsupportedOperationException. (str "don't know type " (.getJavaType fd)))))))
 
 (defn get-parameterized-type [parameter-index ^Class clazz ^Descriptors$FieldDescriptor fd]
-  (if (message? fd)
-    (let [field-name   (-> fd field->camel-case uncapitalize (str "_"))
+  (if (u/message? fd)
+    (let [field-name   (-> fd u/field->camel-case uncapitalize (str "_"))
           ^Field field (.getDeclaredField clazz field-name)
           ^Type type   (.getGenericType field)]
       (if (instance? ParameterizedType type)
@@ -125,7 +115,7 @@
 (defmethod get-type-gen
   :map
   [^Class clazz ^Descriptors$FieldDescriptor fd]
-  (let [cc          (field->camel-case fd)
+  (let [cc          (u/field->camel-case fd)
         key-type    (get-parameterized-type 0 clazz fd)
         val-type    (get-parameterized-type 1 clazz fd)
         key-wrapper (if (= String key-type)
@@ -173,28 +163,28 @@
                      ~(w/wrap val-wrapper entry-val))))
            (clojure.lang.PersistentHashMap/create new-map#))))))
 
-(defmethod get-type-gen
-  :one-of
-  [^Class clazz ^Descriptors$FieldDescriptor fd]
-  (let [g                (get-simple-type-gen clazz fd)
-        containing-oneof (.getContainingOneof fd)
-        cc               (field->camel-case containing-oneof)
-        case-enum-getter (symbol (str ".get" cc "Case"))
-        field-num        (.getNumber fd)]
-    (reify TypeGen
-      (get-class [_] (get-class g))
+#_(defmethod get-type-gen
+    :one-of
+    [^Class clazz ^Descriptors$FieldDescriptor fd]
+    (let [g                (get-simple-type-gen clazz fd)
+          containing-oneof (.getContainingOneof fd)
+          cc               (u/field->camel-case containing-oneof)
+          case-enum-getter (symbol (str ".get" cc "Case"))
+          field-num        (.getNumber fd)]
+      (reify TypeGen
+        (get-class [_] (get-class g))
 
-      (gen-setter [_ builder k v] (gen-setter g builder k v))
+        (gen-setter [_ builder k v] (gen-setter g builder k v))
 
-      (gen-getter [_ o k] 
-        `(when (= ~field-num (.getNumber (~case-enum-getter ~o)))
-           ~(gen-getter g o k))))))
+        (gen-getter [_ o k] 
+          `(when (= ~field-num (.getNumber (~case-enum-getter ~o)))
+             ~(gen-getter g o k))))))
 
 
 (defmethod get-type-gen
   :repeated
   [^Class clazz ^Descriptors$FieldDescriptor fd]
-  (let [cc             (field->camel-case fd)
+  (let [cc             (u/field->camel-case fd)
         inner-type     (get-parameterized-type 0 clazz fd)
         wrapper        (w/gen-wrapper inner-type)
         clear-method   (symbol (str ".clear" cc))

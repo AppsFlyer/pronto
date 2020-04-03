@@ -1,7 +1,6 @@
 (ns pronto.core-test
   (:require [clojure.test :refer :all]
-            [pronto.core :refer [defproto] :as p]
-            [pronto.proto :as proto])
+            [pronto.core :refer [defproto] :as p])
   (:import [protogen.generated People$Person People$Person$Builder
             People$Address People$Address$Builder People$Like People$Level
             People$House People$Apartment]
@@ -89,13 +88,16 @@
                    :house-num house-num
                    :house     {:num-rooms num-rooms}}
         addr      (map->People$AddressMap addr-map)
-        p         (p/get-proto addr)]
+        p         (People$AddressMap->proto addr)]
     (is (= (.getCity p) (:city addr) city))
     (is (= (.getStreet p) (:street addr) street))
     (is (= (.getHouseNum p) (:house-num addr) house-num))
     (is (= (.getNumRooms (.getHouse p)) (get-in addr [:house :num-rooms])))
 
-    (is (= addr-map (People$AddressMap->map addr)))))
+    (is (= (assoc addr-map
+                  :apartment
+                  (People$ApartmentMap->map (->People$ApartmentMap)))
+           (People$AddressMap->map addr)))))
 
 (deftest enum-test
 
@@ -190,14 +192,13 @@
         apartment (make-apartment :floor-num 4)
         address2  (assoc address :house (proto->People$HouseMap house))
         address3  (assoc address2 :apartment (proto->People$ApartmentMap apartment))]
-    (is (nil? (:house address)))
-    (is (nil? (:apartment address)))
-
+    (is (= (p/which-one-of address :home) :home-not-set))
+    
     (is (= house (:house address2)))
-    (is (nil? (:apartment address2)))
+    (is (= (p/which-one-of address2 :home) :house))
 
     (is (= apartment (:apartment address3)))
-    (is (nil? (:house address3)))))
+    (is (= (p/which-one-of address3 :home) :apartment))))
 
 (deftest maps-test
   (let [bff    (make-person :name "bar")
@@ -228,9 +229,49 @@
                             :address (make-address :city "some-city" :street "broadway")
                             :age-millis 111111)]
     (is (= person
-           (p/get-proto (bytes->People$PersonMap (.toByteArray person)))))))
+           (People$PersonMap->proto (bytes->People$PersonMap (.toByteArray person)))))))
 
 
+(defn check-clear
+  ([ctor field-name init-val default-val]
+   (check-clear ctor field-name init-val default-val false))
+  ([ctor field-name init-val default-val check-has?]
+   (let [obj (ctor {field-name init-val})]
+     (is (= init-val (get obj field-name)))
+     (when check-has?
+       (is (true? (p/has-field? obj field-name))))
+     (is (= default-val (get (p/clear-field obj field-name) field-name)))
+     (when check-has?
+       (is (false? (p/has-field? (p/clear-field obj field-name) field-name)))))))
 
+
+(deftest clear-field-test
+  (check-clear map->People$PersonMap :id 5 0)
+
+  (check-clear map->People$PersonMap :name "foo" "")
+
+  (check-clear map->People$PersonMap :address
+               (make-address :city "NYC" :street "Broadway")
+               (make-address)
+               true)
+
+  (check-clear map->People$PersonMap :height-cm 5.0 0.0)
+
+  (check-clear map->People$PersonMap :weight-kg 5.0 0.0)
+
+  (check-clear map->People$PersonMap :is-vegetarian true false)
+
+  (check-clear map->People$PersonMap :likes
+               [(make-like :desc "wow" :level People$Level/LOW)]
+               [])
+
+  (check-clear map->People$PersonMap :relations
+               {:friend (make-person)}
+               {})
+
+  (check-clear map->People$AddressMap :house
+               (make-house :num-rooms 3)
+               (make-house)
+               true))
 
 

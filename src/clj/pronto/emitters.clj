@@ -1,26 +1,68 @@
 (ns pronto.emitters
   (:require [pronto.type-gen :as t]
             [pronto.utils :as u]
-            [pronto.proto :refer [ProtoMap get-proto]]
-            [clojure.string :as s]))
+            [clojure.string :as s])
+  (:import [com.google.protobuf
+            Descriptors$FieldDescriptor
+            Descriptors$OneofDescriptor]))
 
-(defn emit-assoc [fields builder k v]
+
+(defn emit-fields-case [fields k throw-error? f]
   `(case ~k
      ~@(interleave
          (map :kw fields)
-         (map #(t/gen-setter (:type-gen %) builder k v) fields))
-     (throw (IllegalArgumentException. (str "cannot assoc " ~k)))))
+         (map f fields))
+     ~(if-not throw-error?
+        nil ; explicitly return nil from case
+        `(throw (IllegalArgumentException. (str "No such field " ~k))))))
+
+(defn emit-assoc [fields builder k v]
+  (emit-fields-case fields k true
+                    #(t/gen-setter (:type-gen %) builder k v)))
 
 
 (defn emit-val-at [fields obj k]
-  `(case ~k
+  (emit-fields-case fields k false
+                    #(t/gen-getter (:type-gen %) obj k)))
 
-     ~@(interleave
-         (map :kw fields)
-         (map #(t/gen-getter (:type-gen %) obj k) fields))
+(defn emit-clear [fields builder k]
+  (emit-fields-case fields k true
+                    (fn [field]
+                      (let [clear-method (symbol (str ".clear" (u/field->camel-case (:fd field))))]
+                        `(~clear-method ~builder)))))
 
-     nil))
+(defn emit-has-field? [fields o k]
+  (emit-fields-case fields k true
+                    (fn [field]
+                      (let [^Descriptors$FieldDescriptor fd (:fd field)]
+                        (if (and (u/message? fd)
+                                 (not (.isMapField fd))
+                                 (not (.isRepeated fd)))
+                          (let [has-method (symbol (str ".has" (u/field->camel-case (:fd field))))]
+                            `(~has-method ~o))
+                          `(throw (IllegalArgumentException. (str "field " ~k " cannot be checked for field existence"))))))))
 
+(defn enum-case->kebab-case [enum-case-name]
+  (keyword (s/lower-case (u/->kebab-case enum-case-name))))
+
+(defn emit-which-one-of [fields o k]
+  (let [one-ofs (->> fields
+                     (map #(.getContainingOneof (:fd %)))
+                     (keep identity)
+                     set)]
+    (if-not (seq one-ofs)
+      `(throw (IllegalArgumentException. (str "Cannot check which one-of for " ~k)))
+      `(case ~k
+         ~@(interleave
+             (map #(keyword (u/->kebab-case (.getName %)))
+                  one-ofs)
+
+             (map (fn [^Descriptors$OneofDescriptor fd]
+                    (let [cc               (u/field->camel-case fd)
+                          case-enum-getter (symbol (str ".get" cc "Case"))]
+                      `(enum-case->kebab-case (str (~case-enum-getter ~o)))))
+                  one-ofs))
+         (throw (IllegalArgumentException. (str "Cannot check which one-of for " ~k)))))))
 
 (defn static-call [^Class class method-name]
   (symbol (str (.getName class) "/" method-name)))
@@ -35,14 +77,32 @@
         o                   (u/with-type-hint (gensym 'o) clazz)
         builder-class       (get-builder-class clazz)
         wrapper-class-name  (u/class->map-class-name clazz)
-        transient-ctor-name (u/transient-ctor-name clazz)]
+        transient-ctor-name (u/transient-ctor-name clazz)
+        builder-sym         (u/with-type-hint (gensym 'builder) builder-class)]
     `(deftype ~wrapper-class-name [~o]
 
        java.io.Serializable
 
-       pronto.proto/ProtoMap
+       pronto.ProtoMap
 
-       (~'get-proto [this#] ~o)
+
+       (~'isMutable [this#] false)
+
+       (~'getProto [this#] ~o)
+
+       ~(let [k (gensym 'k)]
+          `(~'clearField [this# ~k]
+            (let [~builder-sym (.toBuilder ~o)]
+              ~(emit-clear fields builder-sym k)
+              (new ~wrapper-class-name (.build ~builder-sym)))))
+
+       ~(let [k (gensym 'k)]
+          `(~'hasField [this# ~k]
+            ~(emit-has-field? fields o k)))
+
+       ~(let [k (gensym 'k)]
+          `(~'whichOneOf [this# ~k]
+            ~(emit-which-one-of fields o k)))
 
        clojure.lang.IObj
 
@@ -55,12 +115,11 @@
 
        ~(let [this (gensym 'this)
               k    (gensym 'k)
-              v    (gensym 'v)
-              b    (u/with-type-hint (gensym 'builder) builder-class)]
+              v    (gensym 'v)]
           `(~'assoc [~this ~k ~v]
-            (let [~b (.toBuilder ~o)]
-              ~(emit-assoc fields b k v)
-              (new ~wrapper-class-name (.build ~b)))))
+            (let [~builder-sym (.toBuilder ~o)]
+              ~(emit-assoc fields builder-sym k v)
+              (new ~wrapper-class-name (.build ~builder-sym)))))
 
 
        (containsKey [this# k#]
@@ -99,9 +158,9 @@
 
        (equiv [this# other#]
          (pronto.PersistentMapHelpers/equiv this#
-                                               (if (instance? ~clazz other#)
-                                                 (~(u/proto-ctor-name clazz) other#)
-                                                 other#)))
+                                                       (if (instance? ~clazz other#)
+                                                         (~(u/proto-ctor-name clazz) other#)
+                                                         other#)))
 
        clojure.lang.Seqable
 
@@ -189,9 +248,25 @@
 
        java.io.Serializable
 
-       pronto.proto/ProtoMap
+       pronto.ProtoMap
 
-       (~'get-proto [this#] ~o)
+       ;; TODO: remove this.
+       (~'getProto [this#] ~o)
+
+       (~'isMutable [this#] true)
+
+       ~(let [k (gensym 'k)]
+          `(~'clearField [this# ~k]
+            ~(emit-clear fields o k)
+            this#))
+
+       ~(let [k (gensym 'k)]
+          `(~'hasField [this# ~k]
+            ~(emit-has-field? fields o k)))
+
+       ~(let [k (gensym 'k)]
+          `(~'whichOneOf [this# ~k]
+            ~(emit-which-one-of fields o k)))
 
        clojure.lang.ITransientMap
 
@@ -269,12 +344,12 @@
 
        (def ~(reverse-ctor-name fn-name)
          (fn [o#]
-           (pronto.proto/get-proto o#))))))
+           (pronto.RT/getProto o#))))))
 
 (defn proto-map->clj-map [m]
   (into {}
         (map (fn [[k v]]
-               [k (if (instance? pronto.proto.ProtoMap v)
+               [k (if (instance? pronto.ProtoMap v)
                     (proto-map->clj-map v)
                     v)]))
         m))
@@ -317,6 +392,19 @@
 
        (def ~(reverse-ctor-name fn-name)
          (fn [y#]
-           (let [~x (pronto.proto/get-proto y#)]
+           (let [~x (pronto.RT/getProto y#)]
              (.toByteArray ~x)))))))
 
+
+(defn emit-proto-map [^Class clazz]
+  `(do
+     (declare ~(u/map-ctor-name clazz))
+     (declare ~(u/proto-ctor-name clazz))
+     (declare ~(u/transient-ctor-name clazz))
+
+     ~(emit-deftype clazz)
+     ~(emit-transient clazz)
+     ~(emit-proto-ctor clazz)
+     ~(emit-map-ctor clazz)
+     ~(emit-bytes-ctor clazz)
+     ~(emit-default-ctor clazz)))

@@ -1,5 +1,10 @@
 (ns pronto.utils
-  (:require [clojure.string :as s]))
+  (:require [clojure.string :as s])
+  (:import
+   [com.google.protobuf
+    Descriptors$FieldDescriptor
+    Descriptors$GenericDescriptor
+    Descriptors$FieldDescriptor$Type]))
 
 
 (defn sanitized-class-name [^Class clazz]
@@ -34,3 +39,11 @@
 (def bytes-ctor-name (partial ctor-name 'bytes))
 
 
+(defn field->camel-case [^Descriptors$GenericDescriptor field]
+  (->> (s/split (.getName field) #"_")
+       (map #(s/capitalize %))
+       (s/join "")))
+
+(defn message? [^Descriptors$FieldDescriptor fd]
+  (= (.getType fd)
+     Descriptors$FieldDescriptor$Type/MESSAGE))

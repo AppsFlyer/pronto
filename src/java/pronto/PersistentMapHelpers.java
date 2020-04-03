@@ -7,11 +7,11 @@ import java.util.*;
 public class PersistentMapHelpers {
 
     public static String toString(IPersistentMap map) {
-        return RT.printString(map);
+        return clojure.lang.RT.printString(map);
     }
 
     public static IPersistentCollection cons(IPersistentMap map, Object o){
-        if(o instanceof Map.Entry)
+        if (o instanceof Map.Entry)
         {
             Map.Entry e = (Map.Entry) o;
 
@@ -26,7 +26,7 @@ public class PersistentMapHelpers {
         }
 
         IPersistentMap ret = map;
-        for(ISeq es = RT.seq(o); es != null; es = es.next())
+        for(ISeq es = clojure.lang.RT.seq(o); es != null; es = es.next())
         {
             Map.Entry e = (Map.Entry) es.first();
             ret = ret.assoc(e.getKey(), e.getValue());
