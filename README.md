@@ -10,7 +10,7 @@ The guiding principles for `pronto` are:
 * **Minimalistic**: `pronto` is behavioral only: it is only considered with making POJOs mimic Clojure collections. Data is still stored in the POJOs, and no
 kind of reflective/dynamic APIs are used.
 * **Runtime Type Safety**: The schema cannot be broken - `pronto` fails-fast when `assoc`ing a key not present in the schema or a value of the wrong type.
-This guarantees that schema errors are detected immediately rather than at some undefined time in the future (perhaps too late?) or worse -- dropped and
+This guarantees that schema errors are detected immediately rather than at some undefined time in the future (perhaps too late) or worse -- dropped and
 ignored completely.
 * **Performant**: Present a minimal CPU/memory overhead.
 
@@ -123,7 +123,7 @@ If a key has never been set, its default protobuf value will be returned.
 ```
 
 
-In order to prevent ambiguity and stay aligned with protobuf semantics, `assoc`ing `nil` is not allowed for any type of key,
+In order to prevent ambiguity and stay aligned with protobuf semantics, `assoc`ing `nil` values is not allowed for any type of key,
 and will throw an `IllegalArgumentException`.
 
 Since keys cannot be removed from the map, `dissoc` is also unsupported.
