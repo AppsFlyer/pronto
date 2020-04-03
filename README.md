@@ -147,6 +147,25 @@ To check if a field has been set, use `has-field?` (only supported for message t
 => true
 ```
 
+#### Scalar fields
+Scalar fields are straight-forward in that that they follow the [protobuf Java scalar mappings](https://developers.google.com/protocol-buffers/docs/proto3#scalar).
+
+Clojure-specific numeric types such as `Ratio` and `BigInt` are supported as well, and when `assoc`ing them to a map they are converted automatically
+to the underlying field's type.
+
+It is also important to note that Clojure uses `long`s to represent natural numbers, and these will be down-casted to `int` for integer fields.
+
+In any case, handling of overflows is left to the user.
+
+#### Message types
+When calling `defproto`, the macro will also find all message types on which the class depends, and generate specialized wrapper types for them as well.
+
+When reading a field whose type is a message type, a wrapper instance is returned:
+```clj
+(type (:address (->People$PersonMap)))
+=> user.People$AddressMap
+```
+
 #### Repeated and maps
 Values of repeated/map fields are returned as Clojure maps/vectors:
 
