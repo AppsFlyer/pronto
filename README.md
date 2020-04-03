@@ -13,7 +13,7 @@ during serialization.
 * **Runtime Type Safety**: The schema cannot be broken - `pronto` fails-fast when `assoc`ing a key not present in the schema or a value of the wrong type.
 This guarantees that schema errors are detected immediately rather than at some undefined time in the future (perhaps too late) or worse -- dropped and
 ignored completely.
-* **Performant**: Present a minimal CPU/memory overhead.
+* **Performant**: Present a minimal CPU/memory overhead: `pronto` compiles very thin wrapper classes and avoids reflection completely.
 
 ## Installation
 Add a dependency to your `project.clj` file:
