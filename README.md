@@ -7,7 +7,7 @@ A library for using [Protocol Buffers](https://github.com/protocolbuffers/protob
 The guiding principles for `pronto` are:
 
 * **Idiomatic interaction**: Use Protocol Buffer POJOs (`protoc` generated) as though they were native Clojure data structures, allowing for data-driven programming.
-* **Minimalistic**: `pronto` is behavioral only: it is only considered with making POJOs mimic Clojure collections. Data is still stored in the POJOs, and no
+* **Minimalistic**: `pronto` is behavioral only: it is only concerned with making POJOs mimic Clojure collections. Data is still stored in the POJOs, and no
 kind of reflective/dynamic APIs are used. This also has the benefit that [unknown fields](https://developers.google.com/protocol-buffers/docs/proto3#unknowns) are not lost 
 during serialization.
 * **Runtime Type Safety**: The schema cannot be broken - `pronto` fails-fast when `assoc`ing a key not present in the schema or a value of the wrong type.
@@ -40,20 +40,15 @@ Instances of the wrapper class:
 
 * Hold an underlying instance of the actual Java object.
 * Can be used as Clojure maps and support Clojure semantics and abstractions by implementing all the appropriate internal Clojure interfaces.
-* Are immutable.
+* Are immutable, i.e, `assoc`ing creates a new wrapper instance around a new POJO instance.
 
 Now we can work with protobuf while writing idiomatic Clojure code:
 
 ```clj
-(def person (. (People$Person/newBuilder) build))
-
-(def person-map (proto->People$PersonMap person))
-
-(-> person-map
+(-> (proto->People$PersonMap) ;; creates a wrapper around an empty instance of `Person`
     (assoc :name "Rich" :id 0 :pet-names ["FOO" "BAR"])
     (update :pet-names #(map clojure.string/lower-case %))
     (assoc-in [:address :street] "Broadway"))
-
 ```
 
 Internally, field reads and writes are delegated directly to the underlying Java instance.
@@ -77,28 +72,26 @@ expected class java.lang.String, but got class java.lang.Long
 Calling `defproto` also generates specialized constructor functions for instantiating the wrapper class:
 
 ```clj
-(def person (. (People$Person/newBuilder) build))
+;; create an empty instance of `Person` and wrap around it:
+(->People$PersonMap)
 
-;; wrap around an instance of the class
-(proto->People$PersonMap person)
+;; deserialize byte array into People$Person and wrap around it:
+(bytes->People$PersonMap (read-person-byte-array-from-kafka))
 
 ;; generate a new instance of `People$Person` from a Clojure map adhering to the schema, and wrap around it:
 (map->People$PersonMap {:id 0 :name "hello" :address {:city "London"}}) 
 
-;; deserialize byte array into People$Person and wrap around it:
-(bytes->People$PersonMap (.toByteArray person))
-
-;; empty Person:
-(->People$PersonMap)
-
+;; wrap around an existing instance of the class:
+(def person (. (People$Person/newBuilder) build))
+(proto->People$PersonMap person)
 ```
 
 As well as their reverse:
 
 ```clj
-(People$PersonMap->proto person-map) ;; obtain the Java instance.
-(People$PersonMap->map person-map) ;; obtain a regular Clojure map
 (People$PersonMap->bytes person-map) ;; serialize to byte array
+(People$PersonMap->map person-map) ;; obtain a regular Clojure map
+(People$PersonMap->proto person-map) ;; obtain the Java instance.
 ```
 
 ### Protocol Buffers - Clojure interop
@@ -123,11 +116,10 @@ If a key has never been set, its default protobuf value will be returned.
  ...}
 ```
 
-
-In order to prevent ambiguity and stay aligned with protobuf semantics, `assoc`ing `nil` values is not allowed for any type of key,
+In order to prevent ambiguity and to stay aligned with protobuf semantics, `assoc`ing `nil` values is not allowed for any type of key,
 and will throw an `IllegalArgumentException`.
 
-Since keys cannot be removed from the map, `dissoc` is also unsupported.
+Since keys cannot be removed from the map, `dissoc` is also unsupported, and throws `UnsupportedOperationException`.
 
 To explicitly clear a value, use `clear-field`:
 
@@ -158,7 +150,8 @@ It is also important to note that Clojure uses `long`s to represent natural numb
 In any case, handling of overflows is left to the user.
 
 #### Message types
-When calling `defproto`, the macro will also find all message types on which the class depends, and generate specialized wrapper types for them as well.
+When calling `defproto`, the macro will also find all message types on which the class depends, and generate specialized wrapper types for them as well,
+so you do not have to call `defproto` recursively yourselves.
 
 When reading a field whose type is a message type, a wrapper instance is returned:
 ```clj
@@ -212,7 +205,7 @@ message Address {
 ```
 
 #### ByteStrings
-
+# TODO: explain ByteStrings are Java's version of protobuf bytes
 `ByteString`s are not wrapped, and returned raw in order to provide direct access to the byte array.
 
 However, ByteString's are naturally `seqable` since they implement `java.lang.Iterable`.
