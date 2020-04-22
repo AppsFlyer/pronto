@@ -8,11 +8,14 @@
   (unwrap [this v]))
 
 (def numeric-scalar?
-  (comp boolean #{Integer/TYPE Long/TYPE Double/TYPE Float/TYPE}))
+  (comp boolean #{Integer Integer/TYPE Long Long/TYPE Double Double/TYPE Float Float/TYPE}))
 
 (defn protobuf-scalar? [^Class clazz]
   (boolean (or (numeric-scalar? clazz)
-               (#{Boolean/TYPE String ByteString} clazz))))
+               (#{Boolean Boolean/TYPE
+                  Integer/TYPE Integer
+                  Long/TYPE Long
+                  String ByteString} clazz))))
 
 
 (defmulti gen-wrapper
@@ -116,5 +119,5 @@
              (throw (IllegalArgumentException. (make-error-message ~clazz ~v)))
              (let [~vn ~v]
                (~(symbol (str "." (str clazz) "Value")) ~vn))))
-        :else (throw (IllegalArgumentException. (make-error-message ~clazz ~v)))))))
+        :else (throw (IllegalArgumentException. (str "don't know how to wrap " clazz)))))))
 
