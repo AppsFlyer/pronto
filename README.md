@@ -219,3 +219,13 @@ Proto maps can be made `transient` by calling [transient](https://clojuredocs.or
 in local scopes, to perform a series of update operations.
 
 Rather then referencing the POJO instance, transients use a `Builder` instance. This eliminates the need to transition to the builder on every update operation, and can lower GC pressure.
+
+#### Metadata
+
+At the moment, metadata cannot be associated with proto maps -- `with-meta` and `vary-meta` are no-op.
+
+#### Reloadability 
+
+TODO: discuss reloadability at the REPL
+
+
