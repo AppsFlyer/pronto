@@ -1,0 +1,7 @@
+{:linters 
+ {:unused-referred-var {:level   :off
+                        :exclude {taoensso.timbre [info spy debug error warn]}}
+  :unused-binding      {:exclude-destructured-keys-in-fn-args true
+                        :level                                :info}
+  :unused-namespace    {:exclude [taoensso.timbre]
+                        :level   :off}}}
