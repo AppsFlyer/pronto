@@ -4,7 +4,8 @@
             [clojure.string :as s])
   (:import [com.google.protobuf
             Descriptors$FieldDescriptor
-            Descriptors$OneofDescriptor]))
+            Descriptors$OneofDescriptor]
+           [pronto ProtoMap]))
 
 
 (defn emit-fields-case [fields k throw-error? f]
@@ -349,7 +350,7 @@
 (defn proto-map->clj-map [m]
   (into {}
         (map (fn [[k v]]
-               [k (if (instance? pronto.ProtoMap v)
+               [k (if (instance? ProtoMap v)
                     (proto-map->clj-map v)
                     v)]))
         m))

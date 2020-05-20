@@ -4,4 +4,5 @@
   :unused-binding      {:exclude-destructured-keys-in-fn-args true
                         :level                                :info}
   :unused-namespace    {:exclude [taoensso.timbre]
-                        :level   :off}}}
+                        :level   :off}}
+ :output {:exclude-files ["emitters.clj"]}}

@@ -80,7 +80,7 @@
     :else                    :simple))
 
 (defmulti get-type-gen
-  (fn [^Class clazz
+  (fn [^Class _clazz
        ^Descriptors$FieldDescriptor$Type fd]
     (descriptor-type fd)))
 
