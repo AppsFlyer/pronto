@@ -18,7 +18,7 @@ ignored completely.
 ## Installation
 Add a dependency to your `project.clj` file:
 
-           [bla 1.0.0]
+           [pronto "0.1.0"]
 
 ## How does it work?
 
