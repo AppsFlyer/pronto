@@ -38,6 +38,7 @@
 
 (def bytes-ctor-name (partial ctor-name 'bytes))
 
+(def json-ctor-name (partial ctor-name 'json))
 
 (defn field->camel-case [^Descriptors$GenericDescriptor field]
   (->> (s/split (.getName field) #"_")

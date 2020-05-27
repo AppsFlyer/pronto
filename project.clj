@@ -1,4 +1,4 @@
-(defproject pronto "0.1.0"
+(defproject pronto "0.1.1"
   :description "clojure support for protocol buffers"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -12,7 +12,8 @@
                                        :password      :***REMOVED***
                                        :sign-releases false}]]
   :dependencies [[org.clojure/clojure "1.9.0"]]
-  :profiles {:provided {:dependencies [[com.google.protobuf/protobuf-java "3.11.3"]]}
+  :profiles {:provided {:dependencies [[com.google.protobuf/protobuf-java "3.10.0"]
+                                       [com.google.protobuf/protobuf-java-util "3.10.0"]]}
              :dev      {:dependencies      [[org.clojure/clojure "1.10.1"]
                                             [criterium "0.4.5"]
                                             [clj-kondo "RELEASE"]]

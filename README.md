@@ -18,7 +18,7 @@ ignored completely.
 ## Installation
 Add a dependency to your `project.clj` file:
 
-           [pronto "0.1.0"]
+           [pronto "0.1.1"]
 
 ## How does it work?
 
@@ -45,7 +45,7 @@ Instances of the wrapper class:
 Now we can work with protobuf while writing idiomatic Clojure code:
 
 ```clj
-(-> (proto->People$PersonMap) ;; creates a wrapper around an empty instance of `Person`
+(-> (->People$PersonMap) ;; creates a wrapper around an empty instance of `Person`
     (assoc :name "Rich" :id 0 :pet-names ["FOO" "BAR"])
     (update :pet-names #(map clojure.string/lower-case %))
     (assoc-in [:address :street] "Broadway"))
@@ -84,6 +84,9 @@ Calling `defproto` also generates specialized constructor functions for instanti
 ;; wrap around an existing instance of the class:
 (def person (. (People$Person/newBuilder) build))
 (proto->People$PersonMap person)
+
+;; deserialize JSON string into People$Person and wrap around it:
+(json->People$PersonMap json-string)
 ```
 
 As well as their reverse:
