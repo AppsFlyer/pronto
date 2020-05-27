@@ -231,6 +231,15 @@
     (is (= person
            (People$PersonMap->proto (bytes->People$PersonMap (.toByteArray person)))))))
 
+(deftest json-test
+  (let [person (make-person :id 5 :name "hello"
+                            :address (make-address :city "some-city" :street "broadway")
+                            :age-millis 111111)]
+    (is (= person
+           (-> person
+               proto->People$PersonMap
+               People$PersonMap->json
+               json->People$PersonMap)))))
 
 (defn check-clear
   ([ctor field-name init-val default-val]

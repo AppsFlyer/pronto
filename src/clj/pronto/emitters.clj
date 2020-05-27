@@ -5,7 +5,11 @@
   (:import [com.google.protobuf
             Descriptors$FieldDescriptor
             Descriptors$OneofDescriptor]
-           [pronto ProtoMap]))
+           [pronto ProtoMap]
+           [com.google.protobuf.util
+            JsonFormat
+            JsonFormat$Printer
+            JsonFormat$Parser]))
 
 
 (defn emit-fields-case [fields k throw-error? f]
@@ -396,6 +400,27 @@
            (let [~x (pronto.RT/getProto y#)]
              (.toByteArray ~x)))))))
 
+(defn emit-json-ctor [^Class clazz]
+  (let [proto-ctor-name (u/proto-ctor-name clazz)
+        fn-name         (u/json-ctor-name clazz)
+        s               (u/with-type-hint 's String)
+        x               (u/with-type-hint 'x clazz)
+        printer         (u/with-type-hint 'printer JsonFormat$Printer)
+        parser          (u/with-type-hint 'parser JsonFormat$Parser)
+        builder         (u/with-type-hint 'builder (get-builder-class clazz))]
+    `(let [~printer (JsonFormat/printer)
+           ~parser  (JsonFormat/parser)]
+       (def ~fn-name
+         (fn [~s]
+           (let [~builder (~(static-call clazz "newBuilder"))]
+             (.merge ~parser ~s ~builder)
+             (~proto-ctor-name (.build ~builder)))))
+
+       (def ~(reverse-ctor-name fn-name)
+         (fn [y#]
+           (let [~x (pronto.RT/getProto y#)]
+             (.print ~printer ~x)))))))
+
 
 (defn emit-proto-map [^Class clazz]
   `(do
@@ -408,4 +433,5 @@
      ~(emit-proto-ctor clazz)
      ~(emit-map-ctor clazz)
      ~(emit-bytes-ctor clazz)
+     ~(emit-json-ctor clazz)
      ~(emit-default-ctor clazz)))
