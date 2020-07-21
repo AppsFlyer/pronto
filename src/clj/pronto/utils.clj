@@ -40,10 +40,20 @@
 
 (def json-ctor-name (partial ctor-name 'json))
 
-(defn field->camel-case [^Descriptors$GenericDescriptor field]
-  (->> (s/split (.getName field) #"_")
-       (map #(s/capitalize %))
+(defn capitalize-camel-word [w]
+  ;; TODO: redo this thing
+  (let [numeric? (re-find #"\d" w)]
+    (if numeric?
+      (s/upper-case w)
+      (s/capitalize w))))
+
+(defn ->camel-case [s]
+  (->> (s/split s #"_")
+       (map capitalize-camel-word)
        (s/join "")))
+
+(defn field->camel-case [^Descriptors$GenericDescriptor field]
+  (->camel-case (.getName field)))
 
 (defn message? [^Descriptors$FieldDescriptor fd]
   (= (.getType fd)
