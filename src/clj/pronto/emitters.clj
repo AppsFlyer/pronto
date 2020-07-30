@@ -368,13 +368,15 @@
     `(do
        (def ~fn-name
          (fn [o#]
-           (if (map? o#)
-             (let [res# (new ~wrapper-class-name (.build (~(static-call clazz "newBuilder"))))]
-               (reduce (fn [acc# [k# v#]]
-                         (assoc acc# k# v#))
-                       res#
-                       o#))
-             (throw (IllegalArgumentException. (str "cannot wrap " (or (class o#) "nil")))))))
+           (let [o# (or o# {})]
+             (if (map? o#)
+               (let [res# (transient (new ~wrapper-class-name (.build (~(static-call clazz "newBuilder")))))]
+                 (persistent!
+                   (reduce (fn [acc# [k# v#]]
+                             (assoc! acc# k# v#))
+                           res#
+                           o#)))
+               (throw (IllegalArgumentException. (str "cannot wrap " (class o#))))))))
 
        (def ~(reverse-ctor-name fn-name)
          (fn [o#]
