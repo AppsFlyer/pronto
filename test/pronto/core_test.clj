@@ -1,6 +1,7 @@
 (ns pronto.core-test
   (:require [clojure.test :refer :all]
-            [pronto.core :refer [defproto] :as p])
+            [pronto.core :refer [defproto] :as p]
+            [pronto.utils :as u])
   (:import [protogen.generated People$Person People$Person$Builder
             People$Address People$Address$Builder People$Like People$Level
             People$House People$Apartment]
@@ -70,7 +71,6 @@
 
 
 (defproto People$Person)
-
 
 (deftest resolve-deps-test
   (is (= [People$Address
@@ -284,3 +284,6 @@
                true))
 
 
+(deftest camel-case-test
+  (is (= "IsS2S" (u/->camel-case "is_s2s")))
+  (is (= "AfSub1" (u/->camel-case "af_sub1"))))

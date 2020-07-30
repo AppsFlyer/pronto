@@ -40,17 +40,32 @@
 
 (def json-ctor-name (partial ctor-name 'json))
 
-(defn capitalize-camel-word [w]
-  ;; TODO: redo this thing
-  (let [numeric? (re-find #"\d" w)]
-    (if numeric?
-      (s/upper-case w)
-      (s/capitalize w))))
+(defn- char-in-range? [c start end]
+  (<= (int start) (int c) (int end)))
 
-(defn ->camel-case [s]
-  (->> (s/split s #"_")
-       (map capitalize-camel-word)
-       (s/join "")))
+(defn ->camel-case
+  "Implements protobuf's camel case conversion for Java. See: https://github.com/protocolbuffers/protobuf/blob/v3.12.4/src/google/protobuf/compiler/java/java_helpers.cc#L157"
+  [s]
+  (loop [cc              ""
+         [x & xs]        s
+         cap-next-letter true]
+    (if-not x
+      cc
+      (cond
+        (char-in-range? x \a \z)
+        (recur (str cc (if cap-next-letter
+                         (char (+ (int x) (- (int \A) (int \a))))
+                         x))
+               xs
+               false)
+        (char-in-range? x \A \Z)
+        (recur (str cc (if cap-next-letter
+                         (char (+ (int x) (- (int \A) (int \a))))
+                         x)) xs false)
+        (char-in-range? x \0 \9)
+        (recur (str cc x) xs true)
+        :else
+        (recur cc xs true)))))
 
 (defn field->camel-case [^Descriptors$GenericDescriptor field]
   (->camel-case (.getName field)))
