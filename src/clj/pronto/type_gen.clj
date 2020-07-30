@@ -42,7 +42,7 @@
   (keyword (.getName fd)))
 
 
-(defn get-field-type [^Class clazz fd]
+(defn field-type [^Class clazz fd]
   (let [^Method m (.getDeclaredMethod clazz (str "get" (u/field->camel-case fd))
                                       (make-array Class 0))]
     (.getReturnType m)))
@@ -51,7 +51,7 @@
   (let [cc         (u/field->camel-case fd)
         setter     (symbol (str ".set" cc))
         getter     (symbol (str ".get" cc))
-        field-type (get-field-type clazz fd)
+        field-type (field-type clazz fd)
         wrapper    (w/gen-wrapper field-type)]
     (reify TypeGen
       (get-class [_] field-type)
@@ -216,4 +216,4 @@
     (for [fd field-descriptors]
       {:fd       fd
        :type-gen (get-type-gen clazz fd)
-       :kw       (keyword (u/->kebab-case (.getName fd)))})))
+       :kw       (keyword (u/->kebab-case (.getName ^Descriptors$FieldDescriptor fd)))})))

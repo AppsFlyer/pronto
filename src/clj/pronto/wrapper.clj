@@ -30,10 +30,10 @@
   :enum
   [^Class clazz]
   (let [values   (Reflector/invokeStaticMethod clazz "values" (to-array nil))
-        enum->kw (map-indexed #(vector %1 (keyword (u/->kebab-case (.name %2))))
+        enum->kw (map-indexed #(vector %1 (keyword (u/->kebab-case (.name ^Enum %2))))
                               values)
-        kw->enum (map #(vector (keyword (u/->kebab-case (.name %1)))
-                               (symbol (str (.getName clazz) "/" (.name %1))))
+        kw->enum (map #(vector (keyword (u/->kebab-case (.name ^Enum %1)))
+                               (symbol (str (.getName clazz) "/" (.name ^Enum %1))))
                       values)]
 
     (reify Wrapper
