@@ -5,6 +5,7 @@
   (:import [com.google.protobuf
             Descriptors$FieldDescriptor
             Descriptors$OneofDescriptor]
+           [com.google.protobuf Internal$EnumLite]
            [pronto ProtoMap]
            [com.google.protobuf.util
             JsonFormat
@@ -63,8 +64,11 @@
 
              (map (fn [^Descriptors$OneofDescriptor fd]
                     (let [cc               (u/field->camel-case fd)
-                          case-enum-getter (symbol (str ".get" cc "Case"))]
-                      `(enum-case->kebab-case (str (~case-enum-getter ~o)))))
+                          case-enum-getter (symbol (str ".get" cc "Case"))
+                          v                (u/with-type-hint (gensym 'oo) Internal$EnumLite)]
+                      `(let [~v (~case-enum-getter ~o)]
+                         (when-not (zero? (.getNumber ^Internal$EnumLite ~v))
+                           (enum-case->kebab-case (str (~case-enum-getter ~o)))))))
                   one-ofs))
          (throw (IllegalArgumentException. (str "Cannot check which one-of for " ~k)))))))
 
