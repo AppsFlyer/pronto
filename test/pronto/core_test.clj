@@ -290,3 +290,6 @@
 (deftest camel-case-test
   (is (= "IsS2S" (u/->camel-case "is_s2s")))
   (is (= "AfSub1" (u/->camel-case "af_sub1"))))
+
+(deftest map-test
+  (is (= (map->People$PersonMap {}) (map->People$PersonMap nil))))
