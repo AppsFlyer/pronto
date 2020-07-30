@@ -11,7 +11,6 @@
             JsonFormat$Printer
             JsonFormat$Parser]))
 
-
 (defn emit-fields-case [fields k throw-error? f]
   `(case ~k
      ~@(interleave
@@ -52,14 +51,14 @@
 
 (defn emit-which-one-of [fields o k]
   (let [one-ofs (->> fields
-                     (map #(.getContainingOneof (:fd %)))
+                     (map #(.getContainingOneof ^Descriptors$FieldDescriptor (:fd %)))
                      (keep identity)
                      set)]
     (if-not (seq one-ofs)
       `(throw (IllegalArgumentException. (str "Cannot check which one-of for " ~k)))
       `(case ~k
          ~@(interleave
-             (map #(keyword (u/->kebab-case (.getName %)))
+             (map #(keyword (u/->kebab-case (.getName ^Descriptors$OneofDescriptor %)))
                   one-ofs)
 
              (map (fn [^Descriptors$OneofDescriptor fd]
