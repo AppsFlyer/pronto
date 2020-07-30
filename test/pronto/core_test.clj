@@ -80,19 +80,19 @@
          (p/resolve-deps People$Person))))
 
 (deftest map-test
-  (let [city      "NYC"
-        street    "Broadway"
-        house-num 32
-        num-rooms 3
-        addr-map  {:city      city :street street
-                   :house-num house-num
-                   :house     {:num-rooms num-rooms}}
-        addr      (map->People$AddressMap addr-map)
-        p         (People$AddressMap->proto addr)]
-    (is (= (.getCity p) (:city addr) city))
-    (is (= (.getStreet p) (:street addr) street))
-    (is (= (.getHouseNum p) (:house-num addr) house-num))
-    (is (= (.getNumRooms (.getHouse p)) (get-in addr [:house :num-rooms])))
+  (let [city              "NYC"
+        street            "Broadway"
+        house-num         32
+        num-rooms         3
+        addr-map          {:city      city :street street
+                           :house-num house-num
+                           :house     {:num-rooms num-rooms}}
+        addr              (map->People$AddressMap addr-map)
+        ^People$Address a (People$AddressMap->proto addr)]
+    (is (= (.getCity a) (:city addr) city))
+    (is (= (.getStreet a) (:street addr) street))
+    (is (= (.getHouseNum a) (:house-num addr) house-num))
+    (is (= (.getNumRooms ^People$House (.getHouse a)) (get-in addr [:house :num-rooms])))
 
     (is (= (assoc addr-map
                   :apartment
@@ -192,13 +192,16 @@
         apartment (make-apartment :floor-num 4)
         address2  (assoc address :house (proto->People$HouseMap house))
         address3  (assoc address2 :apartment (proto->People$ApartmentMap apartment))]
-    (is (= (p/which-one-of address :home) :home-not-set))
-    
+    (is (nil? (p/which-one-of address :home)))
+    (is (nil? (p/one-of address :home)))
+
     (is (= house (:house address2)))
     (is (= (p/which-one-of address2 :home) :house))
+    (is (= house (p/one-of address2 :home)))
 
     (is (= apartment (:apartment address3)))
-    (is (= (p/which-one-of address3 :home) :apartment))))
+    (is (= (p/which-one-of address3 :home) :apartment))
+    (is (= apartment (p/one-of address3 :home)))))
 
 (deftest maps-test
   (let [bff    (make-person :name "bar")
@@ -229,7 +232,7 @@
                             :address (make-address :city "some-city" :street "broadway")
                             :age-millis 111111)]
     (is (= person
-           (People$PersonMap->proto (bytes->People$PersonMap (.toByteArray person)))))))
+           (People$PersonMap->proto (bytes->People$PersonMap (.toByteArray ^People$Person person)))))))
 
 (deftest json-test
   (let [person (make-person :id 5 :name "hello"

@@ -24,6 +24,10 @@
 (defn which-one-of [^ProtoMap m k]
   (.whichOneOf m k))
 
+(defn one-of [^ProtoMap m k]
+  (when-let [k' (which-one-of m k)]
+    (get m k')))
+
 (defn resolve-deps
   ([^Class clazz] (first (resolve-deps clazz #{})))
   ([^Class clazz seen-classes]
