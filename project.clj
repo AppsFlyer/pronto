@@ -1,4 +1,4 @@
-(defproject pronto "0.1.2"
+(defproject pronto "0.1.3-SNAPSHOT"
   :description "clojure support for protocol buffers"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -23,4 +23,5 @@
                                             :report-to-file "target/junit.xml"}
                         :java-source-paths ["src/java" "test/java"]
                         :plugins           [[lein-eftest "0.5.9"]]}}
-  :repl-options {:init-ns pronto.core})
+  :repl-options {:init-ns pronto.core}
+  :global-vars {*warn-on-reflection* true})
