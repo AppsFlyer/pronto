@@ -27,7 +27,7 @@
 
 
 (defn emit-val-at [fields obj k]
-  (emit-fields-case fields k false
+  (emit-fields-case fields k true
                     #(t/gen-getter (:type-gen %) obj k)))
 
 (defn emit-clear [fields builder k]
