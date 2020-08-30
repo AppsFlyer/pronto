@@ -86,13 +86,13 @@
         num-rooms         3
         addr-map          {:city      city :street street
                            :house-num house-num
-                           :house     {:num-rooms num-rooms}}
+                           :house     {:num_rooms num-rooms}}
         addr              (map->People$AddressMap addr-map)
         ^People$Address a (People$AddressMap->proto addr)]
     (is (= (.getCity a) (:city addr) city))
     (is (= (.getStreet a) (:street addr) street))
-    (is (= (.getHouseNum a) (:house-num addr) house-num))
-    (is (= (.getNumRooms ^People$House (.getHouse a)) (get-in addr [:house :num-rooms])))
+    (is (= (.getHouseNum a) (:house_num addr) house-num))
+    (is (= (.getNumRooms ^People$House (.getHouse a)) (get-in addr [:house :num_rooms])))
 
     (is (= (assoc addr-map
                   :apartment
@@ -140,37 +140,37 @@
 (deftest long-test
   (test-numeric long
                 (proto->People$PersonMap (make-person))
-                :age-millis))
+                :age_millis))
 
 
 (deftest double-test
   (test-numeric double
                 (proto->People$PersonMap (make-person))
-                :height-cm))
+                :height_cm))
 
 (deftest float-test
   (test-numeric float
                 (proto->People$PersonMap (make-person))
-                :weight-kg))
+                :weight_kg))
 
 
 (deftest boolean-test
-  (let [p (proto->People$PersonMap (make-person :is-vegetarian false))]
-    (is (true? (check-assoc p :is-vegetarian true)))
-    (is (thrown? IllegalArgumentException (assoc p :is-vegetarian nil)))
-    (is (thrown? IllegalArgumentException (assoc p :is-vegetarian "1")))))
+  (let [p (proto->People$PersonMap (make-person :is_vegetarian false))]
+    (is (true? (check-assoc p :is_vegetarian true)))
+    (is (thrown? IllegalArgumentException (assoc p :is_vegetarian nil)))
+    (is (thrown? IllegalArgumentException (assoc p :is_vegetarian "1")))))
 
 
 (deftest repeated-primitive-test
   (let [pet-names ["aaa" "bbb"]
         p         (make-person :pet-names pet-names)
         w         (proto->People$PersonMap p)]
-    (is (= pet-names (:pet-names w)))
-    (is (= ["ccc"] (:pet-names (assoc w :pet-names ["ccc"]))))
-    (is (thrown? IllegalArgumentException (assoc w :pet-names 123)))
-    (is (thrown? IllegalArgumentException (assoc w :pet-names [1 2 3])))
-    (is (= ["AAA" "BBB"] (:pet-names (update w :pet-names (partial map clojure.string/upper-case)))))
-    (is (= ["hello" "aaa" "bbb"] (:pet-names (update w :pet-names (partial cons "hello")))))))
+    (is (= pet-names (:pet_names w)))
+    (is (= ["ccc"] (:pet_names (assoc w :pet_names ["ccc"]))))
+    (is (thrown? IllegalArgumentException (assoc w :pet_names 123)))
+    (is (thrown? IllegalArgumentException (assoc w :pet_names [1 2 3])))
+    (is (= ["AAA" "BBB"] (:pet_names (update w :pet_names (partial map clojure.string/upper-case)))))
+    (is (= ["hello" "aaa" "bbb"] (:pet_names (update w :pet_names (partial cons "hello")))))))
 
 (deftest repeated-message-test
   (let [likes [(make-like :desc "desc1" :level People$Level/LOW)
@@ -188,8 +188,8 @@
 
 (deftest one-of-test
   (let [address   (map->People$AddressMap {})
-        house     (make-house :num-rooms 5)
-        apartment (make-apartment :floor-num 4)
+        house     (make-house :num_rooms 5)
+        apartment (make-apartment :floor_num 4)
         address2  (assoc address :house (proto->People$HouseMap house))
         address3  (assoc address2 :apartment (proto->People$ApartmentMap apartment))]
     (is (nil? (p/which-one-of address :home)))
@@ -230,14 +230,14 @@
 (deftest bytes-test
   (let [person (make-person :id 5 :name "hello"
                             :address (make-address :city "some-city" :street "broadway")
-                            :age-millis 111111)]
+                            :age_millis 111111)]
     (is (= person
            (People$PersonMap->proto (bytes->People$PersonMap (.toByteArray ^People$Person person)))))))
 
 (deftest json-test
   (let [person (make-person :id 5 :name "hello"
                             :address (make-address :city "some-city" :street "broadway")
-                            :age-millis 111111)]
+                            :age_millis 111111)]
     (is (= person
            (-> person
                proto->People$PersonMap
@@ -267,11 +267,11 @@
                (make-address)
                true)
 
-  (check-clear map->People$PersonMap :height-cm 5.0 0.0)
+  (check-clear map->People$PersonMap :height_cm 5.0 0.0)
 
-  (check-clear map->People$PersonMap :weight-kg 5.0 0.0)
+  (check-clear map->People$PersonMap :weight_kg 5.0 0.0)
 
-  (check-clear map->People$PersonMap :is-vegetarian true false)
+  (check-clear map->People$PersonMap :is_vegetarian true false)
 
   (check-clear map->People$PersonMap :likes
                [(make-like :desc "wow" :level People$Level/LOW)]
