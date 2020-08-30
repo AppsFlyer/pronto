@@ -216,4 +216,4 @@
     (for [fd field-descriptors]
       {:fd       fd
        :type-gen (get-type-gen clazz fd)
-       :kw       (keyword (u/->kebab-case (.getName ^Descriptors$FieldDescriptor fd)))})))
+       :kw       (keyword (.getName ^Descriptors$FieldDescriptor fd))})))
