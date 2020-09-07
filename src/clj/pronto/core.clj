@@ -95,6 +95,7 @@
 (defn inflate [proto-map]
   (.pmap_inflate ^ProtoMap proto-map))
 
+
 (defn deflate [proto-map]
   (.pmap_deflate ^ProtoMap proto-map))
 
