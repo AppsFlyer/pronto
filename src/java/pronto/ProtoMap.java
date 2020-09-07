@@ -13,4 +13,8 @@ public interface ProtoMap {
     GeneratedMessageV3 pmap_getProto();
 
     Keyword pmap_whichOneOf(Keyword key);
+
+    ProtoMap pmap_inflate();
+
+    ProtoMap pmap_deflate();
 }

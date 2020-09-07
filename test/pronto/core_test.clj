@@ -346,3 +346,6 @@
     (is (= (.getName p) (.getName w)))
     (is (= (.getId p) (.getId w)))
     (is (= (.getLevelsList p) (.getLevelsList w)))))
+
+(deftest inflate-test
+  )

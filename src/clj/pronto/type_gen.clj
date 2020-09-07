@@ -76,7 +76,7 @@
                             ~(w/wrap wrapper v))]
           (if-not (u/message? fd)
             get-form
-            `(when (~has-method ~o)
+            `(when (or ~(boolean (:pumped? ctx)) (~has-method ~o))
                ~get-form)))))))
 
 (defn descriptor-type [^Descriptors$FieldDescriptor fd]

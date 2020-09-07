@@ -16,6 +16,9 @@
 (defn class->map-class-name [^Class clazz]
   (symbol (str (sanitized-class-name clazz) "Map")))
 
+(defn class->pumped-map-class-name [^Class clazz]
+  (symbol (str (sanitized-class-name clazz) "PumpedMap")))
+
 (defn class->transient-class-name [^Class clazz]
   (symbol (str 'transient- (sanitized-class-name clazz))))
 
