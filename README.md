@@ -24,7 +24,7 @@ ignored completely.
 ## Installation
 Add a dependency to your `project.clj` file:
 
-           [pronto "0.1.5"]
+           [pronto "1.0.0"]
 
 ## How does it work?
 

@@ -152,9 +152,3 @@
            (emit-proto-map dep ctx))
 
        ~(emit-proto-map clazz ctx))))
-
-
-(comment
-  (import '(protogen.generated People$Person))
-
-  (defproto People$Person))

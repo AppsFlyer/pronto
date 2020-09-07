@@ -10,7 +10,7 @@
     Descriptors$FieldDescriptor
     Descriptors$FieldDescriptor$Type
     Descriptors$FieldDescriptor$JavaType]
-   [java.lang.reflect Type Field Method ParameterizedType]
+   [java.lang.reflect Type Method ParameterizedType]
    [java.util Map$Entry]))
 
 
