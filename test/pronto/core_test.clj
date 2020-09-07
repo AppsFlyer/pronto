@@ -73,7 +73,9 @@
 
 (defproto People$Person
   :encoders {protogen.generated.People$UUID
-             {:from-proto #(java.util.UUID/fromString (.getValue ^People$UUID %))
+             {:from-proto #(try
+                             (java.util.UUID/fromString (.getValue ^People$UUID %))
+                             (catch Exception _))
               :to-proto   #(let [b (People$UUID/newBuilder)]
                              (.setValue b (str %))
                              (.build b))}})
@@ -346,3 +348,13 @@
     (is (= (.getName p) (.getName w)))
     (is (= (.getId p) (.getId w)))
     (is (= (.getLevelsList p) (.getLevelsList w)))))
+
+(deftest inflate-test
+  (let [^People$Address address (make-address :city "NYC" :street "Broadway")
+        p                       (-> (p/proto-map People$Person)
+                                    (assoc :name "Name"))]
+    (is (nil? (:address p)))
+    (is (= (p/proto-map->proto (p/proto-map People$Address)) (p/proto-map->proto (:address (p/inflate p)))))
+    (is (= "Name" (:name (p/inflate p))))
+    (is (nil? (:address (p/deflate (p/inflate p)))))
+    (is (= address (p/proto-map->proto (:address (assoc (p/inflate p) :address address)))))))

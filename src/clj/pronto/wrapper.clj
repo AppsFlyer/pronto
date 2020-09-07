@@ -112,7 +112,9 @@
 (defmethod gen-wrapper
   :message
   [^Class clazz ctx]
-  (let [wrapper-type           (u/class->map-class-name clazz)
+  (let [wrapper-type           (if (:pumped? ctx)
+                                 (u/class->pumped-map-class-name clazz)
+                                 (u/class->map-class-name clazz))
         transient-wrapper-type (u/class->transient-class-name clazz)]
     (reify Wrapper
       (wrap [_ v]

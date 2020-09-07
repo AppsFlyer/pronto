@@ -91,6 +91,14 @@
 (defn proto-map->bytes [proto-map]
   (.toByteArray ^GeneratedMessageV3 (proto-map->proto proto-map)))
 
+
+(defn inflate [proto-map]
+  (.pmap_inflate ^ProtoMap proto-map))
+
+
+(defn deflate [proto-map]
+  (.pmap_deflate ^ProtoMap proto-map))
+
 (defn- resolve-deps
   ([^Class clazz ctx] (first (resolve-deps clazz #{} ctx)))
   ([^Class clazz seen-classes ctx]
