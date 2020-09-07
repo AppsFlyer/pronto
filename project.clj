@@ -1,4 +1,4 @@
-(defproject pronto "0.1.7-SNAPSHOT"
+(defproject pronto "1.0.0"
   :description "clojure support for protocol buffers"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -12,16 +12,23 @@
                                        :password      :***REMOVED***
                                        :sign-releases false}]]
   :dependencies [[org.clojure/clojure "1.9.0"]]
-  :profiles {:provided {:dependencies [[com.google.protobuf/protobuf-java "3.10.0"]
-                                       [com.google.protobuf/protobuf-java-util "3.10.0"]]}
+  :profiles {:provided {:dependencies [[com.google.protobuf/protobuf-java "3.10.0"]]}
              :dev      {:dependencies      [[org.clojure/clojure "1.10.1"]
-                                            [criterium "0.4.5"]
-                                            [clj-kondo "RELEASE"]]
+                                            [clj-kondo "RELEASE"]
+                                            [jmh-clojure "0.4.0"]
+                                            [com.clojure-goes-fast/clj-java-decompiler "0.3.0"]]
                         :aliases           {"clj-kondo" ["run" "-m" "clj-kondo.main"]}
                         :eftest            {:multithread?   false
                                             :report         eftest.report.junit/report
                                             :report-to-file "target/junit.xml"}
                         :java-source-paths ["src/java" "test/java"]
-                        :plugins           [[lein-eftest "0.5.9"]]}}
+                        :plugins           [[lein-jmh "0.3.0"]
+                                            [lein-eftest "0.5.9"]]}
+             :jmh      {:source-paths      ["benchmarks/src/clj"]
+                        :java-source-paths ["benchmarks/src/java"]
+                        :resource-paths    ["benchmarks/resources"]
+                        ;; Removing jvm-opts so it won't accidentally disable jvm optimizations
+                        :jvm-opts          []}}
+
   :repl-options {:init-ns pronto.core}
   :global-vars {*warn-on-reflection* true})

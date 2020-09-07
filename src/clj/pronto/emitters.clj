@@ -6,11 +6,71 @@
             Descriptors$FieldDescriptor
             Descriptors$OneofDescriptor]
            [com.google.protobuf Internal$EnumLite]
-           [pronto ProtoMap]
-           [com.google.protobuf.util
-            JsonFormat
-            JsonFormat$Printer
-            JsonFormat$Parser]))
+           [java.lang.reflect Method]))
+
+
+(defn get-builder-class [^Class clazz]
+  (.getReturnType (.getDeclaredMethod clazz "toBuilder" (make-array Class 0))))
+
+
+(defn- proto-or-builder-interface [^Class clazz]
+  ;; TODO: not the best way to go about this.
+  (first (.getInterfaces clazz)))
+
+
+(defn- interface-name [^Class clazz]
+  (symbol (str 'I (s/replace (.getName clazz) "." "_"))))
+
+
+(defn- assoc-intf-name [^Descriptors$FieldDescriptor fd]
+  (symbol (str "assoc" (u/field->camel-case fd))))
+
+
+(defn- val-at-intf-name [^Descriptors$FieldDescriptor fd]
+  (symbol (str "valAt" (u/field->camel-case fd))))
+
+
+(defn- emit-interface [^Class clazz ctx]
+  (let [fields (t/get-fields clazz ctx)]
+    `(definterface ~(interface-name clazz)
+       ~@(let [builder-class   (get-builder-class clazz)
+               builder-sym     (u/with-type-hint (gensym 'builder) builder-class)
+               proto-interface (proto-or-builder-interface clazz)
+               proto-sym       (u/with-type-hint (gensym 'proto) proto-interface)]
+           (concat
+             (for [field fields]
+               `(~(u/with-type-hint (assoc-intf-name (:fd field))
+                    builder-class)
+                 [~builder-sym val#]))
+
+             (for [field fields]
+               `(~(val-at-intf-name (:fd field))
+                 [~proto-sym])))))))
+
+
+(defn- delegate-method [^Method method delegate-sym]
+  (let [; parameter-types (.getParameterTypes method)
+        args        (repeatedly (.getParameterCount method) gensym)
+        #_          (map #(if-not (get #{Integer/TYPE} %)
+                            (u/with-type-hint (gensym) %)
+                            (gensym))
+                         parameter-types)
+        method-name (symbol (.getName method))
+        #_          (u/with-type-hint (symbol (.getName method))
+                      (.getReturnType method))
+        ]
+    `(~method-name [this# ~@args]
+      (. ~delegate-sym ~(symbol (.getName method)) ~@args))))
+
+
+(defn- implement-message-or-builder-interface [^Class clazz delegate-sym]
+  (let [^Class interface (proto-or-builder-interface clazz)]
+    `(~(symbol (.getName interface))
+      ~@(->> (.getMethods interface)
+             ;; TODO: currently, only take methods from the most specific
+             ;; interface - need to expand to super-interfaces
+             (filter #(= interface (.getDeclaringClass ^Method %)))
+             (map #(delegate-method ^Method % delegate-sym))))))
 
 (defn emit-fields-case [fields k throw-error? f]
   `(case ~k
@@ -21,14 +81,17 @@
         nil ; explicitly return nil from case
         `(throw (IllegalArgumentException. (str "No such field " ~k))))))
 
-(defn emit-assoc [fields builder k v]
+
+(defn emit-assoc [fields this builder k v]
   (emit-fields-case fields k true
-                    #(t/gen-setter (:type-gen %) builder k v)))
+                    (fn [fd]
+                      `(~(symbol (str "." (assoc-intf-name (:fd fd)))) ~this ~builder ~v))))
 
 
-(defn emit-val-at [fields obj k]
+(defn emit-val-at [fields this obj k]
   (emit-fields-case fields k true
-                    #(t/gen-getter (:type-gen %) obj k)))
+                    (fn [fd]
+                      `(~(symbol (str "." (val-at-intf-name (:fd fd)))) ~this ~obj))))
 
 (defn emit-clear [fields builder k]
   (emit-fields-case fields k true
@@ -47,8 +110,10 @@
                             `(~has-method ~o))
                           `(throw (IllegalArgumentException. (str "field " ~k " cannot be checked for field existence"))))))))
 
+
 (defn enum-case->kebab-case [enum-case-name]
   (keyword (s/lower-case (u/->kebab-case enum-case-name))))
+
 
 (defn emit-which-one-of [fields o k]
   (let [one-ofs (->> fields
@@ -72,52 +137,80 @@
                   one-ofs))
          (throw (IllegalArgumentException. (str "Cannot check which one-of for " ~k)))))))
 
-(defn static-call [^Class class method-name]
-  (symbol (str (.getName class) "/" method-name)))
+
+(defprotocol ProtoMapBuilder
+  (proto->proto-map [this]))
 
 
-(defn get-builder-class [^Class clazz]
-  (.getReturnType (.getDeclaredMethod clazz "toBuilder" (make-array Class 0))))
+(defn emit-default-ctor [^Class clazz]
+  (let [wrapper-class-name (u/class->map-class-name clazz)]
+    `(new ~wrapper-class-name (.build (~(u/static-call clazz "newBuilder"))) nil)))
 
 
-(defn emit-deftype [^Class clazz]
-  (let [fields              (t/get-fields clazz)
-        o                   (u/with-type-hint (gensym 'o) clazz)
-        builder-class       (get-builder-class clazz)
-        wrapper-class-name  (u/class->map-class-name clazz)
-        transient-ctor-name (u/transient-ctor-name clazz)
-        builder-sym         (u/with-type-hint (gensym 'builder) builder-class)]
-    `(deftype ~wrapper-class-name [~o]
+(defn emit-default-transient-ctor [^Class clazz ns]
+  (let [transient-wrapper-class-name (u/class->transient-class-name clazz)]
+    `(~(symbol ns (str '-> transient-wrapper-class-name)) (~(u/static-call clazz "newBuilder")) true)))
+
+
+(defn emit-interface-impl [^Class clazz fields]
+  `(~@(let [builder-class   (get-builder-class clazz)
+            builder-sym     (u/with-type-hint (gensym 'builder) builder-class)
+            proto-interface (proto-or-builder-interface clazz)
+            proto-sym       (u/with-type-hint (gensym 'proto) proto-interface)]
+        (concat
+          (for [field fields]
+            (let [val-sym (gensym 'val)]
+              `(~(u/with-type-hint (assoc-intf-name (:fd field))
+                   builder-class)
+                [this# ~builder-sym ~val-sym]
+                ~(t/gen-setter (:type-gen field) builder-sym val-sym))))
+
+          (for [field fields]
+            `(~(val-at-intf-name (:fd field))
+              [this# ~proto-sym]
+              ~(t/gen-getter (:type-gen field) proto-sym)))))))
+
+
+(defn emit-deftype [^Class clazz ctx]
+  (let [fields               (t/get-fields clazz ctx)
+        o                    (u/with-type-hint (gensym 'o) clazz)
+        builder-class        (get-builder-class clazz)
+        wrapper-class-name   (u/class->map-class-name clazz)
+        transient-class-name (u/class->transient-class-name clazz)
+        builder-sym          (u/with-type-hint (gensym 'builder) builder-class)
+        md                   (gensym 'md)]
+    `(deftype ~wrapper-class-name [~o ~md]
 
        java.io.Serializable
 
        pronto.ProtoMap
 
+       (~'pmap_isMutable [this#] false)
 
-       (~'isMutable [this#] false)
-
-       (~'getProto [this#] ~o)
+       (~'pmap_getProto [this#] ~o)
 
        ~(let [k (gensym 'k)]
-          `(~'clearField [this# ~k]
+          `(~'pmap_clearField [this# ~k]
             (let [~builder-sym (.toBuilder ~o)]
               ~(emit-clear fields builder-sym k)
-              (new ~wrapper-class-name (.build ~builder-sym)))))
+              (new ~wrapper-class-name (.build ~builder-sym) ~md))))
 
        ~(let [k (gensym 'k)]
-          `(~'hasField [this# ~k]
+          `(~'pmap_hasField [this# ~k]
             ~(emit-has-field? fields o k)))
 
        ~(let [k (gensym 'k)]
-          `(~'whichOneOf [this# ~k]
+          `(~'pmap_whichOneOf [this# ~k]
             ~(emit-which-one-of fields o k)))
 
        clojure.lang.IObj
 
        (withMeta [this# meta-map#]
-         this#)
+         (if (nil? meta-map#)
+           this#
+           (new ~wrapper-class-name ~o meta-map#)))
 
-       (meta [this#] {})
+       (meta [this#] ~md)
 
        clojure.lang.Associative
 
@@ -126,8 +219,8 @@
               v    (gensym 'v)]
           `(~'assoc [~this ~k ~v]
             (let [~builder-sym (.toBuilder ~o)]
-              ~(emit-assoc fields builder-sym k v)
-              (new ~wrapper-class-name (.build ~builder-sym)))))
+              ~(emit-assoc fields this builder-sym k v)
+              (new ~wrapper-class-name (.build ~builder-sym) ~md))))
 
 
        (containsKey [this# k#]
@@ -145,9 +238,10 @@
 
        clojure.lang.ILookup
 
-       ~(let [k (gensym 'k)]
-          `(valAt [_ ~k]
-                  ~(emit-val-at fields o k)))
+       ~(let [k    (gensym 'k)
+              this (gensym 'this)]
+          `(valAt [~this ~k]
+                  ~(emit-val-at fields this o k)))
 
        (valAt [this# k# not-found#]
          (.valAt this# k#))
@@ -159,15 +253,17 @@
          (pronto.PersistentMapHelpers/cons this# o#))
 
        (empty [this#]
+         ;; TODO: create a default instance
          (new ~wrapper-class-name
-              (.build (~(static-call clazz "newBuilder")))))
+              (.build (~(u/static-call clazz "newBuilder")))
+              nil))
 
        (count [this#] ~(count fields))
 
        (equiv [this# other#]
          (pronto.PersistentMapHelpers/equiv this#
                                                        (if (instance? ~clazz other#)
-                                                         (~(u/proto-ctor-name clazz) other#)
+                                                         (new ~wrapper-class-name other# nil)
                                                          other#)))
 
        clojure.lang.Seqable
@@ -192,7 +288,7 @@
 
        ;; TODO: clean this up
        (asTransient [this#]
-         (~transient-ctor-name (.toBuilder ~o) true))
+         (new ~transient-class-name (.toBuilder ~o) true))
 
        java.lang.Iterable
 
@@ -240,18 +336,25 @@
          (pronto.PersistentMapHelpers/toString this#))
 
        (equals [this# obj#]
-         (pronto.PersistentMapHelpers/equals this# obj#)))))
+         (pronto.PersistentMapHelpers/equals this# obj#))
+
+       ~@(implement-message-or-builder-interface clazz o)
+
+       ~(interface-name clazz)
+
+       ~@(emit-interface-impl clazz fields))))
 
 
 (defn check-editable! [editable?]
   (when-not editable?
     (throw (IllegalAccessError. "Transient used after persistent! call"))))
 
-(defn emit-transient [^Class clazz]
-  (let [fields                       (t/get-fields clazz)
+(defn emit-transient [^Class clazz ctx]
+  (let [fields                       (t/get-fields clazz ctx)
         builder-class                (get-builder-class clazz)
         o                            (u/with-type-hint 'o builder-class)
-        transient-wrapper-class-name (u/class->transient-class-name clazz)]
+        transient-wrapper-class-name (u/class->transient-class-name clazz)
+        wrapper-class-name           (u/class->map-class-name clazz)]
     `(deftype ~transient-wrapper-class-name [~o ~(with-meta 'editable? {:unsynchronized-mutable true})]
 
        java.io.Serializable
@@ -259,21 +362,21 @@
        pronto.ProtoMap
 
        ;; TODO: remove this.
-       (~'getProto [this#] ~o)
+       (~'pmap_getProto [this#] ~o)
 
-       (~'isMutable [this#] true)
+       (~'pmap_isMutable [this#] true)
 
        ~(let [k (gensym 'k)]
-          `(~'clearField [this# ~k]
+          `(~'pmap_clearField [this# ~k]
             ~(emit-clear fields o k)
             this#))
 
        ~(let [k (gensym 'k)]
-          `(~'hasField [this# ~k]
+          `(~'pmap_hasField [this# ~k]
             ~(emit-has-field? fields o k)))
 
        ~(let [k (gensym 'k)]
-          `(~'whichOneOf [this# ~k]
+          `(~'pmap_whichOneOf [this# ~k]
             ~(emit-which-one-of fields o k)))
 
        clojure.lang.ITransientMap
@@ -283,7 +386,7 @@
               v    (gensym 'v)]
           `(~'assoc [~this ~k ~v]
             (check-editable! ~'editable?)
-            ~(emit-assoc fields o k v)
+            ~(emit-assoc fields this o k v)
             ~this))
 
        (without [this# k#]
@@ -292,7 +395,7 @@
 
        (persistent [this#]
          (set! ~'editable? false)
-         (~(u/proto-ctor-name clazz) (.build ~o)))
+         (new ~wrapper-class-name (.build ~o) nil))
 
        (count [this#]
          (check-editable! ~'editable?)
@@ -327,116 +430,48 @@
 
        clojure.lang.ILookup
 
-       ~(let [k (gensym 'k)]
-          `(valAt [this# ~k]
+       ~(let [k    (gensym 'k)
+              this (gensym 'this)]
+          `(valAt [~this ~k]
                   (check-editable! ~'editable?)
-                  ~(emit-val-at fields o k)))
+                  ~(emit-val-at fields this o k)))
 
        (valAt [this# k# not-found#]
-         (.valAt this# k#)))))
+         (.valAt this# k#))
 
-(defn reverse-ctor-name [ctor-name]
-  (let [[x y] (s/split (str ctor-name) #"->")]
-    (symbol (str y "->" x))))
+       ;; TODO: move clearers, getters to interface as well, instead of inlining them
+       ~(interface-name clazz)
 
-(defn emit-proto-ctor [^Class clazz]
-  (let [wrapper-class-name (u/class->map-class-name clazz)
-        fn-name            (u/proto-ctor-name clazz)]
-    `(do
-       (def ~fn-name
-         (fn
-           [o#]
-           (if(instance? ~clazz o#)
-             (new ~wrapper-class-name o#)
-             (throw (IllegalArgumentException. (str "cannot wrap " (or (class o#) "nil")))))))
-
-       (def ~(reverse-ctor-name fn-name)
-         (fn [o#]
-           (pronto.RT/getProto o#))))))
-
-(defn proto-map->clj-map [m]
-  (into {}
-        (map (fn [[k v]]
-               [k (if (instance? ProtoMap v)
-                    (proto-map->clj-map v)
-                    v)]))
-        m))
-
-(defn emit-map-ctor [^Class clazz]
-  (let [wrapper-class-name (u/class->map-class-name clazz)
-        fn-name            (u/map-ctor-name clazz)]
-    `(do
-       (def ~fn-name
-         (fn [o#]
-           (let [o# (or o# {})]
-             (if (map? o#)
-               (let [res# (transient (new ~wrapper-class-name (.build (~(static-call clazz "newBuilder")))))]
-                 (persistent!
-                   (reduce (fn [acc# [k# v#]]
-                             (assoc! acc# k# v#))
-                           res#
-                           o#)))
-               (throw (IllegalArgumentException. (str "cannot wrap " (class o#))))))))
-
-       (def ~(reverse-ctor-name fn-name)
-         (fn [o#]
-           (proto-map->clj-map o#))))))
-
-(defn emit-default-ctor [^Class clazz]
-  (let [map-ctor-name (u/map-ctor-name clazz)
-        fn-name       (u/empty-ctor-name clazz)]
-    `(def ~fn-name
-       (fn []
-         (~map-ctor-name {})))))
-
-(defn emit-bytes-ctor [^Class clazz]
-  (let [proto-ctor-name (u/proto-ctor-name clazz)
-        fn-name         (u/bytes-ctor-name clazz)
-        bytea           (with-meta 'bytea {:tag "[B"})
-        x               (u/with-type-hint 'x clazz)]
-    `(do
-       (def ~fn-name
-         (fn [~bytea]
-           (let [proto# (~(static-call clazz "parseFrom") ~bytea)]
-             (~proto-ctor-name proto#))))
-
-       (def ~(reverse-ctor-name fn-name)
-         (fn [y#]
-           (let [~x (pronto.RT/getProto y#)]
-             (.toByteArray ~x)))))))
-
-(defn emit-json-ctor [^Class clazz]
-  (let [proto-ctor-name (u/proto-ctor-name clazz)
-        fn-name         (u/json-ctor-name clazz)
-        s               (u/with-type-hint 's String)
-        x               (u/with-type-hint 'x clazz)
-        printer         (u/with-type-hint 'printer JsonFormat$Printer)
-        parser          (u/with-type-hint 'parser JsonFormat$Parser)
-        builder         (u/with-type-hint 'builder (get-builder-class clazz))]
-    `(let [~printer (JsonFormat/printer)
-           ~parser  (JsonFormat/parser)]
-       (def ~fn-name
-         (fn [~s]
-           (let [~builder (~(static-call clazz "newBuilder"))]
-             (.merge ~parser ~s ~builder)
-             (~proto-ctor-name (.build ~builder)))))
-
-       (def ~(reverse-ctor-name fn-name)
-         (fn [y#]
-           (let [~x (pronto.RT/getProto y#)]
-             (.print ~printer ~x)))))))
+       ~@(emit-interface-impl clazz fields))))
 
 
-(defn emit-proto-map [^Class clazz]
+(defn- emit-mapper [^Class clazz]
+  (let [proto-map-class-name (u/class->map-class-name clazz)]
+    `(extend-type ~clazz
+       ProtoMapBuilder
+       (proto->proto-map [this#]
+         (new ~proto-map-class-name this# nil)))))
+
+
+(defn- declare-class [class-name nargs]
+  `(deftype ~class-name [~@(repeatedly nargs gensym)]))
+
+
+(defn empty-map-var-name [^Class clazz]
+  (symbol (str "__PROTOCLJ_EMPTY_" (s/replace (.getName clazz) "." "_"))))
+
+
+(defn emit-empty-map [^Class clazz]
+  `(def ~(empty-map-var-name clazz) #_~(with-meta (singleton-name clazz)  {:const true}) ~(emit-default-ctor clazz)))
+
+
+(defn emit-proto-map [^Class clazz ctx]
   `(do
-     (declare ~(u/map-ctor-name clazz))
-     (declare ~(u/proto-ctor-name clazz))
-     (declare ~(u/transient-ctor-name clazz))
+     ~(declare-class (u/class->map-class-name clazz) 1)
+     ~(declare-class (u/class->transient-class-name clazz) 2)
+     ~(emit-interface clazz ctx)
+     ~(emit-deftype clazz ctx)
+     ~(emit-transient clazz ctx)
+     ~(emit-empty-map clazz)
+     ~(emit-mapper clazz)))
 
-     ~(emit-deftype clazz)
-     ~(emit-transient clazz)
-     ~(emit-proto-ctor clazz)
-     ~(emit-map-ctor clazz)
-     ~(emit-bytes-ctor clazz)
-     ~(emit-json-ctor clazz)
-     ~(emit-default-ctor clazz)))

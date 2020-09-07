@@ -2,6 +2,12 @@
 
 A library for using [Protocol Buffers](https://github.com/protocolbuffers/protobuf) 3 in Clojure.
 
+***
+This library is an `alpha` version and under active development!
+
+**Please join #rnd-pronto-lib on Slack for discussions and announcements.**
+****
+
 ## Rationale
 
 The guiding principles for `pronto` are:
@@ -22,7 +28,18 @@ Add a dependency to your `project.clj` file:
 
 ## How does it work?
 
-Let's take a look by using this [example](https://***REMOVED***/Architecture/pronto/blob/deftype/resources/proto/people.proto): 
+The main abstraction of the library is the `proto-map`, a type of map which can be used as a regular Clojure map, but rejects any operations
+which would break your schema. The library generates a bespoke `proto-map` class for every `protoc`-generated Java class (POJO).
+
+Every `proto-map` 
+* Holds an underlying instance of the actual POJO.
+* Can be used as Clojure maps and support most Clojure semantics and abstractions by implementing all the appropriate internal Clojure interfaces 
+(see [fine print](#fine-print-please-read)).
+* Is immutable, i.e, `assoc`ing creates a new proto-map instance around a new POJO instance.
+
+## Quick example
+
+Let's use this [example](https://***REMOVED***/Architecture/pronto/blob/deftype/resources/proto/people.proto): 
 
 ```clj
 (import 'protogen.generated.People$Person)
@@ -30,28 +47,20 @@ Let's take a look by using this [example](https://***REMOVED***/Architecture/pro
 (require '[pronto.core :as p])
 
 (p/defproto People$Person)
-=> user.People$PersonMap
 ```
-`defproto` is a macro which accepts a `protoc`-generated class, and generates new bespoke wrapper classes for it and for any message dependency it has.
-In this example, we generated a new class `user.People$PersonMap` in the namespace in which the macro was expanded (as well as classes for its dependencies, 
-for example `user.People$Address`).
 
-Instances of the wrapper class:
-
-* Hold an underlying instance of the actual Java object.
-* Can be used as Clojure maps and support Clojure semantics and abstractions by implementing all the appropriate internal Clojure interfaces.
-* Are immutable, i.e, `assoc`ing creates a new wrapper instance around a new POJO instance.
+`defproto` is a macro which generates new `proto-map` classes for the supplied class and for any message type dependency it has.
 
 Now we can work with protobuf while writing idiomatic Clojure code:
 
 ```clj
-(-> (->People$PersonMap) ;; creates a wrapper around an empty instance of `Person`
-    (assoc :name "Rich" :id 0 :pet-names ["FOO" "BAR"])
-    (update :pet-names #(map clojure.string/lower-case %))
+(-> (p/proto-map People$Person) ;; create a Person proto-map
+    (assoc :name "Rich" :id 0 :pet_names ["FOO" "BAR"])
+    (update :pet_names #(map clojure.string/lower-case %))
     (assoc-in [:address :street] "Broadway"))
 ```
 
-Internally, field reads and writes are delegated directly to the underlying Java instance.
+Internally, field reads and writes are delegated directly to the underlying POJO.
 For example, `(:name person-map)` will call `Person.getName` and `(assoc person-map :name "John")` will call `Person.Builder.setName`.
 
 Schema-breaking operations will throw an error:
@@ -62,84 +71,92 @@ Schema-breaking operations will throw an error:
 No such field :no-such-key
 
 (assoc person-map :name 12345)
-=> Execution error (IllegalArgumentException) at user.People$PersonMap/assoc
-expected class java.lang.String, but got class java.lang.Long
+=> Execution error:  {:error :invalid-type,
+                      :class protogen.generated.People$Person,
+                      :field "name",
+                      :expected-type java.lang.String,
+                      :actual-type java.lang.Long,
+                      :value 12345}
 ```
+
+## Fine print - please read
+
+It is important to realize that while `proto-maps`s look and feel like Clojure maps for the most part, their semantics
+are not always identical. Clojure maps are dynamic and open-ended; Protocol-buffers are static and closed. This leads to
+several design decisions, in which we usually prefer to stick to Protocol-buffers' semantics rather than Clojure's.
+This is done in order to remove ambiguity, and because we assume that a user which uses protocol-buffers would like to ensure
+the properties for which they decided to use it in the first place are kept.
+
+The main differences and the reasoning behind them are listed below:
+
+* A `proto-map` contains the **entire set of keys** defined in a schema (turned into Clojure keywords) -- the schema is the source of truth and it is always present in its entirety.
+* `dissoc` is unsupported -- for the reason above.
+* Trying to `get` a key not in the map will throw an error, rather than return `nil`. There are two reasons behind this. First, `proto-maps` are closed
+and can't be used as a general-purpose container of key-value's. As a result, this is probably a bug and we'd like to give the user immediate feedback.
+Secondly, returning `nil` could lead to strange ambiguities -- see below.
+* Associng a key not present in the schema is an error -- maintain schema correctness.
+* Associng a value of the wrong type is an error -- maintain schema correctness.
+* To `nil` or not to `nil`: protocol buffers in Java have no notion of nullability. Every field in every message is always initialized and present.
+When unset, they take on their "zero-value" rather than `null`. However, for message type fields it is possible to check whether set or not.
+  * Scalar fields will never be `nil`. When unset, their value will be whatever the default value is for the respective type.
+  * The value message type fields will be `nil` when they are unset. Associng `nil` to a message type field will clear it.
 
 ## Usage guide
 
 ### Creating a new map:
-Calling `defproto` also generates specialized constructor functions for instantiating the wrapper class:
 
 ```clj
-;; create an empty instance of `Person` and wrap around it:
-(->People$PersonMap)
+(import 'protogen.generated.People$Person)
 
-;; deserialize byte array into People$Person and wrap around it:
-(bytes->People$PersonMap (read-person-byte-array-from-kafka))
+(require '[pronto.core :as p])
 
-;; generate a new instance of `People$Person` from a Clojure map adhering to the schema, and wrap around it:
-(map->People$PersonMap {:id 0 :name "hello" :address {:city "London"}}) 
+(p/defproto People$Person)
 
-;; wrap around an existing instance of the class:
-(def person (. (People$Person/newBuilder) build))
-(proto->People$PersonMap person)
+;; Create a new empty Person proto-map:
+(p/proto-map People$Person)
 
-;; deserialize JSON string into People$Person and wrap around it:
-(json->People$PersonMap json-string)
+;; Serialize a byte array into a proto-map (and accompanying POJO):
+(p/proto-map->bytes my-proto-map)
+
+;; Deserialize byte array into a proto-map (and accompanying POJO):
+(p/bytes->proto-map People$Person (read-person-byte-array-from-kafka))
+
+;; Generate a new proto-map from a Clojure map adhering to the schema:
+(p/clj-map->proto-map People$Person {:id 0 :name "hello" :address {:city "London"}})
+
+;; Wrap around an existing instance of a POJO:
+(let [person (. (People$Person/newBuilder) build)]
+  (p/proto->proto-map person))
+  
+;; Get the underlying POJO of a proto-map:
+(p/proto-map->proto my-proto-map)
 ```
 
-As well as their reverse:
+***
+Please note that `proto-map`, `bytes->proto-map` and `clj-map->proto-map` are -- for efficiency reasons --  macros and not functions.
+
+This means that every call-site for the above must supply a symbol which will resolve to a Class during macro expansion time. Passing a variable
+which references a Class instance will not work. In short, this basically means you cannot do the following:
 
 ```clj
-(People$PersonMap->bytes person-map) ;; serialize to byte array
-(People$PersonMap->map person-map) ;; obtain a regular Clojure map
-(People$PersonMap->proto person-map) ;; obtain the Java instance.
+(let [clazz People$Person]
+   (p/proto-map clazz))
 ```
+***
 
 ### Protocol Buffers - Clojure interop
 
 #### Fields
 
-A proto map contains the **entire set of keys** defined in a schema, represented by a keyword of their Clojurified name.
-If a key has never been set, its default protobuf value will be returned.
+As discussed [previously](#fine-print-please-read), a `proto-map` contains the **entire set of keys** defined in a schema, represented by a keyword of their original
+field name in the `.proto` file. 
+
+However, you can control the naming strategy of keys. For example, if you'd like to use kebab-case:
 
 ```clj
-(->People$PersonMap)
-=> 
-{:id 0,
- :name "",
- :email "",
- :address
- {:city "",
-  :street "",
-  :house-num 0,
-  :house {:num-rooms 0},
-  :apartment {:floor-num 0}},
- ...}
-```
-
-In order to prevent ambiguity and to stay aligned with protobuf semantics, `assoc`ing `nil` values is not allowed for any type of key,
-and will throw an `IllegalArgumentException`.
-
-Since keys cannot be removed from the map, `dissoc` is also unsupported, and throws `UnsupportedOperationException`.
-
-To explicitly clear a value, use `clear-field`:
-
-```clj
-;; will internally call People$Person.Builder.clearName
-(p/clear-field (map->People$PersonMap {:name "Joe"}) :name)
-=> {:name "", ... }
-```
-
-To check if a field has been set, use `has-field?` (only supported for message types, by protobuf 3 design):
-
-```clj
-;; will internally call People$Person.hasAddress
-(p/has-field? (->People$PersonMap) :address)
-=> false
-(p/has-field? (map->People$PersonMap {:address {:city "NYC"}}) :address)
-=> true
+(require '[pronto.utils :as u])
+(p/defproto People$Person 
+    :key-name-fn u/->kebab-case)
 ```
 
 #### Scalar fields
@@ -156,35 +173,44 @@ In any case, handling of overflows is left to the user.
 When calling `defproto`, the macro will also find all message types on which the class depends, and generate specialized wrapper types for them as well,
 so you do not have to call `defproto` recursively yourselves.
 
-When reading a field whose type is a message type, a wrapper instance is returned:
-```clj
-(type (:address (->People$PersonMap)))
-=> user.People$AddressMap
-```
+When reading a field whose type is a message type, a `proto-map` is returned.
+
+It is possible to assoc both a `proto-map` into a message type field, or a regular Clojure map -- as long as it adheres to the schema.
 
 #### Repeated and maps
 Values of repeated/map fields are returned as Clojure maps/vectors:
 
 ```clj
-(:pet-names person-map)
+(:pet_names person-map)
 => ["foo" "bar"]
 (:relations person-map)
-=> {:friend "Joe" :cousin "Vinny"}
+=> {:friend {:name "Joe" ... } :cousin {:name "Vinny" ... }}
 ```
 
 #### Enums
-Enumerations are also represented by a keyword of their Clojurified name:
+Enumerations are also represented by a keyword:
 
 ```clj
-(:level (->People$LikeMap)) ;; either Level/LOW, Level/MEDIUM, Level/HIGH
+(import 'protogen.generated.People$Like)
+(p/defproto People$Like)
+
+(:level (p/proto-map People$Like)) ;; either Level/LOW, Level/MEDIUM, Level/HIGH
+=> :LOW
+```
+It is possible to use kebab-case (or any other case) for enums. 
+
+```clj
+(p/defproto People$Like
+    :enum-value-fn u/->kebab-case)
+(:level (p/proto-map People$Like))
 => :low
 ```
 
 #### One-of's
 one-of's behave like other fields. This means that even when unset, the optional
-fields still exist in the schema with their default values.
+fields still exist in the schema with their default values or `nil` in the case of message types.
 
-To check which one-of is set, use `which-one-of`.
+To check which one-of is set, use `which-one-of` or `one-of`.
 
 For example, given this schema:
 ```
@@ -200,18 +226,29 @@ message Address {
 ```
 
 ```clj
-(p/which-one-of (->People$AddressMap) :home)
-=> :home-not-set
+(p/which-one-of (p/proto-map People$Address) :home)
+=> nil
 
-(p/which-one-of (map->People$AddressMap {:house {:num-rooms 3}}) :home)
+(p/one-of (p/proto-map People$Address) :home)
+=> nil
+
+(p/which-one-of (p/clj-map->proto-map People$Address {:house {:num_rooms 3}}) :home)
 => :house
+
+(p/one-of (p/clj-map->proto-map People$Address {:house {:num_rooms 3}}) :home)
+=> {:num_rooms 3}
 ```
 
 #### ByteStrings
-# TODO: explain ByteStrings are Java's version of protobuf bytes
 `ByteString`s are not wrapped, and returned raw in order to provide direct access to the byte array.
 
 However, ByteString's are naturally `seqable` since they implement `java.lang.Iterable`.
+
+#### Well-Known-Types
+
+[Well known types](https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/wrappers.proto) fields will be inlined into the message.
+This means, that rather than calling `(-> my-proto-map :my-string-value :value)` you can simply write `(:my-string-value my-proto-map)`. Note that since
+well-known-types are message types, this may return `nil` when the field is unset.
 
 #### Transients
 
@@ -222,10 +259,6 @@ Proto maps can be made `transient` by calling [transient](https://clojuredocs.or
 in local scopes, to perform a series of update operations.
 
 Rather then referencing the POJO instance, transients use a `Builder` instance. This eliminates the need to transition to the builder on every update operation, and can lower GC pressure.
-
-#### Metadata
-
-At the moment, metadata cannot be associated with proto maps -- `with-meta` and `vary-meta` are no-op.
 
 #### Reloadability 
 
