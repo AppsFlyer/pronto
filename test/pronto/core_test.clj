@@ -351,8 +351,10 @@
 
 (deftest inflate-test
   (let [^People$Address address (make-address :city "NYC" :street "Broadway")
-        p                       (p/proto-map People$Person)]
+        p                       (-> (p/proto-map People$Person)
+                                    (assoc :name "Name"))]
     (is (nil? (:address p)))
     (is (= (p/proto-map->proto (p/proto-map People$Address)) (p/proto-map->proto (:address (p/inflate p)))))
+    (is (= "Name" (:name (p/inflate p))))
     (is (nil? (:address (p/deflate (p/inflate p)))))
     (is (= address (p/proto-map->proto (:address (assoc (p/inflate p) :address address)))))))
