@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package protogen.generated;
 
+import "google/protobuf/wrappers.proto";
+
 message Person {
   int32  id    = 1;
   string name  = 2;
@@ -15,6 +17,16 @@ message Person {
   bool is_vegetarian = 12;
   double height_cm = 13;
   float weight_kg = 14;
+  repeated Level levels = 15;
+  google.protobuf.Int32Value social_security = 16;
+  google.protobuf.StringValue maiden_name = 17;
+  UUID uuid = 18;
+  google.protobuf.BytesValue bv = 19;
+  map<string, google.protobuf.DoubleValue> bla = 20;
+}
+
+message UUID {
+  string value = 1;
 }
 
 message Address {
@@ -28,9 +40,11 @@ message Address {
 }
 
 enum Level {
+  option allow_alias = true;
   LOW = 0;
   MEDIUM = 5;
   HIGH = 10;
+  ALIASED_HIGH = 10;
 }
 
 message Like {

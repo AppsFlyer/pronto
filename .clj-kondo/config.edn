@@ -5,4 +5,5 @@
                         :level                                :info}
   :unused-namespace    {:exclude [taoensso.timbre]
                         :level   :off}}
- :output {:exclude-files ["emitters.clj"]}}
+ :lint-as {pronto.core/defproto clojure.core/def}
+ :output  {:exclude-files ["emitters.clj"]}}

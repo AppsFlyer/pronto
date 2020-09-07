@@ -4,13 +4,13 @@ import clojure.lang.Keyword;
 import com.google.protobuf.GeneratedMessageV3;
 
 public interface ProtoMap {
-    boolean isMutable();
+    boolean pmap_isMutable();
 
-    boolean hasField(Keyword key);
+    boolean pmap_hasField(Keyword key);
 
-    ProtoMap clearField(Keyword key);
+    ProtoMap pmap_clearField(Keyword key);
 
-    GeneratedMessageV3 getProto();
+    GeneratedMessageV3 pmap_getProto();
 
-    Keyword whichOneOf(Keyword key);
+    Keyword pmap_whichOneOf(Keyword key);
 }

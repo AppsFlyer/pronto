@@ -8,6 +8,7 @@
 
 
 (defn sanitized-class-name [^Class clazz]
+  ;; TODO: did I reimplement a crappier .getSimpleName?
   (let [package-name (.getName (.getPackage clazz))
         class-name   (.getName clazz)]
     (subs class-name (inc (count package-name)))))
@@ -18,8 +19,6 @@
 (defn class->transient-class-name [^Class clazz]
   (symbol (str 'transient- (sanitized-class-name clazz))))
 
-(defn transient-ctor-name [^Class clazz]
-  (symbol (str '-> (class->transient-class-name clazz))))
 
 (defn ->kebab-case [s]
   (s/lower-case (s/join "-" (s/split s #"_"))))
@@ -29,16 +28,6 @@
 
 (defn ctor-name [prefix ^Class clazz]
   (symbol (str prefix '-> (class->map-class-name clazz))))
-
-(def proto-ctor-name (partial ctor-name 'proto))
-
-(def map-ctor-name (partial ctor-name 'map))
-
-(def empty-ctor-name (partial ctor-name ""))
-
-(def bytes-ctor-name (partial ctor-name 'bytes))
-
-(def json-ctor-name (partial ctor-name 'json))
 
 (defn- char-in-range? [c start end]
   (<= (int start) (int c) (int end)))
@@ -59,9 +48,7 @@
                xs
                false)
         (char-in-range? x \A \Z)
-        (recur (str cc (if cap-next-letter
-                         (char (+ (int x) (- (int \A) (int \a))))
-                         x)) xs false)
+        (recur (str cc x) xs false)
         (char-in-range? x \0 \9)
         (recur (str cc x) xs true)
         :else
@@ -70,6 +57,34 @@
 (defn field->camel-case [^Descriptors$GenericDescriptor field]
   (->camel-case (.getName field)))
 
+(defn field->kebab-case [^Descriptors$GenericDescriptor field]
+  (->kebab-case (.getName field)))
+
 (defn message? [^Descriptors$FieldDescriptor fd]
   (= (.getType fd)
      Descriptors$FieldDescriptor$Type/MESSAGE))
+
+(defn enum? [^Descriptors$FieldDescriptor fd]
+  (= (.getType fd)
+     Descriptors$FieldDescriptor$Type/ENUM))
+
+(defn static-call [^Class class method-name]
+  (symbol (str (.getName class) "/" method-name)))
+
+
+(defn- type-error-info [error-type ^Class clazz field-name expected-type value]
+  {:error         error-type
+   :class         clazz
+   :field         (->kebab-case (name field-name))
+   :expected-type expected-type
+   :actual-type   (type value)
+   :value         value})
+
+(defn make-type-error [^Class clazz field-name expected-type value]
+  (ex-info "Invalid type"
+           (type-error-info :invalid-type clazz field-name expected-type value)))
+
+(defn make-enum-error [^Class clazz field-name expected-type value]
+  (ex-info "Invalid enum value"
+           (type-error-info :invalid-enum-value
+                            clazz field-name expected-type value)))

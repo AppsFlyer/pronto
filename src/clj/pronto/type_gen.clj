@@ -16,13 +16,8 @@
 
 (defprotocol TypeGen
   (get-class [this])
-  (gen-setter [this builder k v])
-  (gen-getter [this o k]))
-
-
-(defn ^String make-error-message [key-name expected-type actual-type]
-  (str "wrong value type for key " key-name ": expected " expected-type ", got " actual-type))
-
+  (gen-setter [this builder v])
+  (gen-getter [this o]))
 
 (defn descriptor [^Class clazz]
   (Reflector/invokeStaticMethod clazz "getDescriptor" (to-array nil)))
@@ -47,66 +42,84 @@
                                       (make-array Class 0))]
     (.getReturnType m)))
 
-(defn get-simple-type-gen [^Class clazz ^Descriptors$FieldDescriptor fd]
+
+;; TODO: split this into a generator for message types and scalar types
+(defn get-simple-type-gen [^Class clazz ^Descriptors$FieldDescriptor fd ctx]
   (let [cc         (u/field->camel-case fd)
         setter     (symbol (str ".set" cc))
         getter     (symbol (str ".get" cc))
         field-type (field-type clazz fd)
-        wrapper    (w/gen-wrapper field-type)]
+        wrapper    (w/gen-wrapper field-type ctx)]
     (reify TypeGen
       (get-class [_] field-type)
 
-      (gen-setter [_ builder k v]
-        (let [res (gensym 'res)
+      (gen-setter [_ builder v]
+        (let [res          (gensym 'res)
               ;; if field is primitive, don't add any additional type info
               ;; as it is already hinted
               ;; TODO: should we delegate all type hinting to wrappers?
-              res (if (primitive? field-type)
-                    res
-                    (u/with-type-hint (gensym 'res) field-type))]
-          `(let [~res ~(w/unwrap wrapper v)]
-             (~setter ~builder ~res))))
+              res          (if (primitive? field-type)
+                             res
+                             (u/with-type-hint (gensym 'res) field-type))
+              clear-method (symbol (str ".clear" (u/field->camel-case fd)))]
+          `(if (nil? ~v)
+             ~(if (u/message? fd)
+                `(~clear-method ~builder)
+                `(throw (u/make-type-error ~clazz ~(.getName fd) ~field-type nil)))
+             (let [~res ~(w/unwrap wrapper v)]
+               (~setter ~builder ~res)))))
 
-      (gen-getter [_ o k]
-        (let [v (gensym 'v)]
-          `(let [~v (~getter ~o)]
-             ~(w/wrap wrapper v)))))))
+      (gen-getter [_ o]
+        (let [v          (gensym 'v)
+              has-method (symbol (str ".has" (u/field->camel-case fd)))
+              get-form   `(let [~v (~getter ~o)]
+                            ~(w/wrap wrapper v))]
+          (if-not (u/message? fd)
+            get-form
+            `(when (~has-method ~o)
+               ~get-form)))))))
 
 (defn descriptor-type [^Descriptors$FieldDescriptor fd]
   (cond
-    (.isMapField fd)         :map
-    (.isRepeated fd)         :repeated
-    ;(.getContainingOneof fd) :one-of
-    :else                    :simple))
+    (.isMapField fd) :map
+    (.isRepeated fd) :repeated
+                                        ;(.getContainingOneof fd) :one-of
+    :else            :simple))
 
 (defmulti get-type-gen
   (fn [^Class _clazz
-       ^Descriptors$FieldDescriptor$Type fd]
+       ^Descriptors$FieldDescriptor$Type fd
+       _ctx]
     (descriptor-type fd)))
 
 (defmethod get-type-gen
   :simple
-  [^Class clazz ^Descriptors$FieldDescriptor fd]
-  (get-simple-type-gen clazz fd))
+  [^Class clazz ^Descriptors$FieldDescriptor fd ctx]
+  (get-simple-type-gen clazz fd ctx))
 
 (defn uncapitalize [s]
   (str (s/lower-case (subs s 0 1)) (subs s 1)))
+
+(defn find-type [^Class clazz ^Descriptors$FieldDescriptor fd]
+  (.getGenericReturnType (.getDeclaredMethod clazz (str "get" (u/field->camel-case fd)
+                                                        (if (.isMapField fd)
+                                                          "Map"
+                                                          (when (.isRepeated fd)
+                                                            "List")))
+                                             (make-array Class 0))))
 
 (defn fd->java-type [^Descriptors$FieldDescriptor fd]
   (if (u/message? fd)
     (Class/forName (.getFullName (.getMessageType fd)))
     (condp = (.getJavaType fd)
       Descriptors$FieldDescriptor$JavaType/INT    Integer
-      Descriptors$FieldDescriptor$JavaType/STRING String
-      :else                                       (throw (UnsupportedOperationException. (str "don't know type " (.getJavaType fd)))))))
+      Descriptors$FieldDescriptor$JavaType/STRING String)))
 
 (defn get-parameterized-type [parameter-index ^Class clazz ^Descriptors$FieldDescriptor fd]
-  (if (u/message? fd)
-    (let [field-name   (-> fd u/field->camel-case uncapitalize (str "_"))
-          ^Field field (.getDeclaredField clazz field-name)
-          ^Type type   (.getGenericType field)]
+  (if (or (u/message? fd) (u/enum? fd))
+    (let [^Type type (find-type clazz fd)]
       (if (instance? ParameterizedType type)
-        (aget (.getActualTypeArguments ^ParameterizedType type) parameter-index )
+        (aget (.getActualTypeArguments ^ParameterizedType type) parameter-index)
         (throw (UnsupportedOperationException. (str "can't infer type for " (.getName fd))))))
     (fd->java-type fd)))
 
@@ -114,7 +127,7 @@
 
 (defmethod get-type-gen
   :map
-  [^Class clazz ^Descriptors$FieldDescriptor fd]
+  [^Class clazz ^Descriptors$FieldDescriptor fd ctx]
   (let [cc          (u/field->camel-case fd)
         key-type    (get-parameterized-type 0 clazz fd)
         val-type    (get-parameterized-type 1 clazz fd)
@@ -127,8 +140,8 @@
                         (unwrap [_ v]
                           ;; -> string
                           `(name ~v)))
-                      (w/gen-wrapper key-type))
-        val-wrapper  (w/gen-wrapper val-type)
+                      (w/gen-wrapper key-type ctx))
+        val-wrapper  (w/gen-wrapper val-type ctx)
         clear-method (symbol (str ".clear" cc))
         put-method   (symbol (str ".put" cc))
         m            (u/with-type-hint (gensym 'm) java.util.Map)
@@ -139,9 +152,9 @@
 
       (get-class [_] val-type)
 
-      (gen-setter [_ builder k v]
-        `(if-not (.isAssignableFrom java.util.Map (class ~v))
-           (throw (IllegalArgumentException. (make-error-message ~k java.util.Map (type ~v))))
+      (gen-setter [_ builder v]
+        `(if-not (and (some? ~v) (.isAssignableFrom java.util.Map (class ~v)))
+           (throw (u/make-type-error ~clazz ~(.getName fd) java.util.Map ~v))
            (let [~m       ~v
                  ~builder (~clear-method ~builder)]
              (doseq [~entry (.entrySet ~m)]
@@ -151,7 +164,7 @@
                   ~(w/unwrap key-wrapper entry-key)
                   ~(w/unwrap val-wrapper entry-val)))))))
 
-      (gen-getter [_ o k]
+      (gen-getter [_ o]
         `(let [~m       (~(symbol (str ".get" cc "Map")) ~o)
                new-map# (java.util.HashMap. (.size ~m))]
            (doseq [~entry (.entrySet ~m)]
@@ -183,10 +196,10 @@
 
 (defmethod get-type-gen
   :repeated
-  [^Class clazz ^Descriptors$FieldDescriptor fd]
+  [^Class clazz ^Descriptors$FieldDescriptor fd ctx]
   (let [cc             (u/field->camel-case fd)
         inner-type     (get-parameterized-type 0 clazz fd)
-        wrapper        (w/gen-wrapper inner-type)
+        wrapper        (w/gen-wrapper inner-type ctx)
         clear-method   (symbol (str ".clear" cc))
         add-all-method (symbol (str ".addAll" cc))
         x              (gensym 'x)]
@@ -194,15 +207,15 @@
 
       (get-class [_] inner-type)
 
-      (gen-setter [_ builder k v]
-        `(if-not (.isAssignableFrom Iterable (class ~v))
-           (throw (IllegalArgumentException. (make-error-message ~k Iterable (type ~v))))
+      (gen-setter [_ builder v]
+        `(if-not (and (some? ~v) (.isAssignableFrom Iterable (class ~v)))
+           (throw (u/make-type-error ~clazz ~(.getName fd) Iterable ~v))
            (let [al# (java.util.ArrayList. (count ~v))]
              (doseq [~x ~v]
                (.add al# ~(w/unwrap wrapper x)))
              (~add-all-method (~clear-method ~builder) al#))))
 
-      (gen-getter [_ o k]
+      (gen-getter [_ o]
         (let [v (with-meta (gensym 'v) {:tag 'java.util.List})]
           `(let [~v  (~(symbol (str ".get" cc "List")) ~o)
                  al# (java.util.ArrayList. (.size ~v))]
@@ -210,10 +223,11 @@
                (.add al# ~(w/wrap wrapper x)))
              (clojure.lang.PersistentVector/create al#)))))))
 
-(defn get-fields [^Class clazz]
+(defn get-fields [^Class clazz ctx]
   (let [class-descriptor  (descriptor clazz)
         field-descriptors (field-descriptors class-descriptor)]
     (for [fd field-descriptors]
-      {:fd       fd
-       :type-gen (get-type-gen clazz fd)
-       :kw       (keyword (.getName ^Descriptors$FieldDescriptor fd))})))
+      (let [ctx (assoc ctx :class clazz :fd fd)]
+        {:fd       fd
+         :type-gen (get-type-gen clazz fd ctx)
+         :kw       (keyword ((or (:key-name-fn ctx) identity) (.getName ^Descriptors$FieldDescriptor fd)))}))))
