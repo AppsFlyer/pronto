@@ -358,3 +358,9 @@
     (is (= "Name" (:name (p/inflate p))))
     (is (nil? (:address (p/deflate (p/inflate p)))))
     (is (= address (p/proto-map->proto (:address (assoc (p/inflate p) :address address)))))))
+
+
+(deftest implode-test
+  (is (= [] (u/implode [])))
+  (is (= [1] (u/implode [1])))
+  (is (= [1 [2 [3 [4]]]] (u/implode [1 2 3 4]))))

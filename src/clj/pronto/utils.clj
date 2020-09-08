@@ -91,3 +91,8 @@
   (ex-info "Invalid enum value"
            (type-error-info :invalid-enum-value
                             clazz field-name expected-type value)))
+
+(defn implode [[x & xs]]
+  (cond (not x)  []
+        (not xs) [x]
+        :else    [x (implode xs)]))

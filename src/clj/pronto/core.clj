@@ -71,13 +71,21 @@
 (defn proto->proto-map [^GeneratedMessageV3 proto]
   (e/proto->proto-map proto))
 
-(defn proto-map->clj-map [proto-map]
-  (into {}
-        (map (fn [[k v]]
-               [k (if (instance? ProtoMap v)
-                    (proto-map->clj-map v)
-                    v)]))
-        proto-map))
+(def bla
+  (map (fn [[k v]]
+         )))
+
+(defn proto-map->clj-map
+  ([proto-map] (proto-map->clj-map proto-map (map identity)))
+  ([proto-map xform]
+   (let [mapper (map (fn [[k v]]
+                       [k (if (instance? ProtoMap v)
+                            (proto-map->clj-map v)
+                            v)]))
+         xform  (comp mapper xform)]
+     (into {}
+           xform
+           proto-map))))
 
 (defmacro bytes->proto-map [^Class clazz ^bytes bytes]
   (let [clazz (resolve-loaded-class clazz)

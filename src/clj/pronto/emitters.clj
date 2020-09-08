@@ -29,6 +29,15 @@
 (defn- val-at-intf-name [^Descriptors$FieldDescriptor fd]
   (symbol (str "valAt" (u/field->camel-case fd))))
 
+(defn emit-reduce [clauses]
+  (let [r (gensym 'res)]
+    (reduce (fn [acc f]
+              `(let [~r ~f]
+                 (if (reduced? ~r)
+                   ~r
+                   ~acc)))
+            r
+            clauses)))
 
 (defn- emit-interface [^Class clazz ctx]
   (let [fields (t/get-fields clazz ctx)]
@@ -348,7 +357,19 @@
 
        ~(interface-name clazz)
 
-       ~@(emit-interface-impl clazz fields))))
+       ~@(emit-interface-impl clazz fields)
+
+       clojure.lang.IKVReduce
+
+       ~(let [this (gensym 'this)
+              f    (gensym 'f)
+              init (gensym 'init)]
+          `(~'kvreduce [~this ~f ~init]
+            ~(emit-reduce
+               (map
+                 (fn [fd]
+                   `(~f (~(symbol (str "." (val-at-intf-name (:fd fd)))) ~this ~o)))
+                 fields)))))))
 
 (defn emit-pump [^Class clazz ctx]
   (let [ctx                  (assoc ctx :pumped? true)
