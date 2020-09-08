@@ -1,6 +1,7 @@
 (ns pronto.utils
   (:require [clojure.string :as s])
   (:import
+   [clojure.lang Symbol]
    [com.google.protobuf
     Descriptors$FieldDescriptor
     Descriptors$GenericDescriptor
@@ -96,3 +97,23 @@
   (cond (not x)  []
         (not xs) [x]
         :else    [x (implode xs)]))
+
+(defmacro with-ns [nsname & body]
+  (let [orig-ns      *ns*
+        orig-ns-name (ns-name orig-ns)]
+    `(do
+       (in-ns (quote ~(symbol nsname)))
+       ~@(for [[^Symbol class-sym ^Class clazz]
+               (ns-imports orig-ns)
+               :let  [class-name (.getName clazz)
+                      package-prefix (subs class-name 0 (- (count class-name)
+                                                           (count (name class-sym))
+                                                           1))]
+               :when (and (not (s/starts-with? package-prefix "java.lang"))
+                          (not (s/starts-with? package-prefix "clojure.lang")))]
+           `(import (quote [~(symbol package-prefix) ~class-sym])))
+       ~@body
+       #_(finally)
+       (in-ns (quote ~(symbol orig-ns-name))))))
+
+(macroexpand '(with-ns "aaa" (println 5)))

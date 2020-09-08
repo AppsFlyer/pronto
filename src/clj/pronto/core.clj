@@ -3,13 +3,16 @@
             [pronto.emitters :as e]
             [pronto.type-gen :as t]
             [pronto.transformations :as transform]
-            [pronto.utils :as u])
+            [pronto.utils :as u]
+            [pronto.protos])
   (:import [pronto ProtoMap]
            [com.google.protobuf Message GeneratedMessageV3]))
 
 (def ^:private loaded-classes (atom {}))
 
 (def ^:dynamic *instrument?* true)
+
+(def ^:private global-ns "pronto.protos")
 
 (defn- resolve-class [class-sym]
   (let [clazz (resolve class-sym)]
@@ -60,12 +63,12 @@
 
 (defmacro proto-map [clazz]
   (let [clazz (resolve-loaded-class clazz)]
-    `~(symbol (get @loaded-classes clazz) (str (e/empty-map-var-name clazz)))))
+    `~(symbol global-ns (str (e/empty-map-var-name clazz)))))
 
 (defmacro clj-map->proto-map [clazz m]
   (let [clazz (resolve-loaded-class clazz)]
     `(transform/map->proto-map
-       ~(e/emit-default-transient-ctor clazz (get @loaded-classes clazz))
+       ~(e/emit-default-transient-ctor clazz global-ns)
        ~m)))
 
 (defn proto->proto-map [^GeneratedMessageV3 proto]
@@ -91,7 +94,7 @@
   (let [clazz (resolve-loaded-class clazz)
         bytea (with-meta bytes {:tag "[B"})]
     `(~(symbol
-         (get @loaded-classes clazz)
+         global-ns
          (str '-> (u/class->map-class-name clazz)))
       (~(u/static-call clazz "parseFrom")
        ~bytea) nil)))
@@ -158,12 +161,11 @@
     (swap! loaded-classes assoc clazz (str *ns*))
     (e/emit-proto-map clazz ctx)))
 
-
 (defmacro defproto [class & opts]
   (let [ctx          (init-ctx opts)
         ^Class clazz (resolve-class class)
         deps         (reverse (resolve-deps clazz ctx))]
-    `(do
+    `(u/with-ns "pronto.protos"
        ~@(for [dep deps]
            (emit-proto-map dep ctx))
 
