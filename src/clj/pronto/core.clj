@@ -161,6 +161,7 @@
     (swap! loaded-classes assoc clazz (str *ns*))
     (e/emit-proto-map clazz ctx)))
 
+
 (defmacro defproto [class & opts]
   (let [ctx          (init-ctx opts)
         ^Class clazz (resolve-class class)
@@ -170,3 +171,4 @@
            (emit-proto-map dep ctx))
 
        ~(emit-proto-map clazz ctx))))
+

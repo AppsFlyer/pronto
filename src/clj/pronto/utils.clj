@@ -93,27 +93,31 @@
            (type-error-info :invalid-enum-value
                             clazz field-name expected-type value)))
 
+
 (defn implode [[x & xs]]
   (cond (not x)  []
         (not xs) [x]
         :else    [x (implode xs)]))
 
-(defmacro with-ns [nsname & body]
-  (let [orig-ns      *ns*
-        orig-ns-name (ns-name orig-ns)]
+
+(defmacro with-ns [new-ns & body]
+  (let [orig-ns          *ns*
+        orig-ns-name     (ns-name orig-ns)
+        ns-name-sym      (symbol new-ns)
+        existing-classes (set (when-let [n (find-ns ns-name-sym)]
+                                (vals (ns-imports n))))]
     `(do
-       (in-ns (quote ~(symbol nsname)))
+       (in-ns (quote ~ns-name-sym))
        ~@(for [[^Symbol class-sym ^Class clazz]
                (ns-imports orig-ns)
                :let  [class-name (.getName clazz)
                       package-prefix (subs class-name 0 (- (count class-name)
                                                            (count (name class-sym))
                                                            1))]
-               :when (and (not (s/starts-with? package-prefix "java.lang"))
-                          (not (s/starts-with? package-prefix "clojure.lang")))]
-           `(import (quote [~(symbol package-prefix) ~class-sym])))
+               :when (not (get existing-classes clazz))]
+           `(import '[~(symbol package-prefix) ~class-sym]))
        ~@body
        #_(finally)
        (in-ns (quote ~(symbol orig-ns-name))))))
 
-(macroexpand '(with-ns "aaa" (println 5)))
+
