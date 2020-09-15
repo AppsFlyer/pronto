@@ -359,17 +359,17 @@
 
        ~@(emit-interface-impl clazz fields)
 
-       clojure.lang.IKVReduce
+       #_ clojure.lang.IKVReduce
 
-       ~(let [this (gensym 'this)
-              f    (gensym 'f)
-              init (gensym 'init)]
-          `(~'kvreduce [~this ~f ~init]
-            ~(emit-reduce
-               (map
-                 (fn [fd]
-                   `(~f (~(symbol (str "." (val-at-intf-name (:fd fd)))) ~this ~o)))
-                 fields)))))))
+       #_ ~(let [this (gensym 'this)
+                 f    (gensym 'f)
+                 init (gensym 'init)]
+             `(~'kvreduce [~this ~f ~init]
+               ~(emit-reduce
+                  (map
+                    (fn [fd]
+                      `(~f (~(symbol (str "." (val-at-intf-name (:fd fd)))) ~this ~o)))
+                    fields)))))))
 
 (defn emit-pump [^Class clazz ctx]
   (let [ctx                  (assoc ctx :pumped? true)
