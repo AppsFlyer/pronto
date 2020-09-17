@@ -142,9 +142,11 @@
              (update' :key-name-fn eval)
              (update' :enum-value-fn eval)
              (update' :encoders #(into {}
-                                       (map (fn [[k v]] [(resolve k) v]))
-                                       %)))))
-
+                                       (map (fn [[k v]]
+                                              (let [resolved-k (cond-> k
+                                                                       (symbol? k) (resolve))]
+                                                [resolved-k v])))
+                                       (eval %))))))
 
 (defn dependencies [^Class clazz]
   (set (resolve-deps clazz (init-ctx nil))))
