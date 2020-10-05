@@ -61,9 +61,14 @@
   (when-let [k' (which-one-of m k)]
     (get m k')))
 
-(defmacro proto-map [clazz]
+(defmacro proto-map [clazz & kvs]
   (let [clazz (resolve-loaded-class clazz)]
-    `~(symbol global-ns (str (e/empty-map-var-name clazz)))))
+    (if (empty? kvs)
+      `~(symbol global-ns (str (e/empty-map-var-name clazz)))
+      (let [chain# (map (fn [[k v]] `(assoc! ~k ~v)) (partition 2 kvs))]
+        `(-> ~(e/emit-default-transient-ctor clazz global-ns)
+             ~@chain#
+             persistent!)))))
 
 (defmacro clj-map->proto-map [clazz m]
   (let [clazz (resolve-loaded-class clazz)]

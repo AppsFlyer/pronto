@@ -244,10 +244,16 @@
     (is (= {:bff bff :sister sister} (:relations (assoc-in w [:relations :sister] sister))))))
 
 (deftest empty-test
-  (let [person (make-person :name "foo" :age 100)]
+  (let [person (make-person :name "foo" :age-millis 100)]
     (is (= (empty (p/proto->proto-map person))
            (p/proto-map People$Person)))))
 
+(deftest init-with-values
+  (let [p (p/proto-map People$Person
+                       :name "gaga"
+                       :age_millis 11)]
+    (is (= (:name p) "gaga"))
+    (is (= (:age_millis p) 11))))
 
 (deftest transient-test
   (let [transient-person (transient (p/proto->proto-map (make-person)))]
