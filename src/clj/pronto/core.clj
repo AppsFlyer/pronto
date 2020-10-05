@@ -79,9 +79,6 @@
 (defn proto->proto-map [^GeneratedMessageV3 proto]
   (e/proto->proto-map proto))
 
-(def bla
-  (map (fn [[k v]]
-         )))
 
 (defn proto-map->clj-map
   ([proto-map] (proto-map->clj-map proto-map (map identity)))
