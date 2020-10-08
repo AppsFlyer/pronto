@@ -1,12 +1,17 @@
 (ns pronto.core-test
   (:require [clojure.test :refer :all]
             [pronto.core :refer [defproto] :as p]
-            [pronto.utils :as u])
+            [pronto.utils :as u]
+            [pronto.runtime :as r])
   (:import [protogen.generated People$Person People$Person$Builder
             People$Address People$Address$Builder People$Like People$Level
             People$House People$Apartment
             People$UUID People$PersonOrBuilder]
            [com.google.protobuf ByteString]))
+
+
+;; TODO: break this file into multiple ns's
+
 
 (defn make-house [& {:keys [num-rooms]}]
   (let [b (People$House/newBuilder)]
@@ -35,7 +40,7 @@
     (.build b)))
 
 (defn make-person
-  [& {:keys [id name email address likes pet-names relations private-key age-millis vegetarian? height-cm weight-kg levels]}]
+  [& {:keys [id name email address likes pet-names relations private-key age-millis vegetarian? height-cm weight-kg levels ids-list]}]
   (let [^People$Person$Builder b (People$Person/newBuilder)]
     (when id (.setId b id))
     (when name (.setName b name))
@@ -50,6 +55,7 @@
     (when height-cm   (.setHeightCm b height-cm))
     (when weight-kg   (.setWeightKg b weight-kg))
     (when levels      (.addAllLevels b levels))
+    (when ids-list (.addAllIdsList b ids-list))
     (.build b)))
 
 (defmacro ensure-immutable [w & body]
@@ -182,7 +188,7 @@
     (is (thrown? Exception (assoc p :is_vegetarian "1")))))
 
 
-(deftest repeated-primitive-test
+(deftest repeated-string-test
   (let [pet-names ["aaa" "bbb"]
         p         (make-person :pet-names pet-names)
         w         (p/proto->proto-map p)]
@@ -193,6 +199,16 @@
     (is (thrown? Exception (assoc w :pet_names [1 2 3])))
     (is (= ["AAA" "BBB"] (:pet_names (update w :pet_names (partial map clojure.string/upper-case)))))
     (is (= ["hello" "aaa" "bbb"] (:pet_names (update w :pet_names (partial cons "hello")))))))
+
+(deftest repeated-primitive-test
+  (let [ids-list [(int 1) (int 2)]
+        p        (make-person :ids-list ids-list)
+        w        (p/proto->proto-map p)]
+    (is (= ids-list (:ids_list w)))
+    (is (= [3] (:ids_list (assoc w :ids_list [3]))))
+    ;; TODO: how to test ex-info?
+    (is (thrown? Exception (assoc w :ids_list 123)))
+    (is (thrown? Exception (assoc w :ids_list ["1" "2" "3"])))))
 
 (deftest repeated-message-test
   (let [likes [(make-like :desc "desc1" :level People$Level/LOW)
@@ -243,11 +259,6 @@
     (is (= {:bff bff} (:relations (assoc-in w [:relations :bff] bff))))
     (is (= {:bff bff :sister sister} (:relations (assoc-in w [:relations :sister] sister))))))
 
-(deftest empty-test
-  (let [person (make-person :name "foo" :age-millis 100)]
-    (is (= (empty (p/proto->proto-map person))
-           (p/proto-map People$Person)))))
-
 (deftest init-with-values
   (let [p (p/proto-map People$Person
                        :name "gaga"
@@ -261,8 +272,7 @@
     (assoc! transient-person :id 2)
     (is (thrown? Exception (assoc! transient-person :fake-key "hello")))
     (is (thrown? Exception (assoc! transient-person :id "foo")))
-    (is (= (persistent! transient-person) (p/proto->proto-map (make-person :id 2 :name "foo"))))
-    (is (thrown? IllegalAccessError (get transient-person :name)))))
+    (is (= (persistent! transient-person) (p/proto->proto-map (make-person :id 2 :name "foo"))))))
 
 (deftest bytes-test
   (let [person (make-person :id 5 :name "hello"
@@ -355,18 +365,91 @@
     (is (= (.getId p) (.getId w)))
     (is (= (.getLevelsList p) (.getLevelsList w)))))
 
-(deftest inflate-test
-  (let [^People$Address address (make-address :city "NYC" :street "Broadway")
-        p                       (-> (p/proto-map People$Person)
-                                    (assoc :name "Name"))]
-    (is (nil? (:address p)))
-    (is (= (p/proto-map->proto (p/proto-map People$Address)) (p/proto-map->proto (:address (p/inflate p)))))
-    (is (= "Name" (:name (p/inflate p))))
-    (is (nil? (:address (p/deflate (p/inflate p)))))
-    (is (= address (p/proto-map->proto (:address (assoc (p/inflate p) :address address)))))))
+#_(deftest inflate-test
+    (let [^People$Address address (make-address :city "NYC" :street "Broadway")
+          p                       (-> (p/proto-map People$Person)
+                                      (assoc :name "Name"))]
+      (is (nil? (:address p)))
+      (is (= (p/proto-map->proto (p/proto-map People$Address)) (p/proto-map->proto (:address (p/inflate p)))))
+      (is (= "Name" (:name (p/inflate p))))
+      (is (nil? (:address (p/deflate (p/inflate p)))))
+      (is (= address (p/proto-map->proto (:address (assoc (p/inflate p) :address address)))))))
 
 
 (deftest implode-test
   (is (= [] (u/implode [])))
   (is (= [1] (u/implode [1])))
   (is (= [1 [2 [3 [4]]]] (u/implode [1 2 3 4]))))
+
+
+
+(deftest kv-forest-test []
+  (is (= [] (u/kv-forest [])))
+  (is (= [[:a [{:val 1}]]]
+         (u/kv-forest [[[:a] 1]])))
+  (is (= [[:a [{:val 1}
+               {:val 2}]]]
+         (u/kv-forest [[[:a] 1]
+                       [[:a] 2]])))
+  (is (= [[:a [{:val 1}]] [:b [{:val 2}]]]
+         (u/kv-forest [[[:a] 1]
+                       [[:b] 2]])))
+  (is (= [[:a
+           [[:b [[:c [{:val 1}]]
+                 [:d [{:val 2}]]]]
+            [:e [[:f [{:val 3}]]
+                 [:g [{:val 4} {:val 5}]]]]]]]
+         (u/kv-forest [[[:a :b :c] 1]
+                       [[:a :b :d] 2]
+                       [[:a :e :f] 3]
+                       [[:a :e :g] 4]
+                       [[:a :e :g] 5]]))))
+
+
+(defn kvs->tree->kvs [kvs]
+  (is (= kvs (u/flatten-forest (u/kv-forest kvs)))))
+
+(deftest flatten-forest-test []
+  (kvs->tree->kvs [])
+  (kvs->tree->kvs [[[:a] 1]])
+  (kvs->tree->kvs [[[:a :b :c] 1]
+                   [[:a :b :d] 2]
+                   [[:a :e :f] 3]
+                   [[:a :e :g] 4]
+                   [[:a :b :h] 5]
+                   [[:a :e :i] 6]]))
+
+
+(deftest proto-map?-test []
+  (is (false? (p/proto-map? 1)))
+  (is (false? (p/proto-map? (make-person))))
+  (is (true? (p/proto-map? (p/proto->proto-map (make-person))))))
+
+
+(deftest proto->-test []
+  (let [m     (p/proto-map People$Person)
+        a-key :name]
+    (is (= (p/p-> m
+                  (assoc :id 3)
+                  (assoc-in [:address :city] "New York")
+                  (assoc-in [:address :house_num] 3)
+                  (update :maiden_name (constantly "Booga"))
+                  (assoc-in [:likes] [(make-like :desc "desc1" :level People$Level/LOW)])
+                  (update-in [:address :house_num] + 3)
+                  (assoc a-key "Foo")
+                  (assoc-in [:address :street] "Broadway")
+                  (assoc-in [:address :house] {:num_rooms 5}))
+           (p/clj-map->proto-map People$Person
+                                 {:id          3
+                                  :name        "Foo"
+                                  :address     {:city      "New York"
+                                                :street    "Broadway"
+                                                :house_num 6
+                                                :house     {:num_rooms 5}}
+                                  :maiden_name "Booga"
+                                  :likes       [{:desc "desc1" :level :LOW}]}))
+        (is (= m (p/proto-map People$Person))))))
+
+(deftest default-instance-test []
+  (is (identical? (p/proto-map People$Person) (p/proto-map People$Person)))
+  (is (identical? (p/proto-map People$Person) (empty (assoc (p/proto-map People$Person) :id 123)))))

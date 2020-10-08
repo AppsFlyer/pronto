@@ -1,6 +1,7 @@
 (ns pronto.utils
   (:require [clojure.string :as s])
   (:import
+   [java.lang.reflect Field]
    [clojure.lang Symbol]
    [com.google.protobuf
     Descriptors$FieldDescriptor
@@ -17,8 +18,13 @@
 (defn class->map-class-name [^Class clazz]
   (symbol (str (sanitized-class-name clazz) "Map")))
 
-(defn class->pumped-map-class-name [^Class clazz]
-  (symbol (str (sanitized-class-name clazz) "PumpedMap")))
+(defn class->abstract-map-class-name [^Class clazz]
+  (symbol (str (sanitized-class-name clazz) "AbstractMap")))
+
+(defn class->abstract-persistent-map-class-name [^Class clazz]
+  (symbol (str (sanitized-class-name clazz) "AbstractPersistentMap")))
+
+
 
 (defn class->transient-class-name [^Class clazz]
   (symbol (str 'transient- (sanitized-class-name clazz))))
@@ -111,13 +117,93 @@
        ~@(for [[^Symbol class-sym ^Class clazz]
                (ns-imports orig-ns)
                :let  [class-name (.getName clazz)
-                      package-prefix (subs class-name 0 (- (count class-name)
-                                                           (count (name class-sym))
-                                                           1))]
+                      package-prefix (subs class-name 0
+                                           (- (count class-name)
+                                              (count (name class-sym))
+                                              1))]
                :when (not (get existing-classes clazz))]
            `(import '[~(symbol package-prefix) ~class-sym]))
        ~@body
        #_(finally)
        (in-ns (quote ~(symbol orig-ns-name))))))
+
+
+(defmacro ... [f o]
+  (let [t (gensym 't)]
+    `(let [~t ~o]
+       (try
+         (~(symbol (str "." f)) ~t)
+         (catch IllegalArgumentException ~'_
+           (let [^Field rf# (.getDeclaredField (class ~t) ~(str f))]
+             (.setAccessible rf# true)
+             (.get rf# ~t)))))))
+
+
+
+(defn- split' [f coll]
+  (loop [[x & xs :as c] coll
+         res            []]
+    (if-not x
+      res
+      (if (f x)
+        (recur
+          xs
+          (conj res x))
+        (let [[a b] (split-with (complement f) c)]
+          (recur
+            b
+            (conj res a)))))))
+
+
+(def leaf-val :val)
+
+(defn leaf [x] (with-meta {:val x} {::leaf? true}))
+
+(def leaf? (comp boolean ::leaf? meta))
+
+
+(defn kv-forest [kvs]
+  (loop [[kv-partition & ps] (partition-by ffirst kvs)
+         res                 []]
+    (if-not kv-partition
+      res
+      (let [leader-key   (first (ffirst kv-partition))
+            follower-kvs (->> kv-partition
+                              (map
+                                (fn [[ks v]]
+                                  (let [rks (rest ks)]
+                                    (if (seq rks)
+                                      (vector rks v)
+                                      (leaf v)))))
+                              (split' leaf?))]
+        (recur
+          ps
+          (conj
+            res
+            [leader-key
+             (mapcat
+               (fn [g]
+                 (if (leaf? g)
+                   [g]
+                   (kv-forest g)))
+               follower-kvs)]))))))
+
+
+(defn- flatten-forest* [forest]
+  (if-not (seq forest)
+    []
+    (for [[k tree] forest
+          v        tree]
+      (if (leaf? v)
+        [[k] (leaf-val v)]
+        (mapcat
+          (fn [[k' v']]
+            [(cons k k') v'])
+          (flatten-forest* [v]))))))
+
+
+(defn flatten-forest [forest]
+  (partition 2 (apply concat (flatten-forest* forest))))
+
 
 

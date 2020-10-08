@@ -250,15 +250,7 @@ However, ByteString's are naturally `seqable` since they implement `java.lang.It
 This means, that rather than calling `(-> my-proto-map :my-string-value :value)` you can simply write `(:my-string-value my-proto-map)`. Note that since
 well-known-types are message types, this may return `nil` when the field is unset.
 
-#### Transients
-
-Proto maps are immutable. Modification is done via transitioning the underlying POJO instance
-to its builder, setting the new value, and returning a new proto map backed up by the new instance returned from the builder.
-
-Proto maps can be made `transient` by calling [transient](https://clojuredocs.org/clojure.core/transient) and then persistent again via [persistent!](https://clojuredocs.org/clojure.core/persistent!), and like regular transients, transient proto maps are mutable and not thread-safe and are intended to only be used 
-in local scopes, to perform a series of update operations.
-
-Rather then referencing the POJO instance, transients use a `Builder` instance. This eliminates the need to transition to the builder on every update operation, and can lower GC pressure.
+### [Performance](doc/performance.md)
 
 #### Reloadability 
 

@@ -1,0 +1,156 @@
+{:benchmarks
+ [{:name :assocs20_1
+   :fn   pronto.jmh.benchmarks/assocs20_1
+   :args [:jmh/blackhole :random-field20]
+   :void true}
+
+  {:name :clj-assocs20_1
+   :fn   pronto.jmh.benchmarks/clj-assocs20_1
+   :args [:jmh/blackhole :random-field20]
+   :void true}
+
+  {:name :assocs20_2
+   :fn   pronto.jmh.benchmarks/assocs20_2
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :assocs20_3
+   :fn   pronto.jmh.benchmarks/assocs20_3
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :assocs20_5
+   :fn   pronto.jmh.benchmarks/assocs20_5
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :assocs20_10
+   :fn   pronto.jmh.benchmarks/assocs20_10
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :clj-get20
+   :fn   pronto.jmh.benchmarks/clj-get20
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :get20
+   :fn   pronto.jmh.benchmarks/get20
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :rget20
+   :fn   pronto.jmh.benchmarks/rget20
+   :args [:jmh/blackhole]
+   :void true}
+
+  ;;;
+
+  {:name :assocs10_1
+   :fn   pronto.jmh.benchmarks/assocs10_1
+   :args [:jmh/blackhole :random-field10]
+   :void true}
+
+  {:name :clj-assocs10_1
+   :fn   pronto.jmh.benchmarks/clj-assocs10_1
+   :args [:jmh/blackhole :random-field10]
+   :void true}
+
+  {:name :assocs10_2
+   :fn   pronto.jmh.benchmarks/assocs10_2
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :assocs10_3
+   :fn   pronto.jmh.benchmarks/assocs10_3
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :assocs10_5
+   :fn   pronto.jmh.benchmarks/assocs10_5
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :assocs10_10
+   :fn   pronto.jmh.benchmarks/assocs10_10
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :clj-get10
+   :fn   pronto.jmh.benchmarks/clj-get10
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :get10
+   :fn   pronto.jmh.benchmarks/get10
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :rget10
+   :fn   pronto.jmh.benchmarks/rget10
+   :args [:jmh/blackhole]
+   :void true}
+  ;;;
+
+  {:name :assocs5_1
+   :fn   pronto.jmh.benchmarks/assocs5_1
+   :args [:jmh/blackhole :random-field5]
+   :void true}
+
+  {:name :clj-assocs5_1
+   :fn   pronto.jmh.benchmarks/clj-assocs5_1
+   :args [:jmh/blackhole :random-field5]
+   :void true}
+
+  {:name :assocs5_2
+   :fn   pronto.jmh.benchmarks/assocs5_2
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :assocs5_3
+   :fn   pronto.jmh.benchmarks/assocs5_3
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :assocs5_5
+   :fn   pronto.jmh.benchmarks/assocs5_5
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :assocs5_10
+   :fn   pronto.jmh.benchmarks/assocs5_5
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :clj-get5
+   :fn   pronto.jmh.benchmarks/clj-get5
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :get5
+   :fn   pronto.jmh.benchmarks/get5
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :rget5
+   :fn   pronto.jmh.benchmarks/rget5
+   :args [:jmh/blackhole]
+   :void true}]
+
+ :states
+ {:random-field2   (fn [] (keyword (str "field_" (rand-int 2))))
+  :random-field5   (fn [] (keyword (str "field_" (rand-int 5))))
+  :random-field10  (fn [] (keyword (str "field_" (rand-int 10))))
+  :random-field20  (fn [] (keyword (str "field_" (rand-int 20))))
+  :random-field30  (fn [] (keyword (str "field_" (rand-int 30))))
+  :random-field50  (fn [] (keyword (str "field_" (rand-int 50))))
+  :random-field80  (fn [] (keyword (str "field_" (rand-int 80))))
+  :random-field120 (fn [] (keyword (str "field_" (rand-int 120))))
+  :random-field160 (fn [] (keyword (str "field_" (rand-int 160))))
+  :random-field200 (fn [] (keyword (str "field_" (rand-int 200))))}
+
+ :options
+ {:jmh/default {:output-time-unit :us
+                :fork             {:jvm {:append-args ["-Xmx8G" "-Dclojure.compiler.direct-linking=true" #_"-XX:+UseShenandoahGC"  "-XX:+UseParallelGC"]}}}
+  }}
+
