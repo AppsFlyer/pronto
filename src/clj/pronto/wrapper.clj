@@ -81,7 +81,7 @@
   [^Class clazz ctx]
   (let [descriptor    (Reflector/invokeStaticMethod clazz "getDescriptor" (to-array nil))
         values        (.getValues ^Descriptors$EnumDescriptor descriptor)
-        enum-value-fn (:enum-value-fn ctx)
+        enum-value-fn (or (:enum-value-fn ctx) identity)
         enum->kw      (map-indexed #(vector %1 (keyword (enum-value-fn (.getName ^Descriptors$EnumValueDescriptor %2))))
                                    values)
         kw->enum      (map #(vector (keyword (enum-value-fn (.getName ^Descriptors$EnumValueDescriptor %1)))
@@ -109,12 +109,18 @@
 (defn make-error-message ^String [expected-class value]
   (str "expected " expected-class ", but got " (or (class value) "nil")))
 
+
+(defn if-instrument [ctx test then else]
+  (if-not (:instrument? ctx)
+    then
+    `(if ~test
+       ~then
+       ~else)))
+
 (defmethod gen-wrapper
   :message
   [^Class clazz ctx]
-  (let [wrapper-type           (if (:pumped? ctx)
-                                 (u/class->pumped-map-class-name clazz)
-                                 (u/class->map-class-name clazz))
+  (let [wrapper-type           (u/class->map-class-name clazz)
         transient-wrapper-type (u/class->transient-class-name clazz)]
     (reify Wrapper
       (wrap [_ v]
@@ -148,9 +154,10 @@
       v)
 
     (unwrap [_ v]
-      `(if (instance? com.google.protobuf.ByteString ~v)
-         ~v
-         (throw ~(make-error com.google.protobuf.ByteString ctx v))))))
+      (if-instrument ctx
+        `(instance? com.google.protobuf.ByteString ~v)
+        v
+        `(throw ~(make-error com.google.protobuf.ByteString ctx v))))))
 
 
 (defmethod gen-wrapper
@@ -163,18 +170,28 @@
       ;; TODO: clean this up...
       (cond
         (= String clazz)
-        `(if-not (= String (class ~v))
-           (throw ~(make-error clazz ctx v))
-           ~v)
+        (if-instrument ctx
+          `(= String (class ~v))
+          v
+          `(throw ~(make-error clazz ctx v)))
         (= Boolean/TYPE clazz)
-        `(if-not (= Boolean (class ~v))
-           (throw ~(make-error clazz ctx v))
-           ~v)
+        (if-instrument ctx
+          `(= Boolean (class ~v))
+          v
+          `(throw ~(make-error clazz ctx v)))
         (numeric-scalar? clazz)
-        (let [vn (u/with-type-hint v Number)]
-          `(if-not (instance? Number ~vn)
-             (throw ~(make-error clazz ctx v))
-             (let [~vn ~v]
-               (~(symbol (str "." (str clazz) "Value")) ~vn))))
+        (let [vn              (u/with-type-hint v Number)
+              boxed?          (get #{Long Integer Double Float} clazz)
+              primitive-class (if boxed?
+                                (condp = clazz
+                                  Integer Integer/TYPE
+                                  Long    Long/TYPE
+                                  Double  Double/TYPE
+                                  Float   Float/TYPE)
+                                clazz)]
+          (if-instrument ctx
+            `(instance? Number ~vn)
+            `(~(symbol (str "." (str primitive-class) "Value")) ~vn)
+            `(throw ~(make-error clazz ctx v))))
         :else (throw (IllegalArgumentException. (str "don't know how to wrap " clazz)))))))
 

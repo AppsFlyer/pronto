@@ -4,13 +4,16 @@
             [pronto.type-gen :as t]
             [pronto.transformations :as transform]
             [pronto.utils :as u]
-            [pronto.protos])
+            [pronto.protos]
+            [pronto.runtime]
+            [clojure.walk :refer [macroexpand-all]]
+            [potemkin])
   (:import [pronto ProtoMap]
            [com.google.protobuf Message GeneratedMessageV3]))
 
 (def ^:private loaded-classes (atom {}))
 
-(def ^:dynamic *instrument?* true)
+(def ^:dynamic *instrument?* false)
 
 (def ^:private global-ns "pronto.protos")
 
@@ -64,7 +67,7 @@
 (defmacro proto-map [clazz & kvs]
   (let [clazz (resolve-loaded-class clazz)]
     (if (empty? kvs)
-      `~(symbol global-ns (str (e/empty-map-var-name clazz)))
+      (symbol global-ns (str (e/empty-map-var-name clazz)))
       (let [chain# (map (fn [[k v]] `(assoc! ~k ~v)) (partition 2 kvs))]
         `(-> ~(e/emit-default-transient-ctor clazz global-ns)
              ~@chain#
@@ -104,14 +107,6 @@
 (defn proto-map->bytes [proto-map]
   (.toByteArray ^GeneratedMessageV3 (proto-map->proto proto-map)))
 
-
-(defn inflate [proto-map]
-  (.pmap_inflate ^ProtoMap proto-map))
-
-
-(defn deflate [proto-map]
-  (.pmap_deflate ^ProtoMap proto-map))
-
 (defn- resolve-deps
   ([^Class clazz ctx] (first (resolve-deps clazz #{} ctx)))
   ([^Class clazz seen-classes ctx]
@@ -139,14 +134,17 @@
 
 (defn- init-ctx [opts]
   (merge {:key-name-fn   identity
-          :enum-value-fn identity}
+          :enum-value-fn identity
+          :ns            "pronto.protos"
+          :instrument?   *instrument?*}
          (-> (apply hash-map opts)
              (update' :key-name-fn eval)
              (update' :enum-value-fn eval)
              (update' :encoders #(into {}
                                        (map (fn [[k v]]
-                                              (let [resolved-k (cond-> k
-                                                                       (symbol? k) (resolve))]
+                                              (let [resolved-k
+                                                    (cond-> k
+                                                      (symbol? k) (resolve))]
                                                 [resolved-k v])))
                                        (eval %))))))
 
@@ -156,6 +154,9 @@
 (defn depends-on? [^Class dependent ^Class dependency]
   (boolean (get (dependencies dependent) dependency)))
 
+
+(defn proto-map? [m]
+  (instance? ProtoMap m))
 
 (defn unload-classes! [] (swap! loaded-classes empty))
 
@@ -171,8 +172,15 @@
         ^Class clazz (resolve-class class)
         deps         (reverse (resolve-deps clazz ctx))]
     `(u/with-ns "pronto.protos"
-       ~@(for [dep deps]
-           (emit-proto-map dep ctx))
+       ~@(doall
+           (for [dep deps]
+             (emit-proto-map dep ctx)))
 
        ~(emit-proto-map clazz ctx))))
 
+
+(defn macroexpand-class [^Class clazz]
+  (macroexpand-all `(defproto ~(symbol (.getName clazz)))))
+
+
+(potemkin/import-vars [pronto.runtime p->])

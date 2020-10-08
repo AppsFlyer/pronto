@@ -421,6 +421,23 @@ public final class People {
 
     com.google.protobuf.DoubleValue getBlaOrThrow(
         java.lang.String key);
+
+    /**
+     * <code>repeated int32 ids_list = 21;</code>
+     * @return A list containing the idsList.
+     */
+    java.util.List<java.lang.Integer> getIdsListList();
+    /**
+     * <code>repeated int32 ids_list = 21;</code>
+     * @return The count of idsList.
+     */
+    int getIdsListCount();
+    /**
+     * <code>repeated int32 ids_list = 21;</code>
+     * @param index The index of the element to return.
+     * @return The idsList at the given index.
+     */
+    int getIdsList(int index);
   }
   /**
    * Protobuf type {@code protogen.generated.Person}
@@ -441,6 +458,7 @@ public final class People {
       petNames_ = com.google.protobuf.LazyStringArrayList.EMPTY;
       privateKey_ = com.google.protobuf.ByteString.EMPTY;
       levels_ = java.util.Collections.emptyList();
+      idsList_ = emptyIntList();
     }
 
     @java.lang.Override
@@ -648,6 +666,27 @@ public final class People {
                   bla__.getKey(), bla__.getValue());
               break;
             }
+            case 168: {
+              if (!((mutable_bitField0_ & 0x00000020) != 0)) {
+                idsList_ = newIntList();
+                mutable_bitField0_ |= 0x00000020;
+              }
+              idsList_.addInt(input.readInt32());
+              break;
+            }
+            case 170: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              if (!((mutable_bitField0_ & 0x00000020) != 0) && input.getBytesUntilLimit() > 0) {
+                idsList_ = newIntList();
+                mutable_bitField0_ |= 0x00000020;
+              }
+              while (input.getBytesUntilLimit() > 0) {
+                idsList_.addInt(input.readInt32());
+              }
+              input.popLimit(limit);
+              break;
+            }
             default: {
               if (!parseUnknownField(
                   input, unknownFields, extensionRegistry, tag)) {
@@ -671,6 +710,9 @@ public final class People {
         }
         if (((mutable_bitField0_ & 0x00000008) != 0)) {
           levels_ = java.util.Collections.unmodifiableList(levels_);
+        }
+        if (((mutable_bitField0_ & 0x00000020) != 0)) {
+          idsList_.makeImmutable(); // C
         }
         this.unknownFields = unknownFields.build();
         makeExtensionsImmutable();
@@ -1225,6 +1267,33 @@ public final class People {
       return map.get(key);
     }
 
+    public static final int IDS_LIST_FIELD_NUMBER = 21;
+    private com.google.protobuf.Internal.IntList idsList_;
+    /**
+     * <code>repeated int32 ids_list = 21;</code>
+     * @return A list containing the idsList.
+     */
+    public java.util.List<java.lang.Integer>
+        getIdsListList() {
+      return idsList_;
+    }
+    /**
+     * <code>repeated int32 ids_list = 21;</code>
+     * @return The count of idsList.
+     */
+    public int getIdsListCount() {
+      return idsList_.size();
+    }
+    /**
+     * <code>repeated int32 ids_list = 21;</code>
+     * @param index The index of the element to return.
+     * @return The idsList at the given index.
+     */
+    public int getIdsList(int index) {
+      return idsList_.getInt(index);
+    }
+    private int idsListMemoizedSerializedSize = -1;
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -1304,6 +1373,13 @@ public final class People {
           internalGetBla(),
           BlaDefaultEntryHolder.defaultEntry,
           20);
+      if (getIdsListList().size() > 0) {
+        output.writeUInt32NoTag(170);
+        output.writeUInt32NoTag(idsListMemoizedSerializedSize);
+      }
+      for (int i = 0; i < idsList_.size(); i++) {
+        output.writeInt32NoTag(idsList_.getInt(i));
+      }
       unknownFields.writeTo(output);
     }
 
@@ -1407,6 +1483,20 @@ public final class People {
         size += com.google.protobuf.CodedOutputStream
             .computeMessageSize(20, bla__);
       }
+      {
+        int dataSize = 0;
+        for (int i = 0; i < idsList_.size(); i++) {
+          dataSize += com.google.protobuf.CodedOutputStream
+            .computeInt32SizeNoTag(idsList_.getInt(i));
+        }
+        size += dataSize;
+        if (!getIdsListList().isEmpty()) {
+          size += 2;
+          size += com.google.protobuf.CodedOutputStream
+              .computeInt32SizeNoTag(dataSize);
+        }
+        idsListMemoizedSerializedSize = dataSize;
+      }
       size += unknownFields.getSerializedSize();
       memoizedSize = size;
       return size;
@@ -1474,6 +1564,8 @@ public final class People {
       }
       if (!internalGetBla().equals(
           other.internalGetBla())) return false;
+      if (!getIdsListList()
+          .equals(other.getIdsListList())) return false;
       if (!unknownFields.equals(other.unknownFields)) return false;
       return true;
     }
@@ -1544,6 +1636,10 @@ public final class People {
       if (!internalGetBla().getMap().isEmpty()) {
         hash = (37 * hash) + BLA_FIELD_NUMBER;
         hash = (53 * hash) + internalGetBla().hashCode();
+      }
+      if (getIdsListCount() > 0) {
+        hash = (37 * hash) + IDS_LIST_FIELD_NUMBER;
+        hash = (53 * hash) + getIdsListList().hashCode();
       }
       hash = (29 * hash) + unknownFields.hashCode();
       memoizedHashCode = hash;
@@ -1763,6 +1859,8 @@ public final class People {
           bvBuilder_ = null;
         }
         internalGetMutableBla().clear();
+        idsList_ = emptyIntList();
+        bitField0_ = (bitField0_ & ~0x00000020);
         return this;
       }
 
@@ -1846,6 +1944,11 @@ public final class People {
         }
         result.bla_ = internalGetBla();
         result.bla_.makeImmutable();
+        if (((bitField0_ & 0x00000020) != 0)) {
+          idsList_.makeImmutable();
+          bitField0_ = (bitField0_ & ~0x00000020);
+        }
+        result.idsList_ = idsList_;
         onBuilt();
         return result;
       }
@@ -1985,6 +2088,16 @@ public final class People {
         }
         internalGetMutableBla().mergeFrom(
             other.internalGetBla());
+        if (!other.idsList_.isEmpty()) {
+          if (idsList_.isEmpty()) {
+            idsList_ = other.idsList_;
+            bitField0_ = (bitField0_ & ~0x00000020);
+          } else {
+            ensureIdsListIsMutable();
+            idsList_.addAll(other.idsList_);
+          }
+          onChanged();
+        }
         this.mergeUnknownFields(other.unknownFields);
         onChanged();
         return this;
@@ -3678,6 +3791,85 @@ public final class People {
           java.util.Map<java.lang.String, com.google.protobuf.DoubleValue> values) {
         internalGetMutableBla().getMutableMap()
             .putAll(values);
+        return this;
+      }
+
+      private com.google.protobuf.Internal.IntList idsList_ = emptyIntList();
+      private void ensureIdsListIsMutable() {
+        if (!((bitField0_ & 0x00000020) != 0)) {
+          idsList_ = mutableCopy(idsList_);
+          bitField0_ |= 0x00000020;
+         }
+      }
+      /**
+       * <code>repeated int32 ids_list = 21;</code>
+       * @return A list containing the idsList.
+       */
+      public java.util.List<java.lang.Integer>
+          getIdsListList() {
+        return ((bitField0_ & 0x00000020) != 0) ?
+                 java.util.Collections.unmodifiableList(idsList_) : idsList_;
+      }
+      /**
+       * <code>repeated int32 ids_list = 21;</code>
+       * @return The count of idsList.
+       */
+      public int getIdsListCount() {
+        return idsList_.size();
+      }
+      /**
+       * <code>repeated int32 ids_list = 21;</code>
+       * @param index The index of the element to return.
+       * @return The idsList at the given index.
+       */
+      public int getIdsList(int index) {
+        return idsList_.getInt(index);
+      }
+      /**
+       * <code>repeated int32 ids_list = 21;</code>
+       * @param index The index to set the value at.
+       * @param value The idsList to set.
+       * @return This builder for chaining.
+       */
+      public Builder setIdsList(
+          int index, int value) {
+        ensureIdsListIsMutable();
+        idsList_.setInt(index, value);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>repeated int32 ids_list = 21;</code>
+       * @param value The idsList to add.
+       * @return This builder for chaining.
+       */
+      public Builder addIdsList(int value) {
+        ensureIdsListIsMutable();
+        idsList_.addInt(value);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>repeated int32 ids_list = 21;</code>
+       * @param values The idsList to add.
+       * @return This builder for chaining.
+       */
+      public Builder addAllIdsList(
+          java.lang.Iterable<? extends java.lang.Integer> values) {
+        ensureIdsListIsMutable();
+        com.google.protobuf.AbstractMessageLite.Builder.addAll(
+            values, idsList_);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>repeated int32 ids_list = 21;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearIdsList() {
+        idsList_ = emptyIntList();
+        bitField0_ = (bitField0_ & ~0x00000020);
+        onChanged();
         return this;
       }
       @java.lang.Override
@@ -7291,7 +7483,7 @@ public final class People {
   static {
     java.lang.String[] descriptorData = {
       "\n\014people.proto\022\022protogen.generated\032\036goog" +
-      "le/protobuf/wrappers.proto\"\356\005\n\006Person\022\n\n" +
+      "le/protobuf/wrappers.proto\"\200\006\n\006Person\022\n\n" +
       "\002id\030\001 \001(\005\022\014\n\004name\030\002 \001(\t\022\r\n\005email\030\003 \001(\t\022," +
       "\n\007address\030\004 \001(\0132\033.protogen.generated.Add" +
       "ress\022\'\n\005likes\030\007 \003(\0132\030.protogen.generated" +
@@ -7306,21 +7498,21 @@ public final class People {
       "obuf.StringValue\022&\n\004uuid\030\022 \001(\0132\030.protoge" +
       "n.generated.UUID\022\'\n\002bv\030\023 \001(\0132\033.google.pr" +
       "otobuf.BytesValue\0220\n\003bla\030\024 \003(\0132#.protoge" +
-      "n.generated.Person.BlaEntry\032L\n\016Relations" +
-      "Entry\022\013\n\003key\030\001 \001(\t\022)\n\005value\030\002 \001(\0132\032.prot" +
-      "ogen.generated.Person:\0028\001\032H\n\010BlaEntry\022\013\n" +
-      "\003key\030\001 \001(\t\022+\n\005value\030\002 \001(\0132\034.google.proto" +
-      "buf.DoubleValue:\0028\001\"\025\n\004UUID\022\r\n\005value\030\001 \001" +
-      "(\t\"\242\001\n\007Address\022\014\n\004city\030\001 \001(\t\022\016\n\006street\030\002" +
-      " \001(\t\022\021\n\thouse_num\030\003 \001(\005\022*\n\005house\030\004 \001(\0132\031" +
-      ".protogen.generated.HouseH\000\0222\n\tapartment" +
-      "\030\005 \001(\0132\035.protogen.generated.ApartmentH\000B" +
-      "\006\n\004home\">\n\004Like\022\014\n\004desc\030\001 \001(\t\022(\n\005level\030\002" +
-      " \001(\0162\031.protogen.generated.Level\"\032\n\005House" +
-      "\022\021\n\tnum_rooms\030\001 \001(\005\"\036\n\tApartment\022\021\n\tfloo" +
-      "r_num\030\001 \001(\005*<\n\005Level\022\007\n\003LOW\020\000\022\n\n\006MEDIUM\020" +
-      "\005\022\010\n\004HIGH\020\n\022\020\n\014ALIASED_HIGH\020\n\032\002\020\001b\006proto" +
-      "3"
+      "n.generated.Person.BlaEntry\022\020\n\010ids_list\030" +
+      "\025 \003(\005\032L\n\016RelationsEntry\022\013\n\003key\030\001 \001(\t\022)\n\005" +
+      "value\030\002 \001(\0132\032.protogen.generated.Person:" +
+      "\0028\001\032H\n\010BlaEntry\022\013\n\003key\030\001 \001(\t\022+\n\005value\030\002 " +
+      "\001(\0132\034.google.protobuf.DoubleValue:\0028\001\"\025\n" +
+      "\004UUID\022\r\n\005value\030\001 \001(\t\"\242\001\n\007Address\022\014\n\004city" +
+      "\030\001 \001(\t\022\016\n\006street\030\002 \001(\t\022\021\n\thouse_num\030\003 \001(" +
+      "\005\022*\n\005house\030\004 \001(\0132\031.protogen.generated.Ho" +
+      "useH\000\0222\n\tapartment\030\005 \001(\0132\035.protogen.gene" +
+      "rated.ApartmentH\000B\006\n\004home\">\n\004Like\022\014\n\004des" +
+      "c\030\001 \001(\t\022(\n\005level\030\002 \001(\0162\031.protogen.genera" +
+      "ted.Level\"\032\n\005House\022\021\n\tnum_rooms\030\001 \001(\005\"\036\n" +
+      "\tApartment\022\021\n\tfloor_num\030\001 \001(\005*<\n\005Level\022\007" +
+      "\n\003LOW\020\000\022\n\n\006MEDIUM\020\005\022\010\n\004HIGH\020\n\022\020\n\014ALIASED" +
+      "_HIGH\020\n\032\002\020\001b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -7332,7 +7524,7 @@ public final class People {
     internal_static_protogen_generated_Person_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_protogen_generated_Person_descriptor,
-        new java.lang.String[] { "Id", "Name", "Email", "Address", "Likes", "Relations", "PetNames", "PrivateKey", "AgeMillis", "IsVegetarian", "HeightCm", "WeightKg", "Levels", "SocialSecurity", "MaidenName", "Uuid", "Bv", "Bla", });
+        new java.lang.String[] { "Id", "Name", "Email", "Address", "Likes", "Relations", "PetNames", "PrivateKey", "AgeMillis", "IsVegetarian", "HeightCm", "WeightKg", "Levels", "SocialSecurity", "MaidenName", "Uuid", "Bv", "Bla", "IdsList", });
     internal_static_protogen_generated_Person_RelationsEntry_descriptor =
       internal_static_protogen_generated_Person_descriptor.getNestedTypes().get(0);
     internal_static_protogen_generated_Person_RelationsEntry_fieldAccessorTable = new

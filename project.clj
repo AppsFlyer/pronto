@@ -11,12 +11,16 @@
                         ["snapshots"  {:url           "***REMOVED***" :username :***REMOVED***
                                        :password      :***REMOVED***
                                        :sign-releases false}]]
-  :dependencies [[org.clojure/clojure "1.9.0"]]
+  :dependencies [[org.clojure/clojure "1.10.1"]
+                 [potemkin "0.4.5"]]
   :profiles {:provided {:dependencies [[com.google.protobuf/protobuf-java "3.10.0"]]}
-             :dev      {:dependencies      [[org.clojure/clojure "1.10.1"]
-                                            [clj-kondo "RELEASE"]
+             :dev      {:dependencies      [[clj-kondo "RELEASE"]
                                             [jmh-clojure "0.4.0"]
-                                            [com.clojure-goes-fast/clj-java-decompiler "0.3.0"]]
+                                            [com.clojure-goes-fast/clj-java-decompiler "0.3.0"]
+                                            [org.openjdk.jol/jol-core "0.13"]
+                                            [criterium "0.4.6"]
+                                            [com.clojure-goes-fast/clj-memory-meter "0.1.3"]]
+                        :jvm-opts          ["-Djdk.attach.allowAttachSelf"]
                         :aliases           {"clj-kondo" ["run" "-m" "clj-kondo.main"]}
                         :eftest            {:multithread?   false
                                             :report         eftest.report.junit/report

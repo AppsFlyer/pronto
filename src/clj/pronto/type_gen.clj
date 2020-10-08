@@ -83,8 +83,8 @@
   (cond
     (.isMapField fd) :map
     (.isRepeated fd) :repeated
-                                        ;(.getContainingOneof fd) :one-of
-    :else            :simple))
+    ;;    (.getContainingOneof fd) :one-of
+    :else :simple))
 
 (defmulti get-type-gen
   (fn [^Class _clazz
@@ -101,12 +101,15 @@
   (str (s/lower-case (subs s 0 1)) (subs s 1)))
 
 (defn find-type [^Class clazz ^Descriptors$FieldDescriptor fd]
-  (.getGenericReturnType (.getDeclaredMethod clazz (str "get" (u/field->camel-case fd)
-                                                        (if (.isMapField fd)
-                                                          "Map"
-                                                          (when (.isRepeated fd)
-                                                            "List")))
-                                             (make-array Class 0))))
+  (.getGenericReturnType
+    (.getDeclaredMethod
+      clazz
+      (str "get" (u/field->camel-case fd)
+           (if (.isMapField fd)
+             "Map"
+             (when (.isRepeated fd)
+               "List")))
+      (make-array Class 0))))
 
 (defn fd->java-type [^Descriptors$FieldDescriptor fd]
   (if (u/message? fd)
@@ -219,6 +222,7 @@
         (let [v (with-meta (gensym 'v) {:tag 'java.util.List})]
           `(let [~v  (~(symbol (str ".get" cc "List")) ~o)
                  al# (java.util.ArrayList. (.size ~v))]
+             #_(map (fn [~x] ~(w/wrap wrapper x)) ~v)
              (doseq [~x ~v]
                (.add al# ~(w/wrap wrapper x)))
              (clojure.lang.PersistentVector/create al#)))))))

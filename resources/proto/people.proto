@@ -23,6 +23,7 @@ message Person {
   UUID uuid = 18;
   google.protobuf.BytesValue bv = 19;
   map<string, google.protobuf.DoubleValue> bla = 20;
+  repeated int32 ids_list = 21;
 }
 
 message UUID {

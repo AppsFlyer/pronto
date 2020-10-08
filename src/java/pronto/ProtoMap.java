@@ -14,7 +14,11 @@ public interface ProtoMap {
 
     Keyword pmap_whichOneOf(Keyword key);
 
-    ProtoMap pmap_inflate();
+    //ProtoMap pmap_inflate();
 
-    ProtoMap pmap_deflate();
+    //ProtoMap pmap_deflate();
+
+    GeneratedMessageV3.Builder pmap_getBuilder();
+
+    ProtoMap pmap_copy(GeneratedMessageV3.Builder builder);
 }

@@ -1,0 +1,105 @@
+#+STARTUP: indent
+
+
+* memory efficiency
+** data :noexport:
+#+PLOT: title:"Memory usage (10 fields)"
+#+PLOT: ind:1 deps:(2) type:2d with:histograms
+#+PLOT: set:"key off"
+#+PLOT: set:"yrange [0:]" set:"ylabel 'Memory (bytes)'"
+#+PLOT: set:"style fill solid 0.5"
+#+PLOT: set:"grid ytics lt 0 lw 1 lc rgb '#bbbbbb'"
+#+PLOT: set:"grid xtics lt 0 lw 1 lc rgb '#bbbbbb'"
+#+PLOT: file:"memory.png"
+| type           | size |
+|----------------+------|
+| proto instance |  160 |
+| proto map      |  184 |
+| clojure map    | 1740 |
+
+* read efficiency
+Reading data from proto-map (either straight via a keyword or through ~clojure.core/get~) is generally faster than
+from a regular map counterpart. To compare performance, we ran several micro-benchmarks for several schema sizes.
+
+For each schema size, we benchmarked a proto-map containing that many string fields (so no nested messages), as well
+as a corresponding Clojure map with the same shape:
+
+[[file:read1.png]]
+
+** :noexport:
+#+PLOT: ind:1 deps:(2 3) type:2d with:histograms using:
+#+PLOT: set:"yrange [0:]" set:"ylabel 'Throughput (ops/usec)'"
+#+PLOT: set:"xlabel 'Schema size'"
+#+PLOT: set:"style fill solid 0.5"
+#+PLOT: set:"grid ytics lt 0 lw 1 lc rgb '#bbbbbb'"
+#+PLOT: set:"grid xtics lt 0 lw 1 lc rgb '#bbbbbb'"
+#+PLOT: file:"read1.png"
+| schema size | clojure map | proto map |
+|-------------+-------------+-----------|
+|           5 |         141 |       109 |
+|          10 |          63 |       101 |
+|          20 |          48 |       116 |
+|             |             |           |
+
+#+PLOT: ind:1 deps:(2 3 4) type:2d with:histograms using:
+#+PLOT: set:"yrange [0:]" set:"ylabel 'Throughput (ops/usec)'"
+#+PLOT: set:"xlabel 'Schema size'"
+#+PLOT: set:"style fill solid 0.5"
+#+PLOT: set:"grid ytics lt 0 lw 1 lc rgb '#bbbbbb'"
+#+PLOT: set:"grid xtics lt 0 lw 1 lc rgb '#bbbbbb'"
+#+PLOT: file:"read2.png"
+| schema size | clojure map | proto map | proto map using p-> |
+|-------------+-------------+-----------+---------------------|
+|           5 |         141 |       109 |                 295 |
+|          10 |          63 |       101 |                 318 |
+|          20 |          48 |       116 |                 301 |
+|             |             |           |                     |
+
+* write efficiency
+#+PLOT: title:"Single assoc throughput for different schema sizes"
+#+PLOT: ind:1 deps:(2 3 4) type:2d with:histograms using:
+#+PLOT: set:"yrange [0:]" set:"ylabel 'Throughput (ops/usec)'"
+#+PLOT: set:"xlabel 'Schema size'"
+#+PLOT: set:"style fill solid 0.5"
+#+PLOT: set:"grid ytics lt 0 lw 1 lc rgb '#bbbbbb'"
+#+PLOT: set:"grid xtics lt 0 lw 1 lc rgb '#bbbbbb'"
+#+PLOT: file:"write1.png"
+| schema size | clojure map | proto map |
+|-------------+-------------+-----------|
+|           5 |          74 |        25 |
+|          10 |          38 |        23 |
+|          20 |          35 |        13 |
+|             |             |           |
+
+** size 10
+#+PLOT: title:"10 keys schema"
+#+PLOT: ind:1 deps:(2 3 4) type:2d with:histograms using:
+#+PLOT: set:"yrange [0:]" set:"ylabel 'Throughput (ops/usec)'"
+#+PLOT: set:"xlabel 'Number of assocs'"
+#+PLOT: set:"style fill solid 0.5"
+#+PLOT: set:"grid ytics lt 0 lw 1 lc rgb '#bbbbbb'"
+#+PLOT: set:"grid xtics lt 0 lw 1 lc rgb '#bbbbbb'"
+#+PLOT: file:"write2.png"
+| num of assocs | clojure map | proto map | proto map using p-> |
+|---------------+-------------+-----------+---------------------|
+|             2 |          19 |        12 |                  20 |
+|             5 |           8 |         5 |                  16 |
+|            10 |           3 |         1 |                  12 |
+|               |             |           |                     |
+
+** size 20
+#+PLOT: title:"20 keys schema"
+#+PLOT: ind:1 deps:(2 3 4) type:2d with:histograms using:
+#+PLOT: set:"yrange [0:]" set:"ylabel 'Throughput (ops/usec)'"
+#+PLOT: set:"xlabel 'Number of assocs'"
+#+PLOT: set:"style fill solid 0.5"
+#+PLOT: set:"grid ytics lt 0 lw 1 lc rgb '#bbbbbb'"
+#+PLOT: set:"grid xtics lt 0 lw 1 lc rgb '#bbbbbb'"
+#+PLOT: file:"write3.png"
+| num of assocs | clojure map | proto map | proto map using p-> |
+|---------------+-------------+-----------+---------------------|
+|             2 |          17 |         7 |                  13 |
+|             5 |           7 |         3 |                  11 |
+|            10 |           3 |         1 |                   9 |
+|               |             |           |                     |
+
