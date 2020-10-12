@@ -161,7 +161,7 @@
          (fn [subform]
            (let [x (first subform)]
              (cond
-               (keyword? x) `(pronto.runtime/get ~x)
+               (keyword? x) `(rget ~x)
                (and (coll? subform)
                     (transformation? x))
                (rewrite-transformation subform)
