@@ -2,7 +2,8 @@
   (:require [clojure.test :refer :all]
             [pronto.core :refer [defproto] :as p]
             [pronto.utils :as u]
-            [pronto.runtime :as r])
+            [pronto.emitters :as e]
+            [clj-java-decompiler.core :as d])
   (:import [protogen.generated People$Person People$Person$Builder
             People$Address People$Address$Builder People$Like People$Level
             People$House People$Apartment
@@ -85,6 +86,7 @@
               :to-proto   #(let [b (People$UUID/newBuilder)]
                              (.setValue b (str %))
                              (.build b))}})
+
 
 (deftest dependencies-test
   (is (= #{People$Address
@@ -426,7 +428,7 @@
   (is (true? (p/proto-map? (p/proto->proto-map (make-person))))))
 
 (defn change-city [^:transient-proto m city]
-  (assoc! m :address (assoc (:address m) :city city)))
+  (p/p-> m (assoc-in [:address :city] city)))
 
 (deftest p->-test []
   (let [m     (p/proto-map People$Person)

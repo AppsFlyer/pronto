@@ -252,7 +252,7 @@
 
 (defn emit-default-transient-ctor [^Class clazz ns]
   (let [transient-wrapper-class-name (u/class->transient-class-name clazz)]
-    `(~(symbol ns (str '-> transient-wrapper-class-name)) (~(u/static-call clazz "newBuilder")) true)))
+    `(~(symbol ns (str '-> transient-wrapper-class-name)) (~(u/static-call clazz "newBuilder")) true false)))
 
 
 (def ^:private pojo (gensym 'pojo))
@@ -407,7 +407,7 @@
 
        ;; TODO: clean this up
        (asTransient [this#]
-                    (new ~transient-class-name (.toBuilder ~o) true))
+                    (new ~transient-class-name (.toBuilder ~o) true false))
 
        java.lang.Iterable
 
@@ -470,7 +470,8 @@
         transient-wrapper-class-name (u/class->transient-class-name clazz)
         wrapper-class-name           (u/class->map-class-name clazz)]
     `(deftype+ ~transient-wrapper-class-name [~(with-meta o {:unsynchronized-mutable true})
-                                              ~(with-meta 'editable? {:unsynchronized-mutable true})]
+                                              ~(with-meta 'editable? {:unsynchronized-mutable true})
+                                              ~(with-meta 'in-transaction? {:unsynchronized-mutable true})]
 
        ~(abstract-type-sym ctx (u/class->abstract-map-class-name clazz))
 
@@ -483,6 +484,12 @@
        (pmap_copy [this# builder#]
                   (set! ~o builder#)
                   this#)
+
+       pronto.TransientProtoMap
+
+       (pmap_setInTransaction [this# v#] (set! ~'in-transaction? v#))
+
+       (pmap_isInTransaction [this#] ~'in-transaction?)
 
        clojure.lang.ITransientMap
 
@@ -543,7 +550,7 @@
 (defn emit-proto-map [^Class clazz ctx]
   `(do
      ~(declare-class (u/class->map-class-name clazz) 2)
-     ~(declare-class (u/class->transient-class-name clazz) 2)
+     ~(declare-class (u/class->transient-class-name clazz) 3)
      ~(declare-empty-map clazz)
      ~(emit-interfaces clazz ctx)
      ~(emit-abstract-type clazz ctx)

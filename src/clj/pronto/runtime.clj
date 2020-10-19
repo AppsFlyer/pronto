@@ -5,7 +5,7 @@
             [pronto.utils :as u])
 
   (:import [com.google.protobuf GeneratedMessageV3$Builder]
-           [pronto ProtoMap]))
+           [pronto ProtoMap TransientProtoMap]))
 
 
 (defmacro rget [m k]
@@ -63,11 +63,14 @@
 
 
 (defmacro transform-in [m kvs]
-  (let [m2         (gensym 'm2)
+  (let [m          (u/with-type-hint m ProtoMap)
+        m2         (u/with-type-hint (gensym 'm2) TransientProtoMap)
         new-submap (gensym 'newsubmap)
         submap     (gensym 'submap)
         kv-forest  (u/kv-forest kvs)]
-    `(let [~m2 (transient ~m)]
+    `(let [~m2                  (if (.pmap_isMutable ~m) ~m (transient ~m))
+           was-in-transaction?# (.pmap_isInTransaction ~m2)]
+       (.pmap_setInTransaction ~m2 true)
        ~@(for [[k vs] kv-forest
                v      (partition-by u/leaf? vs)]
            (if (u/leaf? (first v))
@@ -77,7 +80,9 @@
                                     ~(emit-empty-method m2 k))
                     ~new-submap (pronto.runtime/transform-in ~submap ~(u/flatten-forest v))]
                 (rassoc! ~m2 ~k ~new-submap))))
-       (persistent! ~m2))))
+       (if was-in-transaction?#
+         ~m2
+         (persistent! ~m2)))))
 
 
 (defn- assoc-transform-kvs [rewrite-fn kvs]
@@ -112,10 +117,10 @@
 
 
 (defn- fn-name [form]
-  (when (list? form)
+  (when (coll? form)
     (when-let [fst (first form)]
       (when (symbol? fst)
-        fst))))
+        (symbol (name fst))))))
 
 
 (def ^:private update?
@@ -144,7 +149,7 @@
          boolean)))
 
 
-(defn- transformation? [form]
+(defn- transformation? [form]  
   (or
     (assoc? form)
     (update? form)
@@ -183,7 +188,9 @@
                 [[[(keyword (gensym))]
                   (fn [msym _]
                     (rewrite-fn
-                      `(~f ~msym ~args)))]]))))
+                      (if args
+                        `(~f ~msym ~args)
+                        `(~f ~msym))))]]))))
         transforms)))
 
 

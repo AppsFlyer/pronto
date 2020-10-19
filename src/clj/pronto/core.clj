@@ -69,10 +69,9 @@
   (let [clazz (resolve-loaded-class clazz)]
     (if (empty? kvs)
       (symbol global-ns (str (e/empty-map-var-name clazz)))
-      (let [chain# (map (fn [[k v]] `(assoc! ~k ~v)) (partition 2 kvs))]
-        `(-> ~(e/emit-default-transient-ctor clazz global-ns)
-             ~@chain#
-             persistent!)))))
+      (let [chain (map (fn [[k v]] `(assoc ~k ~v)) (partition 2 kvs))]
+        `(p/p-> ~(e/emit-default-transient-ctor clazz global-ns)
+                ~@chain)))))
 
 (defmacro clj-map->proto-map [clazz m]
   (let [clazz (resolve-loaded-class clazz)]

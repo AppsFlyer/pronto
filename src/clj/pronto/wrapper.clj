@@ -138,7 +138,7 @@
            (map? ~v)
            ;; TODO: duplicate code
            ~(let [u (with-meta (gensym 'u) {:tag 'pronto.ProtoMap})]
-              `(let [~u (transform/map->proto-map (new ~transient-wrapper-type (~(u/static-call clazz "newBuilder")) true)  ~v)]
+              `(let [~u (transform/map->proto-map (new ~transient-wrapper-type (~(u/static-call clazz "newBuilder")) true false)  ~v)]
                  (pronto.RT/getProto ~u)))
 
            :else (throw ~(make-error clazz ctx v)))))))
