@@ -5,7 +5,7 @@
             [pronto.transformations :as transform]
             [pronto.utils :as u]
             [pronto.protos]
-            [pronto.runtime]
+            [pronto.runtime :as r]
             [clojure.walk :refer [macroexpand-all]]
             [potemkin])
   (:import [pronto ProtoMap]
@@ -70,7 +70,7 @@
     (if (empty? kvs)
       (symbol global-ns (str (e/empty-map-var-name clazz)))
       (let [chain (map (fn [[k v]] `(assoc ~k ~v)) (partition 2 kvs))]
-        `(p/p-> ~(e/emit-default-transient-ctor clazz global-ns)
+        `(r/p-> ~(e/emit-default-transient-ctor clazz global-ns)
                 ~@chain)))))
 
 (defmacro clj-map->proto-map [clazz m]
