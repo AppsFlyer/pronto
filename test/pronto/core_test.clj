@@ -252,10 +252,10 @@
     (is (= apartment (p/one-of address3 :home)))))
 
 (deftest maps-test
-  (let [bff    (make-person :name "bar")
+  (let [bff (make-person :name "bar")
         sister (make-person :name "baz")
         person (make-person :name "foo" :relations {"bff" bff})
-        w      (p/proto->proto-map person)]
+        w (p/proto->proto-map person)]
     (is (= {:bff bff} (:relations (assoc-in w [:relations :bff] bff))))
     (is (= {:bff bff :sister sister} (:relations (assoc-in w [:relations :sister] sister))))))
 
