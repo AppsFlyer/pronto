@@ -65,6 +65,7 @@
     (get m k')))
 
 (defmacro proto-map [clazz & kvs]
+  {:pre [(even? (count kvs))]}
   (let [clazz (resolve-loaded-class clazz)]
     (if (empty? kvs)
       (symbol global-ns (str (e/empty-map-var-name clazz)))

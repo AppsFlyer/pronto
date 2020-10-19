@@ -1,17 +1,16 @@
 (ns pronto.type-gen
   (:require
-   [clojure.string :as s]
-   [pronto.wrapper :as w]
-   [pronto.utils :as u])
+    [pronto.wrapper :as w]
+    [pronto.utils :as u])
   (:import
-   [clojure.lang Reflector]
-   [com.google.protobuf
-    Descriptors$Descriptor
-    Descriptors$FieldDescriptor
-    Descriptors$FieldDescriptor$Type
-    Descriptors$FieldDescriptor$JavaType]
-   [java.lang.reflect Type Method ParameterizedType]
-   [java.util Map$Entry]))
+    [clojure.lang Reflector]
+    [com.google.protobuf
+     Descriptors$Descriptor
+     Descriptors$FieldDescriptor
+     Descriptors$FieldDescriptor$Type
+     Descriptors$FieldDescriptor$JavaType]
+    [java.lang.reflect Type Method ParameterizedType]
+    [pronto TransformIterable TransformIterable$Xf Utils Utils$PairXf]))
 
 
 (defprotocol TypeGen
@@ -32,10 +31,6 @@
           Double/TYPE    Double
           Float/TYPE     Float
           Boolean/TYPE   Boolean}))
-
-(defn fd->field-keyword [^Descriptors$FieldDescriptor fd]
-  (keyword (.getName fd)))
-
 
 (defn field-type [^Class clazz fd]
   (let [^Method m (.getDeclaredMethod clazz (str "get" (u/field->camel-case fd))
@@ -97,9 +92,6 @@
   [^Class clazz ^Descriptors$FieldDescriptor fd ctx]
   (get-simple-type-gen clazz fd ctx))
 
-(defn uncapitalize [s]
-  (str (s/lower-case (subs s 0 1)) (subs s 1)))
-
 (defn find-type [^Class clazz ^Descriptors$FieldDescriptor fd]
   (.getGenericReturnType
     (.getDeclaredMethod
@@ -126,14 +118,12 @@
         (throw (UnsupportedOperationException. (str "can't infer type for " (.getName fd))))))
     (fd->java-type fd)))
 
-(def get-repeated-inner-type (partial get-parameterized-type 0))
-
 (defmethod get-type-gen
   :map
   [^Class clazz ^Descriptors$FieldDescriptor fd ctx]
-  (let [cc          (u/field->camel-case fd)
-        key-type    (get-parameterized-type 0 clazz fd)
-        val-type    (get-parameterized-type 1 clazz fd)
+  (let [cc (u/field->camel-case fd)
+        key-type (get-parameterized-type 0 clazz fd)
+        val-type (get-parameterized-type 1 clazz fd)
         key-wrapper (if (= String key-type)
                       (reify w/Wrapper
                         (wrap [_ v]
@@ -144,40 +134,37 @@
                           ;; -> string
                           `(name ~v)))
                       (w/gen-wrapper key-type ctx))
-        val-wrapper  (w/gen-wrapper val-type ctx)
+        val-wrapper (w/gen-wrapper val-type ctx)
         clear-method (symbol (str ".clear" cc))
-        put-method   (symbol (str ".put" cc))
-        m            (u/with-type-hint (gensym 'm) java.util.Map)
-        entry        (u/with-type-hint (gensym 'entry) Map$Entry)
-        entry-key    (gensym 'entry-key)
-        entry-val    (gensym 'entry-val)]
+        put-all-method (symbol (str ".putAll" cc))
+        m (u/with-type-hint (gensym 'm) java.util.Map)]
     (reify TypeGen
 
       (get-class [_] val-type)
 
       (gen-setter [_ builder v]
-        `(if-not (and (some? ~v) (.isAssignableFrom java.util.Map (class ~v)))
+        `(if (nil? ~v)
            (throw (u/make-type-error ~clazz ~(.getName fd) java.util.Map ~v))
            (let [~m       ~v
                  ~builder (~clear-method ~builder)]
-             (doseq [~entry (.entrySet ~m)]
-               (let [~entry-key (.getKey ~entry)
-                     ~entry-val (.getValue ~entry)]
-                 (~put-method ~builder
-                  ~(w/unwrap key-wrapper entry-key)
-                  ~(w/unwrap val-wrapper entry-val)))))))
+             (~put-all-method ~builder
+               (Utils/transformMap ~v
+                            (reify Utils$PairXf
+                                     (transformKey [_ keyItem]
+                                       ~(w/unwrap key-wrapper 'keyItem))
+                                     (transformVal [_ valItem]
+                                       ~(w/unwrap val-wrapper 'valItem))))))))
 
       (gen-getter [_ o]
-        `(let [~m       (~(symbol (str ".get" cc "Map")) ~o)
-               new-map# (java.util.HashMap. (.size ~m))]
-           (doseq [~entry (.entrySet ~m)]
-             (let [~entry-key   (.getKey ~entry)
-                   ~entry-val   (.getValue ~entry )
-                   wrapped-key# ~(w/wrap key-wrapper entry-key)]
-               (.put new-map#
-                     wrapped-key#
-                     ~(w/wrap val-wrapper entry-val))))
-           (clojure.lang.PersistentHashMap/create new-map#))))))
+        `(let [~m       (~(symbol (str ".get" cc "Map")) ~o)]
+           (clojure.lang.PersistentArrayMap.
+             (Utils/mapToArray ~m
+                               (reify Utils$PairXf
+                                 (transformKey [_ keyItem]
+                                   ~(w/wrap key-wrapper 'keyItem))
+                                 (transformVal [_ valItem]
+                                   ~(w/wrap val-wrapper 'valItem)))))
+           )))))
 
 #_(defmethod get-type-gen
     :one-of
@@ -196,7 +183,6 @@
           `(when (= ~field-num (.getNumber (~case-enum-getter ~o)))
              ~(gen-getter g o k))))))
 
-
 (defmethod get-type-gen
   :repeated
   [^Class clazz ^Descriptors$FieldDescriptor fd ctx]
@@ -205,27 +191,29 @@
         wrapper        (w/gen-wrapper inner-type ctx)
         clear-method   (symbol (str ".clear" cc))
         add-all-method (symbol (str ".addAll" cc))
-        x              (gensym 'x)]
+        get-list       (symbol (str ".get" cc "List"))]
     (reify TypeGen
 
       (get-class [_] inner-type)
 
       (gen-setter [_ builder v]
-        `(if-not (and (some? ~v) (.isAssignableFrom Iterable (class ~v)))
+        `(if (nil? ~v)
            (throw (u/make-type-error ~clazz ~(.getName fd) Iterable ~v))
-           (let [al# (java.util.ArrayList. (count ~v))]
-             (doseq [~x ~v]
-               (.add al# ~(w/unwrap wrapper x)))
-             (~add-all-method (~clear-method ~builder) al#))))
+           (~add-all-method (~clear-method ~builder)
+             (TransformIterable. ~v
+                                 (reify TransformIterable$Xf
+                                   (transform [_ item]
+                                     ~(w/unwrap wrapper 'item)))))))
 
       (gen-getter [_ o]
-        (let [v (with-meta (gensym 'v) {:tag 'java.util.List})]
-          `(let [~v  (~(symbol (str ".get" cc "List")) ~o)
-                 al# (java.util.ArrayList. (.size ~v))]
-             #_(map (fn [~x] ~(w/wrap wrapper x)) ~v)
-             (doseq [~x ~v]
-               (.add al# ~(w/wrap wrapper x)))
-             (clojure.lang.PersistentVector/create al#)))))))
+        `(let [^java.util.List v# (~get-list ~o)]
+           (clojure.lang.PersistentVector/adopt
+             (Utils/iterableToArray
+               (TransformIterable. v#
+                                   (reify TransformIterable$Xf
+                                     (transform [_ item]
+                                       ~(w/wrap wrapper 'item))))
+               (.size v#))))))))
 
 (defn get-fields [^Class clazz ctx]
   (let [class-descriptor  (descriptor clazz)
