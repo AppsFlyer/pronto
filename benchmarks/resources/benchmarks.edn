@@ -135,6 +135,11 @@
   {:name :rget5
    :fn   pronto.jmh.benchmarks/rget5
    :args [:jmh/blackhole]
+   :void true}
+
+  {:name :proto-map
+   :fn   pronto.jmh.benchmarks/proto-map
+   :args [:jmh/blackhole]
    :void true}]
 
  :states

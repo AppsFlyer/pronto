@@ -183,4 +183,4 @@
   (macroexpand-all `(defproto ~(symbol (.getName clazz)))))
 
 
-(potemkin/import-vars [pronto.runtime p->])
+(potemkin/import-vars [pronto.runtime p-> pcond->])

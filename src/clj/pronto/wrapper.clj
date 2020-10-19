@@ -100,10 +100,10 @@
            ~@(interleave
                (map first kw->enum)
                (map second kw->enum))
-           (throw (throw (u/make-enum-error ~(:class ctx)
-                                            ~(u/field->kebab-case (:fd ctx))
-                                            ~clazz
-                                            ~v))))))))
+           (throw (u/make-enum-error ~(:class ctx)
+                                     ~(u/field->kebab-case (:fd ctx))
+                                     ~clazz
+                                     ~v)))))))
 
 
 (defn make-error-message ^String [expected-class value]

@@ -16,9 +16,10 @@
           intf-name     (e/intf-info->intf-name intf-info)
           val-at-method (e/val-at-intf-name2 intf-info)]
       `(let [~m2 ~m]
-         (~(symbol (str "." val-at-method))
-          ~(with-meta m2
-             {:tag (str "pronto.protos." intf-name)}))))))
+         (when-not (nil? ~m2)
+           (~(symbol (str "." val-at-method))
+            ~(with-meta m2
+               {:tag (str "pronto.protos." intf-name)})))))))
 
 
 (defn emit-assoc-method [m k v builder]
@@ -79,23 +80,25 @@
        (persistent! ~m2))))
 
 
-(defn assoc-transform-kvs [kvs]
+(defn- assoc-transform-kvs [rewrite-fn kvs]
   (->> kvs
        (partition 2)
        (map
          (fn [[ks v]]
            [ks
             (fn [msym k]
-              `(rassoc!
-                 ~msym ~k ~v))]))))
+              (rewrite-fn
+                `(rassoc!
+                   ~msym ~k ~v)))]))))
 
 
-(defn update-transform-kv [ks f args]
+(defn- update-transform-kv [rewrite-fn ks f args]
   [[ks
     (fn [msym k]
-      `(let [x# (rget ~msym ~k)
-             x# (~f x# ~@args)]
-         (rassoc! ~msym ~k x#)))]])
+      (rewrite-fn
+        `(let [x# (rget ~msym ~k)
+               x# (~f x# ~@args)]
+           (rassoc! ~msym ~k x#))))]])
 
 
 (defn- assoc-args->assoc-in-args [k v kvs]
@@ -123,34 +126,68 @@
   (comp #{'assoc 'assoc-in} fn-name))
 
 
+(defn- safe-resolve [x]
+  (try
+    (resolve x)
+    (catch Exception _)))
+
+(defn- transient-proto-fn? [form]
+  (let [fn-name (fn-name form)
+        v       (safe-resolve fn-name)
+        m       (meta v)]
+    (->> m
+         :arglists
+         (some #(when (= (count form) (count %)) %))
+         first
+         meta
+         :transient-proto
+         boolean)))
+
+
 (defn- transformation? [form]
   (or
     (assoc? form)
-    (update? form)))
+    (update? form)
+    (transient-proto-fn? form)))
 
 
-(defn- rewrite-transformation [transforms]
+(defn- rewrite-transformation [g transforms]
   `(transform-in
+     ~g
      ~(mapcat
         (fn [form]
-          (case (name (fn-name form))
-            "assoc"
-            (let [[_ k v & kvs] form]
-              (assoc-transform-kvs
-                (assoc-args->assoc-in-args k v kvs)))
-            "assoc-in"
-            (let [[_ [k & ks] v] form]
-              (assoc-transform-kvs [(into [k] ks) v]))
-            "update"
-            (let [[_ k f & args] form]
-              (update-transform-kv [k] f args))
-            "update-in"
-            (let [[_ ks f & args] form]
-              (update-transform-kv ks f args))))
+          (let [rewrite-fn (let [pred (-> form meta :predicate)]
+                             (if (some? pred)
+                               (fn [form]
+                                 `(when ~pred
+                                    ~form))
+                               identity))]
+            (case (name (fn-name form))
+              "assoc"
+              (let [[_ k v & kvs] form]
+                (assoc-transform-kvs
+                  rewrite-fn
+                  (assoc-args->assoc-in-args k v kvs)))
+              "assoc-in"
+              (let [[_ [k & ks] v] form]
+                (assoc-transform-kvs
+                  rewrite-fn
+                  [(into [k] ks) v]))
+              "update"
+              (let [[_ k f & args] form]
+                (update-transform-kv rewrite-fn [k] f args))
+              "update-in"
+              (let [[_ ks f & args] form]
+                (update-transform-kv rewrite-fn ks f args))
+              (let [[f args] form]
+                [[[(keyword (gensym))]
+                  (fn [msym _]
+                    (rewrite-fn
+                      `(~f ~msym ~args)))]]))))
         transforms)))
 
 
-(defn- rewrite-forms [forms]
+(defn- rewrite-forms [g forms]
   (->> forms
        (partition-by
          (fn [form]
@@ -159,16 +196,49 @@
              form)))
        (map
          (fn [subform]
-           (let [x (first subform)]
-             (cond
-               (keyword? x) `(rget ~x)
-               (and (coll? subform)
-                    (transformation? x))
-               (rewrite-transformation subform)
-               :else        x))))))
+           (let [x         (first subform)
+                 predicate (-> x meta :predicate)
+                 wrap-pred (fn [form]
+                             (if (nil? predicate)
+                               form
+                               `(if ~predicate
+                                  ~form
+                                  ~g)))]
+             (if (and (coll? subform)
+                      (transformation? x))
+               (rewrite-transformation g subform)
+               (wrap-pred
+                 (cond
+                   (keyword? x)            `(rget ~g ~x)
+                   (= 'get (fn-name x))    `(p-> ~g ~(second x))
+                   (= 'get-in (fn-name x)) `(p-> ~g ~@(second x))
+                   :else                   `(-> ~g ~x)))))))))
 
 
 (defmacro p-> [x & forms]
-  `(clojure.core/->
-     ~x
-     ~@(rewrite-forms forms)))
+  (let [g (gensym)]
+    `(clojure.core/as-> ~x ~g
+       ~@(rewrite-forms g forms))))
+
+
+(defmacro pcond-> [expr & clauses]
+  (assert (even? (count clauses)))
+  (let [clauses' (->> clauses
+                      (partition 2)
+                      (map
+                        (fn [[test form]]
+                          (let [form (if (keyword? form)
+                                       `(rget ~form)
+                                       form)]
+                            (vary-meta
+                              form
+                              assoc
+                              :predicate
+                              test)
+                            ))))]
+    `(p->
+       ~expr
+       ~@clauses')))
+
+
+

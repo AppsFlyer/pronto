@@ -425,10 +425,17 @@
   (is (false? (p/proto-map? (make-person))))
   (is (true? (p/proto-map? (p/proto->proto-map (make-person))))))
 
+(defn change-city [^:transient-proto m city]
+  (assoc! m :address (assoc (:address m) :city city)))
 
-(deftest proto->-test []
+(deftest p->-test []
   (let [m     (p/proto-map People$Person)
         a-key :name]
+    (is (= (p/p-> m
+                  (assoc-in [:address :city] "New York")
+                  :address
+                  :city)
+           "New York"))
     (is (= (p/p-> m
                   (assoc :id 3)
                   (assoc-in [:address :city] "New York")
@@ -437,17 +444,43 @@
                   (assoc-in [:likes] [(make-like :desc "desc1" :level People$Level/LOW)])
                   (update-in [:address :house_num] + 3)
                   (assoc a-key "Foo")
+                  (change-city "Boston")
                   (assoc-in [:address :street] "Broadway")
                   (assoc-in [:address :house] {:num_rooms 5}))
            (p/clj-map->proto-map People$Person
                                  {:id          3
                                   :name        "Foo"
-                                  :address     {:city      "New York"
+                                  :address     {:city      "Boston"
                                                 :street    "Broadway"
                                                 :house_num 6
                                                 :house     {:num_rooms 5}}
                                   :maiden_name "Booga"
                                   :likes       [{:desc "desc1" :level :LOW}]}))
+        (is (= m (p/proto-map People$Person))))))
+
+(deftest pcond->-test []
+  (let [m     (p/proto-map People$Person)
+        a-key :name]
+    (is (= (p/pcond-> m
+                      true (assoc :id 3)
+                      true (assoc-in [:address :city] "New York")
+                      false (assoc-in [:address :house_num] 3)
+                      true (update :maiden_name (constantly "Booga"))
+                      false (assoc-in [:likes] [(make-like :desc "desc1" :level People$Level/LOW)])
+                      true (update-in [:address :house_num] + 3)
+                      true (assoc a-key "Foo")
+                      false (change-city "Boston")
+                      false (assoc-in [:address :street] "Broadway")
+                      true (assoc-in [:address :house] {:num_rooms 5}))
+           (p/clj-map->proto-map People$Person
+                                 {:id          3
+                                  :name        "Foo"
+                                  :address     {:city      "New York"
+                                                :street    ""
+                                                :house_num 3
+                                                :house     {:num_rooms 5}}
+                                  :maiden_name "Booga"
+                                  :likes       []}))
         (is (= m (p/proto-map People$Person))))))
 
 (deftest default-instance-test []

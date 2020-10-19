@@ -7,9 +7,10 @@
             Benchmarks$Strings20
             Benchmarks$Strings30]))
 
-(p/enable-instrumentation!)
+(p/disable-instrumentation!)
 
 (def ^String the-val "hello world")
+
 
 (def clj-map20 (into {} (map (fn [i] [(keyword (str "field_" i)) the-val]) (range 0 20))))
 (p/defproto Benchmarks$Strings20)
@@ -170,3 +171,7 @@
 
 (defn rget5 [^Blackhole bh]
   (.consume bh ^Object (p/p-> proto-map5 :field_1)))
+
+
+(defn proto-map [^Blackhole bh]
+  (.consume bh ^Object (p/proto-map Benchmarks$Strings20)))
