@@ -206,4 +206,7 @@
   (partition 2 (apply concat (flatten-forest* forest))))
 
 
-
+(defn safe-resolve [x]
+  (try
+    (resolve x)
+    (catch Exception _)))
