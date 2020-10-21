@@ -42,24 +42,19 @@
          {:tag (str "pronto.protos." intf-name)}))))
 
 
-(defmacro rassoc! [m k v]
+(defmacro rassoc! [m b k v]
   (if-not (keyword? k)
     `(clojure.core/assoc! ~m ~k ~v)
-    (let [m2           (u/with-type-hint 'm2 ProtoMap)
-          intf-info    (e/interface-info k)
+    (let [intf-info    (e/interface-info k)
           intf-name    (e/intf-info->intf-name intf-info)
-          assoc-method (e/assoc-intf-name2 intf-info)
-          builder      (u/with-type-hint
-                         (gensym 'builder)
-                         GeneratedMessageV3$Builder)]
-      `(let [~m2      ~m
-             ~builder (.pmap_getBuilder ~m2)]
-         (~(symbol (str "." assoc-method))
-          ~(with-meta m2
-             {:tag (str "pronto.protos." intf-name)})
-          ~builder
-          ~v)
-         ~m2))))
+          assoc-method (e/assoc-intf-name2 intf-info)]
+      `(~(symbol (str "." assoc-method))
+        ~(with-meta m
+           {:tag (str "pronto.protos." intf-name)})
+        ~(u/with-type-hint
+           b
+           GeneratedMessageV3$Builder)
+        ~v))))
 
 
 (defmacro transform-in [m kvs]
@@ -67,19 +62,23 @@
         m2         (u/with-type-hint (gensym 'm2) TransientProtoMap)
         new-submap (gensym 'newsubmap)
         submap     (gensym 'submap)
-        kv-forest  (u/kv-forest kvs)]
+        kv-forest  (u/kv-forest kvs)
+        builder    (u/with-type-hint
+                     (gensym 'builder)
+                     GeneratedMessageV3$Builder)]
     `(let [~m2                  (if (.pmap_isMutable ~m) ~m (transient ~m))
-           was-in-transaction?# (.pmap_isInTransaction ~m2)]
+           was-in-transaction?# (.pmap_isInTransaction ~m2)
+           ~builder             (.pmap_getBuilder ~m2)]
        (.pmap_setInTransaction ~m2 true)
        ~@(for [[k vs] kv-forest
                v      (partition-by u/leaf? vs)]
            (if (u/leaf? (first v))
              (let [val-fn (eval (u/leaf-val (first v)))]
-               (val-fn m2 k))
+               (val-fn m2 builder k))
              `(let [~submap     (or (rget ~m2 ~k)
                                     ~(emit-empty-method m2 k))
                     ~new-submap (pronto.runtime/transform-in ~submap ~(u/flatten-forest v))]
-                (rassoc! ~m2 ~k ~new-submap))))
+                (rassoc! ~m2 ~builder ~k ~new-submap))))
        (if was-in-transaction?#
          ~m2
          (persistent! ~m2)))))
@@ -91,19 +90,19 @@
        (map
          (fn [[ks v]]
            [ks
-            (fn [msym k]
+            (fn [msym bsym k]
               (rewrite-fn
                 `(rassoc!
-                   ~msym ~k ~v)))]))))
+                   ~msym ~bsym ~k ~v)))]))))
 
 
 (defn- update-transform-kv [rewrite-fn ks f args]
   [[ks
-    (fn [msym k]
+    (fn [msym bsym k]
       (rewrite-fn
         `(let [x# (rget ~msym ~k)
                x# (~f x# ~@args)]
-           (rassoc! ~msym ~k x#))))]])
+           (rassoc! ~msym ~bsym ~k x#))))]])
 
 
 (defn- assoc-args->assoc-in-args [k v kvs]
@@ -131,14 +130,9 @@
   (comp #{'assoc 'assoc-in} fn-name))
 
 
-(defn- safe-resolve [x]
-  (try
-    (resolve x)
-    (catch Exception _)))
-
 (defn- transient-proto-fn? [form]
   (let [fn-name (fn-name form)
-        v       (safe-resolve fn-name)
+        v       (u/safe-resolve fn-name)
         m       (meta v)]
     (->> m
          :arglists
@@ -149,7 +143,7 @@
          boolean)))
 
 
-(defn- transformation? [form]  
+(defn- transformation? [form]
   (or
     (assoc? form)
     (update? form)
@@ -186,7 +180,7 @@
                 (update-transform-kv rewrite-fn ks f args))
               (let [[f args] form]
                 [[[(keyword (gensym))]
-                  (fn [msym _]
+                  (fn [msym _bsym _]
                     (rewrite-fn
                       (if args
                         `(~f ~msym ~args)

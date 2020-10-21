@@ -128,12 +128,12 @@
 
       (unwrap [_ v]
         `(cond
-           (= (class ~v) ~clazz) ~v
-
-           (= (class ~v) ~wrapper-type)
+           (identical? (class ~v) ~wrapper-type)
            ~(let [u (with-meta (gensym 'u) {:tag 'pronto.ProtoMap})]
               `(let [~u ~v]
                  (pronto.RT/getProto ~u)))
+
+           (identical? (class ~v) ~clazz) ~v
 
            (map? ~v)
            ;; TODO: duplicate code

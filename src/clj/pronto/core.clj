@@ -17,6 +17,7 @@
 
 (def ^:private global-ns "pronto.protos")
 
+
 (defn- resolve-class [class-sym]
   (let [clazz (resolve class-sym)]
     (when-not clazz
@@ -27,42 +28,52 @@
       (throw (IllegalArgumentException. (str clazz " is not a protobuf class"))))
     clazz))
 
+
 (defn- resolve-loaded-class [class-sym]
   (let [clazz (resolve-class class-sym)]
     (if (get @loaded-classes clazz)
       clazz
       (throw (IllegalArgumentException. (str clazz " not loaded"))))))
 
+
 (defn disable-instrumentation! []
   (alter-var-root #'*instrument?* (constantly false)))
 
+
 (defn enable-instrumentation! []
   (alter-var-root #'*instrument?* (constantly true)))
+
 
 (defn proto-map->proto
   "Returns the protobuf instance associated with the proto-map"
   [^ProtoMap m]
   (.pmap_getProto m))
 
+
 (defn clear-field [^ProtoMap m k]
   (if (.pmap_isMutable m)
     (throw (IllegalAccessError. "cannot clear-field on a transient"))
     (.pmap_clearField m k)))
+
 
 (defn clear-field! [^ProtoMap m k]
   (if-not (.pmap_isMutable m)
     (throw (IllegalAccessError. "cannot clear-field! on a non-transient"))
     (.pmap_clearField m k)))
 
+
 (defn has-field? [^ProtoMap m k]
   (.pmap_hasField m k))
+
 
 (defn which-one-of [^ProtoMap m k]
   (.pmap_whichOneOf m k))
 
+
 (defn one-of [^ProtoMap m k]
   (when-let [k' (which-one-of m k)]
     (get m k')))
+
 
 (defmacro proto-map [clazz & kvs]
   {:pre [(even? (count kvs))]}
@@ -148,8 +159,10 @@
                                                 [resolved-k v])))
                                        (eval %))))))
 
+
 (defn dependencies [^Class clazz]
   (set (resolve-deps clazz (init-ctx nil))))
+
 
 (defn depends-on? [^Class dependent ^Class dependency]
   (boolean (get (dependencies dependent) dependency)))
