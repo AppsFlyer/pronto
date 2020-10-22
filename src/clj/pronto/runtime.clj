@@ -178,12 +178,12 @@
               "update-in"
               (let [[_ ks f & args] form]
                 (update-transform-kv rewrite-fn ks f args))
-              (let [[f args] form]
+              (let [[f & args] form]
                 [[[(keyword (gensym))]
                   (fn [msym _bsym _]
                     (rewrite-fn
                       (if args
-                        `(~f ~msym ~args)
+                        `(~f ~msym ~@args)
                         `(~f ~msym))))]]))))
         transforms)))
 
