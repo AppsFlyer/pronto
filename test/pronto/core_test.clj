@@ -440,6 +440,7 @@
            "New York"))
     (is (= (p/p-> m
                   (assoc :id 3)
+                  (assoc :id 4)
                   (assoc-in [:address :city] "New York")
                   (assoc-in [:address :house_num] 3)
                   (update :maiden_name (constantly "Booga"))
@@ -450,7 +451,7 @@
                   (assoc-in [:address :street] "Broadway")
                   (assoc-in [:address :house] {:num_rooms 5}))
            (p/clj-map->proto-map People$Person
-                                 {:id          3
+                                 {:id          4
                                   :name        "Foo"
                                   :address     {:city      "Boston"
                                                 :street    "Broadway"

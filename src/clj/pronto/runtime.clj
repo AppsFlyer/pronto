@@ -70,15 +70,19 @@
            was-in-transaction?# (.pmap_isInTransaction ~m2)
            ~builder             (.pmap_getBuilder ~m2)]
        (.pmap_setInTransaction ~m2 true)
-       ~@(for [[k vs] kv-forest
-               v      (partition-by u/leaf? vs)]
-           (if (u/leaf? (first v))
-             (let [val-fn (eval (u/leaf-val (first v)))]
-               (val-fn m2 builder k))
-             `(let [~submap     (or (rget ~m2 ~k)
-                                    ~(emit-empty-method m2 k))
-                    ~new-submap (pronto.runtime/transform-in ~submap ~(u/flatten-forest v))]
-                (rassoc! ~m2 ~builder ~k ~new-submap))))
+       ~@(doall
+           (for [[k vs] kv-forest
+                 v      (partition-by u/leaf? vs)]
+             (if (u/leaf? (first v))
+               `(do
+                  ~@(doall
+                      (for [leaf v]
+                        (let [val-fn (eval (u/leaf-val leaf))]
+                          (val-fn m2 builder k)))))
+               `(let [~submap     (or (rget ~m2 ~k)
+                                      ~(emit-empty-method m2 k))
+                      ~new-submap (pronto.runtime/transform-in ~submap ~(u/flatten-forest v))]
+                  (rassoc! ~m2 ~builder ~k ~new-submap)))))
        (if was-in-transaction?#
          ~m2
          (persistent! ~m2)))))
