@@ -1,5 +1,6 @@
 (ns pronto.reflection-test
   (:require [clojure.test :refer :all]
+            [pronto.core :as p]
             [clj-java-decompiler.core :as d]))
 
 
