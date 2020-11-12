@@ -1,16 +1,18 @@
 (ns pronto.type-gen
   (:require
-    [pronto.wrapper :as w]
-    [pronto.utils :as u])
+   [pronto.wrapper :as w]
+   [pronto.utils :as u])
   (:import
-    [clojure.lang Reflector]
-    [com.google.protobuf
-     Descriptors$Descriptor
-     Descriptors$FieldDescriptor
-     Descriptors$FieldDescriptor$Type
-     Descriptors$FieldDescriptor$JavaType]
-    [java.lang.reflect Type Method ParameterizedType]
-    [pronto TransformIterable TransformIterable$Xf Utils Utils$PairXf]))
+   [clojure.lang Reflector]
+   [com.google.protobuf
+    Descriptors$Descriptor
+    Descriptors$FieldDescriptor
+    Descriptors$FieldDescriptor$Type
+    Descriptors$FieldDescriptor$JavaType]
+   [java.lang.reflect Type Method ParameterizedType]
+   [pronto TransformIterable TransformIterable$Xf
+    Utils Utils$PairXf
+    ProntoVector ProntoVector$Transformer]))
 
 
 (defprotocol TypeGen
@@ -183,6 +185,7 @@
           `(when (= ~field-num (.getNumber (~case-enum-getter ~o)))
              ~(gen-getter g o k))))))
 
+
 (defmethod get-type-gen
   :repeated
   [^Class clazz ^Descriptors$FieldDescriptor fd ctx]
@@ -200,20 +203,29 @@
         `(if (nil? ~v)
            (throw (u/make-type-error ~clazz ~(.getName fd) Iterable ~v))
            (~add-all-method (~clear-method ~builder)
-             (TransformIterable. ~v
-                                 (reify TransformIterable$Xf
-                                   (transform [_ item]
-                                     ~(w/unwrap wrapper 'item)))))))
+            (if (instance? ProntoVector ~v)
+              ~v
+              (TransformIterable.
+                ~v
+                (reify TransformIterable$Xf
+                  (transform [_ item]
+                    ~(w/unwrap wrapper 'item))))))))
 
       (gen-getter [_ o]
-        `(let [^java.util.List v# (~get-list ~o)]
-           (clojure.lang.PersistentVector/adopt
-             (Utils/iterableToArray
-               (TransformIterable. v#
-                                   (reify TransformIterable$Xf
-                                     (transform [_ item]
-                                       ~(w/wrap wrapper 'item))))
-               (.size v#))))))))
+        (let [item (gensym 'item)]
+          `(let [v#            (~get-list ~o)
+                 list-factory# ~(if (= String inner-type)
+                                  'pronto.ProntoVector/LAZY_STRING_LIST_FACTORY
+                                  'pronto.ProntoVector/DEFAULT_LIST_FACTORY)]
+             (new ProntoVector
+                  v#
+                  list-factory#
+                  (reify ProntoVector$Transformer
+                    (toProto [_ ~item]
+                      ~(w/unwrap wrapper item))
+                    (fromProto [_ ~item]
+                      ~(w/wrap wrapper item)))
+                  nil)))))))
 
 (defn get-fields [^Class clazz ctx]
   (let [class-descriptor  (descriptor clazz)

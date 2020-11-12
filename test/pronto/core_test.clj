@@ -1,14 +1,13 @@
 (ns pronto.core-test
   (:require [clojure.test :refer :all]
             [pronto.core :refer [defproto] :as p]
-            [pronto.utils :as u]
-            [pronto.emitters :as e]
-            [clj-java-decompiler.core :as d])
+            [pronto.utils :as u])
   (:import [protogen.generated People$Person People$Person$Builder
-            People$Address People$Address$Builder People$Like People$Level
+            People$Address People$Like People$Level
             People$House People$Apartment
             People$UUID People$PersonOrBuilder]
-           [com.google.protobuf ByteString]))
+           [com.google.protobuf ByteString]
+           [pronto ProntoVector]))
 
 
 ;; TODO: break this file into multiple ns's
@@ -489,3 +488,49 @@
 (deftest default-instance-test []
   (is (identical? (p/proto-map People$Person) (p/proto-map People$Person)))
   (is (identical? (p/proto-map People$Person) (empty (assoc (p/proto-map People$Person) :id 123)))))
+
+
+(defmacro ensure-vector-immutable [w & body]
+  `(do ~@(map (fn [expr]
+                `(let [m1#  (into [] ~w)
+                       res# ~expr
+                       m2#  (into [] ~w)]
+                   (is (= m1# m2#)) 
+                   res#))
+              body)))
+
+(deftest pronto-vector-test []
+  (let [likes [(make-like :desc "desc1" :level People$Level/LOW)
+               (make-like :desc "desc2" :level People$Level/MEDIUM)
+               (make-like :desc "desc3" :level People$Level/HIGH)]
+        p     (p/proto-map People$Person :likes likes)
+        v     (:likes p)]
+    (is (instance? ProntoVector v))
+    (is (= likes v))
+    (is (thrown? Exception (conj v 123)))
+    (ensure-immutable
+      v
+      (is (= [] (empty v))))
+    (ensure-immutable
+      v
+      (is (= (conj likes (make-like :desc "another like" :level People$Level/LOW))
+             (conj v (make-like :desc "another like" :level People$Level/LOW)))))
+    (ensure-immutable
+      v
+      (is (= (conj likes (make-like :desc "another like" :level People$Level/LOW))
+             (conj v {:desc "another like" :level People$Level/LOW}))))
+    (ensure-immutable
+      v
+      (is (= (assoc likes 0 (make-like "another like" People$Level/LOW))
+             (assoc v 0 (make-like "another like" People$Level/LOW)))))
+    (is (= (count v) 3))
+    (ensure-immutable
+      (is (= (count (conj v {}) 4))))
+    (is (nil? (meta v)))
+    (ensure-immutable
+      v
+      (let [m {:hello "world"}]
+        (is (= (meta (with-meta v m)) m))))
+    (ensure-immutable
+      v
+      (is (= (pop v) (pop likes))))))

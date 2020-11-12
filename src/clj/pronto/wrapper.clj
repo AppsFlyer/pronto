@@ -14,7 +14,12 @@
 (def numeric-scalar?
   (comp boolean #{Integer Integer/TYPE Long Long/TYPE Double Double/TYPE Float Float/TYPE}))
 
-
+(defn- if-instrument [ctx test then else]
+  (if-not (:instrument? ctx)
+    then
+    `(if ~test
+       ~then
+       ~else)))
 
 (defn protobuf-scalar? [^Class clazz]
   (boolean (or (numeric-scalar? clazz)
@@ -96,26 +101,26 @@
            (throw (IllegalArgumentException. (str "can't wrap " ~v)))))
 
       (unwrap [_ v]
-        `(case ~v
-           ~@(interleave
-               (map first kw->enum)
-               (map second kw->enum))
-           (throw (u/make-enum-error ~(:class ctx)
-                                     ~(u/field->kebab-case (:fd ctx))
-                                     ~clazz
-                                     ~v)))))))
+        (let [v2 (gensym 'v)]
+          `(let [~v2 ~v]
+             (if (keyword? ~v2)
+               (case ~v2
+                 ~@(interleave
+                     (map first kw->enum)
+                     (map second kw->enum))
+                 (throw (u/make-enum-error ~(:class ctx)
+                                           ~(u/field->kebab-case (:fd ctx))
+                                           ~clazz
+                                           ~v2)))
+               ~(if-instrument ctx
+                  `(instance? ~clazz ~v)
+                  v2
+                  `(throw ~(make-error clazz ctx v))))))))))
 
 
 (defn make-error-message ^String [expected-class value]
   (str "expected " expected-class ", but got " (or (class value) "nil")))
 
-
-(defn if-instrument [ctx test then else]
-  (if-not (:instrument? ctx)
-    then
-    `(if ~test
-       ~then
-       ~else)))
 
 (defmethod gen-wrapper
   :message
