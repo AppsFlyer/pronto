@@ -534,3 +534,14 @@
     (ensure-immutable
       v
       (is (= (pop v) (pop likes))))))
+
+
+(deftest proto-map->clj-map-test []
+  (let [p        (p/proto-map People$Person
+                              :likes [{}]
+                              :address {})
+        c        (p/proto-map->clj-map p)
+        clj-map? #(and (map? %) (not (p/proto-map? %)))]
+    (is (clj-map? c))
+    (is (clj-map? (:address c)))
+    (is (clj-map? (get-in c [:likes 0])))))

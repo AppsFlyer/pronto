@@ -84,6 +84,11 @@
         `(r/p-> ~(e/emit-default-transient-ctor clazz global-ns)
                 ~@chain)))))
 
+
+(defn proto-map? [m]
+  (instance? ProtoMap m))
+
+
 (defmacro clj-map->proto-map [clazz m]
   (let [clazz (resolve-loaded-class clazz)]
     `(transform/map->proto-map
@@ -98,9 +103,15 @@
   ([proto-map] (proto-map->clj-map proto-map (map identity)))
   ([proto-map xform]
    (let [mapper (map (fn [[k v]]
-                       [k (if (instance? ProtoMap v)
-                            (proto-map->clj-map v)
-                            v)]))
+                       [k (cond
+                            (proto-map? v) (proto-map->clj-map v xform)
+                            (coll? v)      (let [fst (first v)]
+                                             (if (proto-map? fst)
+                                               (into []
+                                                     (map #(proto-map->clj-map  % xform))
+                                                     v)
+                                               v))
+                            :else          v)]))
          xform  (comp mapper xform)]
      (into {}
            xform
@@ -174,9 +185,6 @@
 (defn depends-on? [^Class dependent ^Class dependency]
   (boolean (get (dependencies dependent) dependency)))
 
-
-(defn proto-map? [m]
-  (instance? ProtoMap m))
 
 (defn unload-classes! [] (swap! loaded-classes empty))
 
