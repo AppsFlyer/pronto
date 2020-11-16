@@ -23,10 +23,6 @@
   (first (.getInterfaces clazz)))
 
 
-(defn- interface-name [^Class clazz]
-  (symbol (str 'I (s/replace (.getName clazz) "." "_"))))
-
-
 (defn assoc-intf-name2 [{:keys [iname itype]}]
   (symbol (str "assoc" iname "_" (.getSimpleName ^Class itype))))
 
@@ -38,23 +34,6 @@
 (defn empty-intf-name2 [{:keys [iname]}]
   (symbol (str "empty" iname)))
 
-(defn- assoc-intf-name [^Descriptors$FieldDescriptor fd]
-  (symbol (str "assoc" (u/field->camel-case fd))))
-
-
-(defn- val-at-intf-name [^Descriptors$FieldDescriptor fd]
-  (symbol (str "valAt" (u/field->camel-case fd))))
-
-(defn- emit-reduce [clauses]
-  (let [r (gensym 'res)]
-    (reduce
-      (fn [acc f]
-        `(let [~r ~f]
-           (if (reduced? ~r)
-             ~r
-             ~acc)))
-      r
-      clauses)))
 
 (defn interface-info [k]
   {:iname (u/->camel-case (name k))
@@ -343,11 +322,11 @@
           (name sym-name)))
 
 (defn emit-deftype [^Class clazz ctx]
-  (let [fields               (t/get-fields clazz ctx)
-        o                    (u/with-type-hint pojo clazz)
-        wrapper-class-name   (u/class->map-class-name clazz)
+  (let [fields (t/get-fields clazz ctx)
+        o (u/with-type-hint pojo clazz)
+        wrapper-class-name (u/class->map-class-name clazz)
         transient-class-name (u/class->transient-class-name clazz)
-        md                   (gensym 'md)]
+        md (gensym 'md)]
     `(deftype+ ~wrapper-class-name [~o ~md]
 
        ~(abstract-type-sym ctx (u/class->abstract-map-class-name clazz))
@@ -393,15 +372,17 @@
 
        clojure.lang.Seqable
 
-       ~(let [this (gensym 'this)]
+       ~(let [this (gensym 'this)
+              entries (mapv (fn [fd]
+                              `(.entryAt ~this ~(:kw fd)))
+                            fields)]
           `(seq
              [~this]
-             (clojure.lang.ArraySeq/create
-               (object-array
-                 [~@(map
-                      (fn [fd]
-                        `(.entryAt ~this ~(:kw fd)))
-                      fields)]))))
+             ~(if (nil? (:iter-xf ctx))
+                `(clojure.lang.RT/seq ~entries)
+                `(sequence
+                   ~(:iter-xf ctx)
+                   ~entries))))
 
        clojure.lang.IEditableCollection
 
@@ -411,14 +392,18 @@
 
        java.lang.Iterable
 
-       ~(let [this (gensym 'this)]
+       ~(let [this (gensym 'this)
+              entries-iter `(clojure.lang.RT/iter
+                              ~(mapv (fn [fd]
+                                       `(.entryAt ~this ~(:kw fd)))
+                                     fields))]
           `(iterator
              [~this]
-             (clojure.lang.ArrayIter/create
-               (object-array
-                 [~@(map (fn [fd]
-                           `(.entryAt ~this ~(:kw fd)))
-                         fields)]))))
+             ~(if (nil? (:iter-xf ctx))
+                entries-iter
+                `(clojure.lang.TransformerIterator/create
+                   ~(:iter-xf ctx)
+                   ~entries-iter))))
 
        java.util.Map
 

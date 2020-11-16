@@ -143,14 +143,21 @@
     (assoc m k (f v))
     m))
 
+(defn- resolve' [s]
+  (if (symbol? s)
+    (resolve s)
+    s))
+
 (defn- init-ctx [opts]
   (merge {:key-name-fn   identity
           :enum-value-fn identity
+          :iter-xf       nil
           :ns            "pronto.protos"
           :instrument?   *instrument?*}
          (-> (apply hash-map opts)
              (update' :key-name-fn eval)
              (update' :enum-value-fn eval)
+             (update' :iter-xf resolve')
              (update' :encoders #(into {}
                                        (map (fn [[k v]]
                                               (let [resolved-k
