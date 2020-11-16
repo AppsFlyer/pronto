@@ -160,14 +160,16 @@
         ~builder
         ~v))))
 
+(defn direct-dispath-call [fd this-sym]
+  `(~(symbol (str "." (val-at-intf-name2
+                        (fd->interface-info fd))))
+    ~this-sym))
 
-(defn emit-val-at [fields this obj k]
+(defn emit-val-at [fields this k]
   (emit-fields-case
     fields k true
     (fn [fd]
-      `(~(symbol (str "." (val-at-intf-name2
-                            (fd->interface-info fd))))
-        ~this))))
+      (direct-dispath-call fd this))))
 
 (defn emit-clear [fields builder k]
   (emit-fields-case
@@ -295,7 +297,7 @@
          ~(let [k    (gensym 'k)
                 this (gensym 'this)]
             `(valAt [~this ~k]
-                    ~(emit-val-at fields this o k)))
+                    ~(emit-val-at fields this k)))
 
          (valAt [this# k# not-found#]
                 (.valAt this# k#))
@@ -322,11 +324,11 @@
           (name sym-name)))
 
 (defn emit-deftype [^Class clazz ctx]
-  (let [fields (t/get-fields clazz ctx)
-        o (u/with-type-hint pojo clazz)
-        wrapper-class-name (u/class->map-class-name clazz)
+  (let [fields               (t/get-fields clazz ctx)
+        o                    (u/with-type-hint pojo clazz)
+        wrapper-class-name   (u/class->map-class-name clazz)
         transient-class-name (u/class->transient-class-name clazz)
-        md (gensym 'md)]
+        md                   (gensym 'md)]
     `(deftype+ ~wrapper-class-name [~o ~md]
 
        ~(abstract-type-sym ctx (u/class->abstract-map-class-name clazz))
@@ -372,9 +374,11 @@
 
        clojure.lang.Seqable
 
-       ~(let [this (gensym 'this)
+       ~(let [this    (gensym 'this)
               entries (mapv (fn [fd]
-                              `(.entryAt ~this ~(:kw fd)))
+                              `(clojure.lang.MapEntry/create
+                                 ~(:kw fd)
+                                 ~(direct-dispath-call fd this)))
                             fields)]
           `(seq
              [~this]
@@ -392,10 +396,12 @@
 
        java.lang.Iterable
 
-       ~(let [this (gensym 'this)
+       ~(let [this         (gensym 'this)
               entries-iter `(clojure.lang.RT/iter
                               ~(mapv (fn [fd]
-                                       `(.entryAt ~this ~(:kw fd)))
+                                       `(clojure.lang.MapEntry/create
+                                          ~(:kw fd)
+                                          ~(direct-dispath-call fd this)))
                                      fields))]
           `(iterator
              [~this]
