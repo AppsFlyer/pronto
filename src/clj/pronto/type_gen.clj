@@ -232,6 +232,7 @@
         field-descriptors (field-descriptors class-descriptor)]
     (for [fd field-descriptors]
       (let [ctx (assoc ctx :class clazz :fd fd)]
-        {:fd       fd
+        {:class    clazz
+         :fd       fd
          :type-gen (get-type-gen clazz fd ctx)
          :kw       (keyword ((or (:key-name-fn ctx) identity) (.getName ^Descriptors$FieldDescriptor fd)))}))))

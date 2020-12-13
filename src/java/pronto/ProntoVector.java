@@ -6,9 +6,8 @@ import com.google.protobuf.LazyStringArrayList;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
-import java.util.stream.Stream;
 import java.util.Iterator;
+import java.util.List;
 
 public class ProntoVector extends APersistentVector implements IObj, IEditableCollection, IReduce, IKVReduce {
 
