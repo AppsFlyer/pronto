@@ -545,3 +545,6 @@
     (is (clj-map? c))
     (is (clj-map? (:address c)))
     (is (clj-map? (get-in c [:likes 0])))))
+
+
+

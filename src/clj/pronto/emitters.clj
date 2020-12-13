@@ -35,6 +35,10 @@
   (symbol (str "empty" iname)))
 
 
+(defn clear-intf-name2 [{:keys [iname]}]
+  (symbol (str "clear" iname)))
+
+
 (defn interface-info [k]
   {:iname (u/->camel-case (name k))
    :itype Object})
@@ -45,6 +49,12 @@
 
 (defn intf-info->intf-name [{:keys [iname itype]}]
   (symbol (str 'I iname "_" (s/replace (.getName ^Class itype) "." "_"))))
+
+
+(defn clear [field builder]
+  (let [clear-method (symbol (str ".clear" (u/field->camel-case (:fd field))))]
+    `(~clear-method ~(u/with-type-hint builder
+                       (get-builder-class (:class field))))))
 
 
 (defn get-interfaces [^Class clazz ctx]
@@ -67,7 +77,10 @@
              [])
 
             (~(empty-intf-name2 intf-info)
-             []))
+             [])
+
+            (~(clear-intf-name2 intf-info)
+             [~'builder]))
 
          :impl
          `((~(assoc-intf-name2 intf-info)
@@ -95,7 +108,11 @@
                         (not (.isRepeated fd)))
                  (empty-map-var-name (t/field-type clazz (:fd field)))
                  `(throw (new UnsupportedOperationException
-                              "Cannot call empty"))))))}))))
+                              "Cannot call empty")))))
+
+           (~(clear-intf-name2 intf-info)
+            [~this ~builder-sym]
+            ~(clear field builder-sym)))}))))
 
 
 (def ^:private intfs (atom #{}))
@@ -171,12 +188,12 @@
     (fn [fd]
       (direct-dispath-call fd this))))
 
+
 (defn emit-clear [fields builder k]
   (emit-fields-case
     fields k true
     (fn [field]
-      (let [clear-method (symbol (str ".clear" (u/field->camel-case (:fd field))))]
-        `(~clear-method ~builder)))))
+      (clear field builder))))
 
 (defn emit-has-field? [fields o k]
   (emit-fields-case

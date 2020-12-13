@@ -50,18 +50,6 @@
   (.pmap_getProto m))
 
 
-(defn clear-field [^ProtoMap m k]
-  (if (.pmap_isMutable m)
-    (throw (IllegalAccessError. "cannot clear-field on a transient"))
-    (.pmap_clearField m k)))
-
-
-(defn clear-field! [^ProtoMap m k]
-  (if-not (.pmap_isMutable m)
-    (throw (IllegalAccessError. "cannot clear-field! on a non-transient"))
-    (.pmap_clearField m k)))
-
-
 (defn has-field? [^ProtoMap m k]
   (.pmap_hasField m k))
 
@@ -212,6 +200,12 @@
 
 
 
-(potemkin/import-vars [pronto.runtime p-> pcond->])
+(potemkin/import-vars [pronto.runtime
+                       p->
+                       pcond->
+                       clear-field
+                       clear-field!
+                       assoc-if])
+
 
 
