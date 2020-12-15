@@ -26,7 +26,7 @@ Because the threading-macro is familiar with the internal structure of proto-map
 
 The cost of a single `assoc` to a proto-map is generally higher than of its Clojure map counterpart (assuming same number of keys).
 
-To understand why, we need to understand how a proto-map assoc's a key. Every `proto-map` holds an underlying instance of a Java protobuf POJO. It eventually
+To understand why, we need to understand how a proto-map assocs a key. Every `proto-map` holds an underlying instance of a Java protobuf POJO. It eventually
 delegates all writes and reads to this Java instance. Like Clojure maps, protobuf instances are immutable. However, unlike Clojure maps which use
 persistent data structures and structural sharing, in order to transform a protobuf instance, we must first transition it to a mutable builder,
 do the operation on the builder and finally transition the builder back to a new protobuf instance.
