@@ -114,6 +114,15 @@
       (~(u/static-call clazz "parseFrom")
        ~bytea) nil)))
 
+(defn byte-mapper [^Class clazz]
+  (let [csym (symbol (.getName clazz))]
+    (eval
+      `(do
+         (defproto ~csym)
+         (fn [bytes#]
+           (bytes->proto-map ~csym bytes#))))))
+
+
 (defn proto-map->bytes [proto-map]
   (.toByteArray ^GeneratedMessageV3 (proto-map->proto proto-map)))
 
