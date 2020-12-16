@@ -10,7 +10,7 @@ This library is an `alpha` version and under active development!
 
 ## Rationale
 
-The guiding principles for `pronto` are:
+The guiding principles behind `pronto` are:
 
 * **Idiomatic interaction**: Use Protocol Buffer POJOs (`protoc` generated) as though they were native Clojure data structures, allowing for data-driven programming.
 * **Minimalistic**: `pronto` is behavioral only: it is only concerned with making POJOs mimic Clojure collections. Data is still stored in the POJOs, and no
@@ -28,8 +28,8 @@ Add a dependency to your `project.clj` file:
 
 ## How does it work?
 
-The main abstraction of the library is the `proto-map`, a type of map which can be used as a regular Clojure map, but rejects any operations
-which would break your schema. The library generates a bespoke `proto-map` class for every `protoc`-generated Java class (POJO).
+The main abstraction in `pronto` is the `proto-map`, a type of map which can be used as a regular Clojure map, but rejects any operations
+which would break its schema. The library generates a bespoke `proto-map` class for every `protoc`-generated Java class (POJO).
 
 Every `proto-map` 
 * Holds an underlying instance of the actual POJO.
@@ -82,18 +82,18 @@ No such field :no-such-key
 ## Fine print - please read
 
 It is important to realize that while `proto-maps`s look and feel like Clojure maps for the most part, their semantics
-are not always identical. Clojure maps are dynamic and open-ended; Protocol-buffers are static and closed. This leads to
-several design decisions, in which we usually prefer to stick to Protocol-buffers' semantics rather than Clojure's.
-This is done in order to remove ambiguity, and because we assume that a user which uses protocol-buffers would like to ensure
-the properties for which they decided to use it in the first place are kept.
+are not always identical. Clojure maps are dynamic and open; Protocol-buffers are static and closed. This leads to
+several design decisions, where we usually preferred to stick to Protocol-buffers' semantics rather than Clojure's.
+This is done in order to remove ambiguity, and because we assume that a protocol-buffers user would like to ensure
+the properties for which they decided to use them in the first place are maintained.
 
-The main differences and the reasoning behind them are listed below:
+The main differences and the reasoning behind them are as follows:
 
-* A `proto-map` contains the **entire set of keys** defined in a schema (turned into Clojure keywords) -- the schema is the source of truth and it is always present in its entirety.
+* A `proto-map` contains the **entire set of keys** defined in a schema (as Clojure keywords) -- the schema is the source of truth and it is always present in its entirety.
 * `dissoc` is unsupported -- for the reason above.
-* Trying to `get` a key not in the map will throw an error, rather than return `nil`. There are two reasons behind this. First, `proto-maps` are closed
-and can't be used as a general-purpose container of key-value's. As a result, this is probably a bug and we'd like to give the user immediate feedback.
-Secondly, returning `nil` could lead to strange ambiguities -- see below.
+* Trying to `get` a key not in the map will throw an error, rather than return `nil`, for two reasons; First, `proto-maps` are closed
+and can't be used as a general-purpose container of key-value pairs. Therefor, this is probably a mistake and we'd like to give the user immediate feedback.
+Second, returning `nil` could lead to strange ambiguities -- see below.
 * Associng a key not present in the schema is an error -- maintain schema correctness.
 * Associng a value of the wrong type is an error -- maintain schema correctness.
 * To `nil` or not to `nil`: protocol buffers in Java have no notion of nullability. Every field in every message is always initialized and present.
@@ -135,8 +135,10 @@ When unset, they take on their "zero-value" rather than `null`. However, for mes
 ***
 Please note that `proto-map`, `bytes->proto-map` and `clj-map->proto-map` are -- for efficiency reasons --  macros and not functions.
 
-This means that every call-site for the above must supply a symbol which will resolve to a Class during macro expansion time. Passing a variable
-which references a Class instance will not work. In short, this basically means you cannot do the following:
+Think of these macros as equivalent to Clojure's record-from-map constructors: `map->RecordType`.
+
+This means that every call-site for the above must provide a symbol which will resolve to a Class during macro expansion time. Passing a variable
+which references a Class instance will not work. In short, the following will not work:
 
 ```clj
 (let [clazz People$Person]
