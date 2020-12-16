@@ -7,9 +7,12 @@
             [pronto.protos]
             [pronto.runtime :as r]
             [clojure.walk :refer [macroexpand-all]]
-            [potemkin])
+            [potemkin]
+            [pronto.core :as p])
   (:import [pronto ProtoMap]
-           [com.google.protobuf Message GeneratedMessageV3]))
+           [com.google.protobuf Message GeneratedMessageV3
+            Descriptors$FieldDescriptor
+            Descriptors$Descriptor]))
 
 (def ^:private loaded-classes (atom {}))
 
@@ -155,6 +158,50 @@
   (if (symbol? s)
     (resolve s)
     s))
+
+
+(defn- field-schema [^Class clazz ^Descriptors$FieldDescriptor descriptor]
+  (cond
+    (.isMapField descriptor) (let [{:keys [key-type val-type]} (t/map-type-info clazz descriptor)]
+                               {key-type val-type})
+    (.isRepeated descriptor) [(t/repeated-type-info clazz descriptor)]
+    :else                    (t/field-type clazz descriptor)))
+
+
+(defn- find-descriptors [clazz descriptors ks]
+  (loop [clazz       clazz
+         descriptors descriptors
+         ks          ks]
+    (if-not (seq ks)
+      [clazz descriptors]
+      (let [[k & ks] ks
+            ^Descriptors$FieldDescriptor descriptor
+            (some
+              (fn [^Descriptors$FieldDescriptor d]
+                (when (= (name k) (.getName d))
+                  d))
+              descriptors)]
+        (when descriptor
+          (let [sub-descs (.getFields ^Descriptors$Descriptor (.getMessageType descriptor))
+                clazz     (t/field-type clazz descriptor)]
+            (recur clazz sub-descs ks)))))))
+
+
+(defn schema [proto-map-or-class & ks]
+  (let [clazz               (cond
+                              (class? proto-map-or-class)     proto-map-or-class
+                              (proto-map? proto-map-or-class) (class (proto-map->proto proto-map-or-class)))
+        [clazz descriptors] (find-descriptors
+                              clazz
+                              (map :fd (t/get-fields clazz {}))
+                              ks)]
+    (into {}
+          (map
+            (fn [fd]
+              [(keyword (.getName ^Descriptors$FieldDescriptor fd))
+               (field-schema clazz fd)]))
+          descriptors)))
+
 
 (defn- init-ctx [opts]
   (merge {:key-name-fn   identity
