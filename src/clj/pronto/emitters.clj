@@ -157,13 +157,17 @@
 
 
 (defn emit-fields-case [fields k throw-error? f]
-  `(case ~k
-     ~@(interleave
-         (map :kw fields)
-         (map f fields))
-     ~(if-not throw-error?
-        nil ; explicitly return nil from case
-        `(throw (IllegalArgumentException. (str "No such field " ~k))))))
+  (let [branches  (interleave
+                    (map :kw fields)
+                    (map f fields))
+        not-found (if-not throw-error? nil `(throw (IllegalArgumentException. (str "No such field " ~k))))]
+    (if (<= (count fields) 8)
+      `(condp identical? ~k
+         ~@branches
+         ~not-found)
+      `(case ~k
+         ~@branches
+         ~not-found))))
 
 
 (defn emit-assoc [fields this builder k v]

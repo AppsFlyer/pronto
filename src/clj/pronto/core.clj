@@ -6,6 +6,7 @@
             [pronto.utils :as u]
             [pronto.protos]
             [pronto.runtime :as r]
+            [pronto.reflection :as reflect]
             [clojure.walk :refer [macroexpand-all]]
             [potemkin]
             [pronto.core :as p])
@@ -160,12 +161,20 @@
     s))
 
 
+(defn- type-info [^Class clazz]
+  (cond
+    (reflect/enum? clazz) (into #{} (map str) (reflect/enum-values clazz))
+    :else                 clazz))
+
+
 (defn- field-schema [^Class clazz ^Descriptors$FieldDescriptor descriptor]
   (cond
     (.isMapField descriptor) (let [{:keys [key-type val-type]} (t/map-type-info clazz descriptor)]
-                               {key-type val-type})
-    (.isRepeated descriptor) [(t/repeated-type-info clazz descriptor)]
-    :else                    (t/field-type clazz descriptor)))
+                               {(type-info key-type)
+                                (type-info val-type)})
+    (.isRepeated descriptor) [(type-info (t/repeated-type-info clazz descriptor))]
+    :else                    (let [^Class x (t/field-type clazz descriptor)]
+                               (type-info x))))
 
 
 (defn- find-descriptors [clazz descriptors ks]
@@ -195,31 +204,37 @@
                               clazz
                               (map :fd (t/get-fields clazz {}))
                               ks)]
-    (into {}
-          (map
-            (fn [fd]
-              [(keyword (.getName ^Descriptors$FieldDescriptor fd))
-               (field-schema clazz fd)]))
-          descriptors)))
+    (when descriptors
+      (into {}
+            (map
+              (fn [^Descriptors$FieldDescriptor fd]
+                [(keyword
+                   (when-let [oneof (.getContainingOneof fd)]
+                     (.getName oneof))
+                   (.getName fd))
+                 (field-schema clazz fd)]))
+            descriptors))))
 
 
 (defn- init-ctx [opts]
-  (merge {:key-name-fn   identity
-          :enum-value-fn identity
-          :iter-xf       nil
-          :ns            "pronto.protos"
-          :instrument?   *instrument?*}
-         (-> (apply hash-map opts)
-             (update' :key-name-fn eval)
-             (update' :enum-value-fn eval)
-             (update' :iter-xf resolve')
-             (update' :encoders #(into {}
-                                       (map (fn [[k v]]
-                                              (let [resolved-k
-                                                    (cond-> k
-                                                      (symbol? k) (resolve))]
-                                                [resolved-k v])))
-                                       (eval %))))))
+  (merge
+    {:key-name-fn   identity
+     :enum-value-fn identity
+     :iter-xf       nil
+     :ns            "pronto.protos"
+     :instrument?   *instrument?*}
+    (-> (apply hash-map opts)
+        (update' :key-name-fn eval)
+        (update' :enum-value-fn eval)
+        (update' :iter-xf resolve')
+        (update' :encoders #(into {}
+                                  (map
+                                    (fn [[k v]]
+                                      (let [resolved-k
+                                            (cond-> k
+                                              (symbol? k) resolve)]
+                                        [resolved-k v])))
+                                  (eval %))))))
 
 
 (defn dependencies [^Class clazz]
@@ -262,6 +277,4 @@
                        clear-field
                        clear-field!
                        assoc-if])
-
-
 

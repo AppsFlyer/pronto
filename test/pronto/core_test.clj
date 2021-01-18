@@ -40,7 +40,7 @@
     (.build b)))
 
 (defn make-person
-  [& {:keys [id name email address likes pet-names relations private-key age-millis vegetarian? height-cm weight-kg levels ids-list]}]
+  [& {:keys [id name email address likes pet-names relations private-key age-millis vegetarian? height-cm weight-kg levels ids-list relations-like-level]}]
   (let [^People$Person$Builder b (People$Person/newBuilder)]
     (when id (.setId b id))
     (when name (.setName b name))
@@ -56,6 +56,7 @@
     (when weight-kg   (.setWeightKg b weight-kg))
     (when levels      (.addAllLevels b levels))
     (when ids-list (.addAllIdsList b ids-list))
+    (when relations-like-level (.putAllRelationsLikeLevel b relations-like-level))
     (.build b)))
 
 (defmacro ensure-immutable [w & body]
@@ -253,12 +254,17 @@
     (is (= apartment (p/one-of address3 :home)))))
 
 (deftest maps-test
-  (let [bff (make-person :name "bar")
+  (let [bff    (make-person :name "bar")
         sister (make-person :name "baz")
-        person (make-person :name "foo" :relations {"bff" bff})
-        w (p/proto->proto-map person)]
+        person (make-person :name "foo"
+                            :relations {"bff" bff}
+                            :relations-like-level {"bff" People$Level/HIGH})
+        w      (p/proto->proto-map person)]
     (is (= {:bff bff} (:relations (assoc-in w [:relations :bff] bff))))
-    (is (= {:bff bff :sister sister} (:relations (assoc-in w [:relations :sister] sister))))))
+    (is (= {:bff bff :sister sister} (:relations (assoc-in w [:relations :sister] sister))))
+
+    (is (= {:bff :HIGH} (:relations_like_level w)))
+    (is (= {:bff :MEDIUM} (:relations_like_level (assoc-in w [:relations_like_level :bff] :MEDIUM))))))
 
 (deftest init-with-values
   (let [p (p/proto-map People$Person
@@ -548,3 +554,44 @@
 
 
 
+(deftest schema-test []
+  (is (= (p/schema (p/proto-map People$Person))
+         (p/schema People$Person)))
+
+  (is (nil? (p/schema People$Person :fake-key)))
+
+  (is (= (p/schema People$Person :address)
+         {:city           String
+          :street         String
+          :house_num      Integer/TYPE
+          :home/house     People$House
+          :home/apartment People$Apartment}))
+
+  (is (= (p/schema People$Person :address :home/house)
+         {:num_rooms Integer/TYPE}))
+
+  (is (= (p/schema People$Person)
+         {:id                   Integer/TYPE
+          :name                 String
+          :email                String
+          :address              People$Address
+          :likes                [People$Like]
+          :relations            {String People$Person}
+          :pet_names            [String]
+          :private_key          ByteString
+          :age_millis           Long/TYPE
+          :is_vegetarian        Boolean/TYPE
+          :height_cm            Double/TYPE
+          :weight_kg            Float/TYPE
+          :levels               [#{"HIGH" "LOW" "MEDIUM" "ALIASED_HIGH"}]
+          :social_security      com.google.protobuf.Int32Value
+          :maiden_name          com.google.protobuf.StringValue
+          :uuid                 People$UUID
+          :bv                   com.google.protobuf.BytesValue
+          :bla                  {String, com.google.protobuf.DoubleValue}
+          :ids_list             [Integer]
+          :relations_like_level {String #{"HIGH" "LOW" "MEDIUM" "ALIASED_HIGH"}}
+          :thing/num            Integer/TYPE
+          :thing/str            String
+          :thing/person         People$Person
+          :thing/level          #{"HIGH" "LOW" "MEDIUM" "ALIASED_HIGH"}})))
