@@ -1,10 +1,9 @@
 (ns pronto.wrapper
   (:require [pronto.utils :as u]
-            [pronto.transformations :as transform])
-  (:import [clojure.lang Reflector]
-           [com.google.protobuf ByteString
+            [pronto.transformations :as transform]
+            [pronto.reflection :as reflect])
+  (:import [com.google.protobuf ByteString
             Descriptors$FieldDescriptor
-            Descriptors$EnumDescriptor
             Descriptors$EnumValueDescriptor]))
 
 (defprotocol Wrapper
@@ -84,8 +83,7 @@
 (defmethod gen-wrapper
   :enum
   [^Class clazz ctx]
-  (let [descriptor    (Reflector/invokeStaticMethod clazz "getDescriptor" (to-array nil))
-        values        (.getValues ^Descriptors$EnumDescriptor descriptor)
+  (let [values        (reflect/enum-values clazz)
         enum-value-fn (or (:enum-value-fn ctx) identity)
         enum->kw      (map-indexed #(vector %1 (keyword (enum-value-fn (.getName ^Descriptors$EnumValueDescriptor %2))))
                                    values)

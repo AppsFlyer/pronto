@@ -10,7 +10,7 @@ message Person {
   string email = 3;
   Address address = 4;
   repeated Like likes = 7;
-  map<string, Person> relations = 8;
+  map<string, Person> relations = 8; 
   repeated string pet_names = 9;
   bytes private_key = 10;
   int64 age_millis = 11;
@@ -24,6 +24,13 @@ message Person {
   google.protobuf.BytesValue bv = 19;
   map<string, google.protobuf.DoubleValue> bla = 20;
   repeated int32 ids_list = 21;
+  map<string, Level> relations_like_level = 22;
+  oneof thing {
+    uint32 num = 23;
+    string str = 24;
+    Person person = 25;
+    Level level = 26;
+  }
 }
 
 message UUID {

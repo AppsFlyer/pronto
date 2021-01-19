@@ -438,6 +438,108 @@ public final class People {
      * @return The idsList at the given index.
      */
     int getIdsList(int index);
+
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+    int getRelationsLikeLevelCount();
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+    boolean containsRelationsLikeLevel(
+        java.lang.String key);
+    /**
+     * Use {@link #getRelationsLikeLevelMap()} instead.
+     */
+    @java.lang.Deprecated
+    java.util.Map<java.lang.String, protogen.generated.People.Level>
+    getRelationsLikeLevel();
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+    java.util.Map<java.lang.String, protogen.generated.People.Level>
+    getRelationsLikeLevelMap();
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+    protogen.generated.People.Level getRelationsLikeLevelOrDefault(
+        java.lang.String key,
+        protogen.generated.People.Level defaultValue);
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+    protogen.generated.People.Level getRelationsLikeLevelOrThrow(
+        java.lang.String key);
+    /**
+     * Use {@link #getRelationsLikeLevelValueMap()} instead.
+     */
+    @java.lang.Deprecated
+    java.util.Map<java.lang.String, java.lang.Integer>
+    getRelationsLikeLevelValue();
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+    java.util.Map<java.lang.String, java.lang.Integer>
+    getRelationsLikeLevelValueMap();
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+
+    int getRelationsLikeLevelValueOrDefault(
+        java.lang.String key,
+        int defaultValue);
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+
+    int getRelationsLikeLevelValueOrThrow(
+        java.lang.String key);
+
+    /**
+     * <code>uint32 num = 23;</code>
+     * @return The num.
+     */
+    int getNum();
+
+    /**
+     * <code>string str = 24;</code>
+     * @return The str.
+     */
+    java.lang.String getStr();
+    /**
+     * <code>string str = 24;</code>
+     * @return The bytes for str.
+     */
+    com.google.protobuf.ByteString
+        getStrBytes();
+
+    /**
+     * <code>.protogen.generated.Person person = 25;</code>
+     * @return Whether the person field is set.
+     */
+    boolean hasPerson();
+    /**
+     * <code>.protogen.generated.Person person = 25;</code>
+     * @return The person.
+     */
+    protogen.generated.People.Person getPerson();
+    /**
+     * <code>.protogen.generated.Person person = 25;</code>
+     */
+    protogen.generated.People.PersonOrBuilder getPersonOrBuilder();
+
+    /**
+     * <code>.protogen.generated.Level level = 26;</code>
+     * @return The enum numeric value on the wire for level.
+     */
+    int getLevelValue();
+    /**
+     * <code>.protogen.generated.Level level = 26;</code>
+     * @return The level.
+     */
+    protogen.generated.People.Level getLevel();
+
+    public protogen.generated.People.Person.ThingCase getThingCase();
   }
   /**
    * Protobuf type {@code protogen.generated.Person}
@@ -687,6 +789,50 @@ public final class People {
               input.popLimit(limit);
               break;
             }
+            case 178: {
+              if (!((mutable_bitField0_ & 0x00000040) != 0)) {
+                relationsLikeLevel_ = com.google.protobuf.MapField.newMapField(
+                    RelationsLikeLevelDefaultEntryHolder.defaultEntry);
+                mutable_bitField0_ |= 0x00000040;
+              }
+              com.google.protobuf.MapEntry<java.lang.String, java.lang.Integer>
+              relationsLikeLevel__ = input.readMessage(
+                  RelationsLikeLevelDefaultEntryHolder.defaultEntry.getParserForType(), extensionRegistry);
+              relationsLikeLevel_.getMutableMap().put(
+                  relationsLikeLevel__.getKey(), relationsLikeLevel__.getValue());
+              break;
+            }
+            case 184: {
+              thingCase_ = 23;
+              thing_ = input.readUInt32();
+              break;
+            }
+            case 194: {
+              java.lang.String s = input.readStringRequireUtf8();
+              thingCase_ = 24;
+              thing_ = s;
+              break;
+            }
+            case 202: {
+              protogen.generated.People.Person.Builder subBuilder = null;
+              if (thingCase_ == 25) {
+                subBuilder = ((protogen.generated.People.Person) thing_).toBuilder();
+              }
+              thing_ =
+                  input.readMessage(protogen.generated.People.Person.parser(), extensionRegistry);
+              if (subBuilder != null) {
+                subBuilder.mergeFrom((protogen.generated.People.Person) thing_);
+                thing_ = subBuilder.buildPartial();
+              }
+              thingCase_ = 25;
+              break;
+            }
+            case 208: {
+              int rawValue = input.readEnum();
+              thingCase_ = 26;
+              thing_ = rawValue;
+              break;
+            }
             default: {
               if (!parseUnknownField(
                   input, unknownFields, extensionRegistry, tag)) {
@@ -732,6 +878,8 @@ public final class People {
           return internalGetRelations();
         case 20:
           return internalGetBla();
+        case 22:
+          return internalGetRelationsLikeLevel();
         default:
           throw new RuntimeException(
               "Invalid map field number: " + number);
@@ -743,6 +891,51 @@ public final class People {
       return protogen.generated.People.internal_static_protogen_generated_Person_fieldAccessorTable
           .ensureFieldAccessorsInitialized(
               protogen.generated.People.Person.class, protogen.generated.People.Person.Builder.class);
+    }
+
+    private int thingCase_ = 0;
+    private java.lang.Object thing_;
+    public enum ThingCase
+        implements com.google.protobuf.Internal.EnumLite,
+            com.google.protobuf.AbstractMessage.InternalOneOfEnum {
+      NUM(23),
+      STR(24),
+      PERSON(25),
+      LEVEL(26),
+      THING_NOT_SET(0);
+      private final int value;
+      private ThingCase(int value) {
+        this.value = value;
+      }
+      /**
+       * @param value The number of the enum to look for.
+       * @return The enum associated with the given number.
+       * @deprecated Use {@link #forNumber(int)} instead.
+       */
+      @java.lang.Deprecated
+      public static ThingCase valueOf(int value) {
+        return forNumber(value);
+      }
+
+      public static ThingCase forNumber(int value) {
+        switch (value) {
+          case 23: return NUM;
+          case 24: return STR;
+          case 25: return PERSON;
+          case 26: return LEVEL;
+          case 0: return THING_NOT_SET;
+          default: return null;
+        }
+      }
+      public int getNumber() {
+        return this.value;
+      }
+    };
+
+    public ThingCase
+    getThingCase() {
+      return ThingCase.forNumber(
+          thingCase_);
     }
 
     public static final int ID_FIELD_NUMBER = 1;
@@ -1294,6 +1487,251 @@ public final class People {
     }
     private int idsListMemoizedSerializedSize = -1;
 
+    public static final int RELATIONS_LIKE_LEVEL_FIELD_NUMBER = 22;
+    private static final class RelationsLikeLevelDefaultEntryHolder {
+      static final com.google.protobuf.MapEntry<
+          java.lang.String, java.lang.Integer> defaultEntry =
+              com.google.protobuf.MapEntry
+              .<java.lang.String, java.lang.Integer>newDefaultInstance(
+                  protogen.generated.People.internal_static_protogen_generated_Person_RelationsLikeLevelEntry_descriptor, 
+                  com.google.protobuf.WireFormat.FieldType.STRING,
+                  "",
+                  com.google.protobuf.WireFormat.FieldType.ENUM,
+                  protogen.generated.People.Level.LOW.getNumber());
+    }
+    private com.google.protobuf.MapField<
+        java.lang.String, java.lang.Integer> relationsLikeLevel_;
+    private com.google.protobuf.MapField<java.lang.String, java.lang.Integer>
+    internalGetRelationsLikeLevel() {
+      if (relationsLikeLevel_ == null) {
+        return com.google.protobuf.MapField.emptyMapField(
+            RelationsLikeLevelDefaultEntryHolder.defaultEntry);
+      }
+      return relationsLikeLevel_;
+    }
+    private static final
+    com.google.protobuf.Internal.MapAdapter.Converter<
+        java.lang.Integer, protogen.generated.People.Level> relationsLikeLevelValueConverter =
+            com.google.protobuf.Internal.MapAdapter.newEnumConverter(
+                protogen.generated.People.Level.internalGetValueMap(),
+                protogen.generated.People.Level.UNRECOGNIZED);
+    private static final java.util.Map<java.lang.String, protogen.generated.People.Level>
+    internalGetAdaptedRelationsLikeLevelMap(
+        java.util.Map<java.lang.String, java.lang.Integer> map) {
+      return new com.google.protobuf.Internal.MapAdapter<
+          java.lang.String, protogen.generated.People.Level, java.lang.Integer>(
+              map, relationsLikeLevelValueConverter);
+    }
+
+    public int getRelationsLikeLevelCount() {
+      return internalGetRelationsLikeLevel().getMap().size();
+    }
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+
+    public boolean containsRelationsLikeLevel(
+        java.lang.String key) {
+      if (key == null) { throw new java.lang.NullPointerException(); }
+      return internalGetRelationsLikeLevel().getMap().containsKey(key);
+    }
+    /**
+     * Use {@link #getRelationsLikeLevelMap()} instead.
+     */
+    @java.lang.Deprecated
+    public java.util.Map<java.lang.String, protogen.generated.People.Level>
+    getRelationsLikeLevel() {
+      return getRelationsLikeLevelMap();
+    }
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+
+    public java.util.Map<java.lang.String, protogen.generated.People.Level>
+    getRelationsLikeLevelMap() {
+      return internalGetAdaptedRelationsLikeLevelMap(
+          internalGetRelationsLikeLevel().getMap());}
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+
+    public protogen.generated.People.Level getRelationsLikeLevelOrDefault(
+        java.lang.String key,
+        protogen.generated.People.Level defaultValue) {
+      if (key == null) { throw new java.lang.NullPointerException(); }
+      java.util.Map<java.lang.String, java.lang.Integer> map =
+          internalGetRelationsLikeLevel().getMap();
+      return map.containsKey(key)
+             ? relationsLikeLevelValueConverter.doForward(map.get(key))
+             : defaultValue;
+    }
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+
+    public protogen.generated.People.Level getRelationsLikeLevelOrThrow(
+        java.lang.String key) {
+      if (key == null) { throw new java.lang.NullPointerException(); }
+      java.util.Map<java.lang.String, java.lang.Integer> map =
+          internalGetRelationsLikeLevel().getMap();
+      if (!map.containsKey(key)) {
+        throw new java.lang.IllegalArgumentException();
+      }
+      return relationsLikeLevelValueConverter.doForward(map.get(key));
+    }
+    /**
+     * Use {@link #getRelationsLikeLevelValueMap()} instead.
+     */
+    @java.lang.Deprecated
+    public java.util.Map<java.lang.String, java.lang.Integer>
+    getRelationsLikeLevelValue() {
+      return getRelationsLikeLevelValueMap();
+    }
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+
+    public java.util.Map<java.lang.String, java.lang.Integer>
+    getRelationsLikeLevelValueMap() {
+      return internalGetRelationsLikeLevel().getMap();
+    }
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+
+    public int getRelationsLikeLevelValueOrDefault(
+        java.lang.String key,
+        int defaultValue) {
+      if (key == null) { throw new java.lang.NullPointerException(); }
+      java.util.Map<java.lang.String, java.lang.Integer> map =
+          internalGetRelationsLikeLevel().getMap();
+      return map.containsKey(key) ? map.get(key) : defaultValue;
+    }
+    /**
+     * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+     */
+
+    public int getRelationsLikeLevelValueOrThrow(
+        java.lang.String key) {
+      if (key == null) { throw new java.lang.NullPointerException(); }
+      java.util.Map<java.lang.String, java.lang.Integer> map =
+          internalGetRelationsLikeLevel().getMap();
+      if (!map.containsKey(key)) {
+        throw new java.lang.IllegalArgumentException();
+      }
+      return map.get(key);
+    }
+
+    public static final int NUM_FIELD_NUMBER = 23;
+    /**
+     * <code>uint32 num = 23;</code>
+     * @return The num.
+     */
+    public int getNum() {
+      if (thingCase_ == 23) {
+        return (java.lang.Integer) thing_;
+      }
+      return 0;
+    }
+
+    public static final int STR_FIELD_NUMBER = 24;
+    /**
+     * <code>string str = 24;</code>
+     * @return The str.
+     */
+    public java.lang.String getStr() {
+      java.lang.Object ref = "";
+      if (thingCase_ == 24) {
+        ref = thing_;
+      }
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        if (thingCase_ == 24) {
+          thing_ = s;
+        }
+        return s;
+      }
+    }
+    /**
+     * <code>string str = 24;</code>
+     * @return The bytes for str.
+     */
+    public com.google.protobuf.ByteString
+        getStrBytes() {
+      java.lang.Object ref = "";
+      if (thingCase_ == 24) {
+        ref = thing_;
+      }
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        if (thingCase_ == 24) {
+          thing_ = b;
+        }
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int PERSON_FIELD_NUMBER = 25;
+    /**
+     * <code>.protogen.generated.Person person = 25;</code>
+     * @return Whether the person field is set.
+     */
+    public boolean hasPerson() {
+      return thingCase_ == 25;
+    }
+    /**
+     * <code>.protogen.generated.Person person = 25;</code>
+     * @return The person.
+     */
+    public protogen.generated.People.Person getPerson() {
+      if (thingCase_ == 25) {
+         return (protogen.generated.People.Person) thing_;
+      }
+      return protogen.generated.People.Person.getDefaultInstance();
+    }
+    /**
+     * <code>.protogen.generated.Person person = 25;</code>
+     */
+    public protogen.generated.People.PersonOrBuilder getPersonOrBuilder() {
+      if (thingCase_ == 25) {
+         return (protogen.generated.People.Person) thing_;
+      }
+      return protogen.generated.People.Person.getDefaultInstance();
+    }
+
+    public static final int LEVEL_FIELD_NUMBER = 26;
+    /**
+     * <code>.protogen.generated.Level level = 26;</code>
+     * @return The enum numeric value on the wire for level.
+     */
+    public int getLevelValue() {
+      if (thingCase_ == 26) {
+        return (java.lang.Integer) thing_;
+      }
+      return 0;
+    }
+    /**
+     * <code>.protogen.generated.Level level = 26;</code>
+     * @return The level.
+     */
+    public protogen.generated.People.Level getLevel() {
+      if (thingCase_ == 26) {
+        @SuppressWarnings("deprecation")
+        protogen.generated.People.Level result = protogen.generated.People.Level.valueOf(
+            (java.lang.Integer) thing_);
+        return result == null ? protogen.generated.People.Level.UNRECOGNIZED : result;
+      }
+      return protogen.generated.People.Level.LOW;
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -1379,6 +1817,25 @@ public final class People {
       }
       for (int i = 0; i < idsList_.size(); i++) {
         output.writeInt32NoTag(idsList_.getInt(i));
+      }
+      com.google.protobuf.GeneratedMessageV3
+        .serializeStringMapTo(
+          output,
+          internalGetRelationsLikeLevel(),
+          RelationsLikeLevelDefaultEntryHolder.defaultEntry,
+          22);
+      if (thingCase_ == 23) {
+        output.writeUInt32(
+            23, (int)((java.lang.Integer) thing_));
+      }
+      if (thingCase_ == 24) {
+        com.google.protobuf.GeneratedMessageV3.writeString(output, 24, thing_);
+      }
+      if (thingCase_ == 25) {
+        output.writeMessage(25, (protogen.generated.People.Person) thing_);
+      }
+      if (thingCase_ == 26) {
+        output.writeEnum(26, ((java.lang.Integer) thing_));
       }
       unknownFields.writeTo(output);
     }
@@ -1497,6 +1954,32 @@ public final class People {
         }
         idsListMemoizedSerializedSize = dataSize;
       }
+      for (java.util.Map.Entry<java.lang.String, java.lang.Integer> entry
+           : internalGetRelationsLikeLevel().getMap().entrySet()) {
+        com.google.protobuf.MapEntry<java.lang.String, java.lang.Integer>
+        relationsLikeLevel__ = RelationsLikeLevelDefaultEntryHolder.defaultEntry.newBuilderForType()
+            .setKey(entry.getKey())
+            .setValue(entry.getValue())
+            .build();
+        size += com.google.protobuf.CodedOutputStream
+            .computeMessageSize(22, relationsLikeLevel__);
+      }
+      if (thingCase_ == 23) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt32Size(
+              23, (int)((java.lang.Integer) thing_));
+      }
+      if (thingCase_ == 24) {
+        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(24, thing_);
+      }
+      if (thingCase_ == 25) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(25, (protogen.generated.People.Person) thing_);
+      }
+      if (thingCase_ == 26) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeEnumSize(26, ((java.lang.Integer) thing_));
+      }
       size += unknownFields.getSerializedSize();
       memoizedSize = size;
       return size;
@@ -1566,6 +2049,29 @@ public final class People {
           other.internalGetBla())) return false;
       if (!getIdsListList()
           .equals(other.getIdsListList())) return false;
+      if (!internalGetRelationsLikeLevel().equals(
+          other.internalGetRelationsLikeLevel())) return false;
+      if (!getThingCase().equals(other.getThingCase())) return false;
+      switch (thingCase_) {
+        case 23:
+          if (getNum()
+              != other.getNum()) return false;
+          break;
+        case 24:
+          if (!getStr()
+              .equals(other.getStr())) return false;
+          break;
+        case 25:
+          if (!getPerson()
+              .equals(other.getPerson())) return false;
+          break;
+        case 26:
+          if (getLevelValue()
+              != other.getLevelValue()) return false;
+          break;
+        case 0:
+        default:
+      }
       if (!unknownFields.equals(other.unknownFields)) return false;
       return true;
     }
@@ -1640,6 +2146,30 @@ public final class People {
       if (getIdsListCount() > 0) {
         hash = (37 * hash) + IDS_LIST_FIELD_NUMBER;
         hash = (53 * hash) + getIdsListList().hashCode();
+      }
+      if (!internalGetRelationsLikeLevel().getMap().isEmpty()) {
+        hash = (37 * hash) + RELATIONS_LIKE_LEVEL_FIELD_NUMBER;
+        hash = (53 * hash) + internalGetRelationsLikeLevel().hashCode();
+      }
+      switch (thingCase_) {
+        case 23:
+          hash = (37 * hash) + NUM_FIELD_NUMBER;
+          hash = (53 * hash) + getNum();
+          break;
+        case 24:
+          hash = (37 * hash) + STR_FIELD_NUMBER;
+          hash = (53 * hash) + getStr().hashCode();
+          break;
+        case 25:
+          hash = (37 * hash) + PERSON_FIELD_NUMBER;
+          hash = (53 * hash) + getPerson().hashCode();
+          break;
+        case 26:
+          hash = (37 * hash) + LEVEL_FIELD_NUMBER;
+          hash = (53 * hash) + getLevelValue();
+          break;
+        case 0:
+        default:
       }
       hash = (29 * hash) + unknownFields.hashCode();
       memoizedHashCode = hash;
@@ -1756,6 +2286,8 @@ public final class People {
             return internalGetRelations();
           case 20:
             return internalGetBla();
+          case 22:
+            return internalGetRelationsLikeLevel();
           default:
             throw new RuntimeException(
                 "Invalid map field number: " + number);
@@ -1769,6 +2301,8 @@ public final class People {
             return internalGetMutableRelations();
           case 20:
             return internalGetMutableBla();
+          case 22:
+            return internalGetMutableRelationsLikeLevel();
           default:
             throw new RuntimeException(
                 "Invalid map field number: " + number);
@@ -1861,6 +2395,9 @@ public final class People {
         internalGetMutableBla().clear();
         idsList_ = emptyIntList();
         bitField0_ = (bitField0_ & ~0x00000020);
+        internalGetMutableRelationsLikeLevel().clear();
+        thingCase_ = 0;
+        thing_ = null;
         return this;
       }
 
@@ -1949,6 +2486,25 @@ public final class People {
           bitField0_ = (bitField0_ & ~0x00000020);
         }
         result.idsList_ = idsList_;
+        result.relationsLikeLevel_ = internalGetRelationsLikeLevel();
+        result.relationsLikeLevel_.makeImmutable();
+        if (thingCase_ == 23) {
+          result.thing_ = thing_;
+        }
+        if (thingCase_ == 24) {
+          result.thing_ = thing_;
+        }
+        if (thingCase_ == 25) {
+          if (personBuilder_ == null) {
+            result.thing_ = thing_;
+          } else {
+            result.thing_ = personBuilder_.build();
+          }
+        }
+        if (thingCase_ == 26) {
+          result.thing_ = thing_;
+        }
+        result.thingCase_ = thingCase_;
         onBuilt();
         return result;
       }
@@ -2098,6 +2654,31 @@ public final class People {
           }
           onChanged();
         }
+        internalGetMutableRelationsLikeLevel().mergeFrom(
+            other.internalGetRelationsLikeLevel());
+        switch (other.getThingCase()) {
+          case NUM: {
+            setNum(other.getNum());
+            break;
+          }
+          case STR: {
+            thingCase_ = 24;
+            thing_ = other.thing_;
+            onChanged();
+            break;
+          }
+          case PERSON: {
+            mergePerson(other.getPerson());
+            break;
+          }
+          case LEVEL: {
+            setLevelValue(other.getLevelValue());
+            break;
+          }
+          case THING_NOT_SET: {
+            break;
+          }
+        }
         this.mergeUnknownFields(other.unknownFields);
         onChanged();
         return this;
@@ -2126,6 +2707,21 @@ public final class People {
         }
         return this;
       }
+      private int thingCase_ = 0;
+      private java.lang.Object thing_;
+      public ThingCase
+          getThingCase() {
+        return ThingCase.forNumber(
+            thingCase_);
+      }
+
+      public Builder clearThing() {
+        thingCase_ = 0;
+        thing_ = null;
+        onChanged();
+        return this;
+      }
+
       private int bitField0_;
 
       private int id_ ;
@@ -3870,6 +4466,524 @@ public final class People {
         idsList_ = emptyIntList();
         bitField0_ = (bitField0_ & ~0x00000020);
         onChanged();
+        return this;
+      }
+
+      private com.google.protobuf.MapField<
+          java.lang.String, java.lang.Integer> relationsLikeLevel_;
+      private com.google.protobuf.MapField<java.lang.String, java.lang.Integer>
+      internalGetRelationsLikeLevel() {
+        if (relationsLikeLevel_ == null) {
+          return com.google.protobuf.MapField.emptyMapField(
+              RelationsLikeLevelDefaultEntryHolder.defaultEntry);
+        }
+        return relationsLikeLevel_;
+      }
+      private com.google.protobuf.MapField<java.lang.String, java.lang.Integer>
+      internalGetMutableRelationsLikeLevel() {
+        onChanged();;
+        if (relationsLikeLevel_ == null) {
+          relationsLikeLevel_ = com.google.protobuf.MapField.newMapField(
+              RelationsLikeLevelDefaultEntryHolder.defaultEntry);
+        }
+        if (!relationsLikeLevel_.isMutable()) {
+          relationsLikeLevel_ = relationsLikeLevel_.copy();
+        }
+        return relationsLikeLevel_;
+      }
+
+      public int getRelationsLikeLevelCount() {
+        return internalGetRelationsLikeLevel().getMap().size();
+      }
+      /**
+       * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+       */
+
+      public boolean containsRelationsLikeLevel(
+          java.lang.String key) {
+        if (key == null) { throw new java.lang.NullPointerException(); }
+        return internalGetRelationsLikeLevel().getMap().containsKey(key);
+      }
+      /**
+       * Use {@link #getRelationsLikeLevelMap()} instead.
+       */
+      @java.lang.Deprecated
+      public java.util.Map<java.lang.String, protogen.generated.People.Level>
+      getRelationsLikeLevel() {
+        return getRelationsLikeLevelMap();
+      }
+      /**
+       * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+       */
+
+      public java.util.Map<java.lang.String, protogen.generated.People.Level>
+      getRelationsLikeLevelMap() {
+        return internalGetAdaptedRelationsLikeLevelMap(
+            internalGetRelationsLikeLevel().getMap());}
+      /**
+       * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+       */
+
+      public protogen.generated.People.Level getRelationsLikeLevelOrDefault(
+          java.lang.String key,
+          protogen.generated.People.Level defaultValue) {
+        if (key == null) { throw new java.lang.NullPointerException(); }
+        java.util.Map<java.lang.String, java.lang.Integer> map =
+            internalGetRelationsLikeLevel().getMap();
+        return map.containsKey(key)
+               ? relationsLikeLevelValueConverter.doForward(map.get(key))
+               : defaultValue;
+      }
+      /**
+       * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+       */
+
+      public protogen.generated.People.Level getRelationsLikeLevelOrThrow(
+          java.lang.String key) {
+        if (key == null) { throw new java.lang.NullPointerException(); }
+        java.util.Map<java.lang.String, java.lang.Integer> map =
+            internalGetRelationsLikeLevel().getMap();
+        if (!map.containsKey(key)) {
+          throw new java.lang.IllegalArgumentException();
+        }
+        return relationsLikeLevelValueConverter.doForward(map.get(key));
+      }
+      /**
+       * Use {@link #getRelationsLikeLevelValueMap()} instead.
+       */
+      @java.lang.Deprecated
+      public java.util.Map<java.lang.String, java.lang.Integer>
+      getRelationsLikeLevelValue() {
+        return getRelationsLikeLevelValueMap();
+      }
+      /**
+       * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+       */
+
+      public java.util.Map<java.lang.String, java.lang.Integer>
+      getRelationsLikeLevelValueMap() {
+        return internalGetRelationsLikeLevel().getMap();
+      }
+      /**
+       * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+       */
+
+      public int getRelationsLikeLevelValueOrDefault(
+          java.lang.String key,
+          int defaultValue) {
+        if (key == null) { throw new java.lang.NullPointerException(); }
+        java.util.Map<java.lang.String, java.lang.Integer> map =
+            internalGetRelationsLikeLevel().getMap();
+        return map.containsKey(key) ? map.get(key) : defaultValue;
+      }
+      /**
+       * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+       */
+
+      public int getRelationsLikeLevelValueOrThrow(
+          java.lang.String key) {
+        if (key == null) { throw new java.lang.NullPointerException(); }
+        java.util.Map<java.lang.String, java.lang.Integer> map =
+            internalGetRelationsLikeLevel().getMap();
+        if (!map.containsKey(key)) {
+          throw new java.lang.IllegalArgumentException();
+        }
+        return map.get(key);
+      }
+
+      public Builder clearRelationsLikeLevel() {
+        internalGetMutableRelationsLikeLevel().getMutableMap()
+            .clear();
+        return this;
+      }
+      /**
+       * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+       */
+
+      public Builder removeRelationsLikeLevel(
+          java.lang.String key) {
+        if (key == null) { throw new java.lang.NullPointerException(); }
+        internalGetMutableRelationsLikeLevel().getMutableMap()
+            .remove(key);
+        return this;
+      }
+      /**
+       * Use alternate mutation accessors instead.
+       */
+      @java.lang.Deprecated
+      public java.util.Map<java.lang.String, protogen.generated.People.Level>
+      getMutableRelationsLikeLevel() {
+        return internalGetAdaptedRelationsLikeLevelMap(
+             internalGetMutableRelationsLikeLevel().getMutableMap());
+      }
+      /**
+       * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+       */
+      public Builder putRelationsLikeLevel(
+          java.lang.String key,
+          protogen.generated.People.Level value) {
+        if (key == null) { throw new java.lang.NullPointerException(); }
+        if (value == null) { throw new java.lang.NullPointerException(); }
+        internalGetMutableRelationsLikeLevel().getMutableMap()
+            .put(key, relationsLikeLevelValueConverter.doBackward(value));
+        return this;
+      }
+      /**
+       * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+       */
+      public Builder putAllRelationsLikeLevel(
+          java.util.Map<java.lang.String, protogen.generated.People.Level> values) {
+        internalGetAdaptedRelationsLikeLevelMap(
+            internalGetMutableRelationsLikeLevel().getMutableMap())
+                .putAll(values);
+        return this;
+      }
+      /**
+       * Use alternate mutation accessors instead.
+       */
+      @java.lang.Deprecated
+      public java.util.Map<java.lang.String, java.lang.Integer>
+      getMutableRelationsLikeLevelValue() {
+        return internalGetMutableRelationsLikeLevel().getMutableMap();
+      }
+      /**
+       * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+       */
+      public Builder putRelationsLikeLevelValue(
+          java.lang.String key,
+          int value) {
+        if (key == null) { throw new java.lang.NullPointerException(); }
+        internalGetMutableRelationsLikeLevel().getMutableMap()
+            .put(key, value);
+        return this;
+      }
+      /**
+       * <code>map&lt;string, .protogen.generated.Level&gt; relations_like_level = 22;</code>
+       */
+      public Builder putAllRelationsLikeLevelValue(
+          java.util.Map<java.lang.String, java.lang.Integer> values) {
+        internalGetMutableRelationsLikeLevel().getMutableMap()
+            .putAll(values);
+        return this;
+      }
+
+      /**
+       * <code>uint32 num = 23;</code>
+       * @return The num.
+       */
+      public int getNum() {
+        if (thingCase_ == 23) {
+          return (java.lang.Integer) thing_;
+        }
+        return 0;
+      }
+      /**
+       * <code>uint32 num = 23;</code>
+       * @param value The num to set.
+       * @return This builder for chaining.
+       */
+      public Builder setNum(int value) {
+        thingCase_ = 23;
+        thing_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>uint32 num = 23;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearNum() {
+        if (thingCase_ == 23) {
+          thingCase_ = 0;
+          thing_ = null;
+          onChanged();
+        }
+        return this;
+      }
+
+      /**
+       * <code>string str = 24;</code>
+       * @return The str.
+       */
+      public java.lang.String getStr() {
+        java.lang.Object ref = "";
+        if (thingCase_ == 24) {
+          ref = thing_;
+        }
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          if (thingCase_ == 24) {
+            thing_ = s;
+          }
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string str = 24;</code>
+       * @return The bytes for str.
+       */
+      public com.google.protobuf.ByteString
+          getStrBytes() {
+        java.lang.Object ref = "";
+        if (thingCase_ == 24) {
+          ref = thing_;
+        }
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          if (thingCase_ == 24) {
+            thing_ = b;
+          }
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string str = 24;</code>
+       * @param value The str to set.
+       * @return This builder for chaining.
+       */
+      public Builder setStr(
+          java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  thingCase_ = 24;
+        thing_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string str = 24;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearStr() {
+        if (thingCase_ == 24) {
+          thingCase_ = 0;
+          thing_ = null;
+          onChanged();
+        }
+        return this;
+      }
+      /**
+       * <code>string str = 24;</code>
+       * @param value The bytes for str to set.
+       * @return This builder for chaining.
+       */
+      public Builder setStrBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  checkByteStringIsUtf8(value);
+        thingCase_ = 24;
+        thing_ = value;
+        onChanged();
+        return this;
+      }
+
+      private com.google.protobuf.SingleFieldBuilderV3<
+          protogen.generated.People.Person, protogen.generated.People.Person.Builder, protogen.generated.People.PersonOrBuilder> personBuilder_;
+      /**
+       * <code>.protogen.generated.Person person = 25;</code>
+       * @return Whether the person field is set.
+       */
+      public boolean hasPerson() {
+        return thingCase_ == 25;
+      }
+      /**
+       * <code>.protogen.generated.Person person = 25;</code>
+       * @return The person.
+       */
+      public protogen.generated.People.Person getPerson() {
+        if (personBuilder_ == null) {
+          if (thingCase_ == 25) {
+            return (protogen.generated.People.Person) thing_;
+          }
+          return protogen.generated.People.Person.getDefaultInstance();
+        } else {
+          if (thingCase_ == 25) {
+            return personBuilder_.getMessage();
+          }
+          return protogen.generated.People.Person.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.protogen.generated.Person person = 25;</code>
+       */
+      public Builder setPerson(protogen.generated.People.Person value) {
+        if (personBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          thing_ = value;
+          onChanged();
+        } else {
+          personBuilder_.setMessage(value);
+        }
+        thingCase_ = 25;
+        return this;
+      }
+      /**
+       * <code>.protogen.generated.Person person = 25;</code>
+       */
+      public Builder setPerson(
+          protogen.generated.People.Person.Builder builderForValue) {
+        if (personBuilder_ == null) {
+          thing_ = builderForValue.build();
+          onChanged();
+        } else {
+          personBuilder_.setMessage(builderForValue.build());
+        }
+        thingCase_ = 25;
+        return this;
+      }
+      /**
+       * <code>.protogen.generated.Person person = 25;</code>
+       */
+      public Builder mergePerson(protogen.generated.People.Person value) {
+        if (personBuilder_ == null) {
+          if (thingCase_ == 25 &&
+              thing_ != protogen.generated.People.Person.getDefaultInstance()) {
+            thing_ = protogen.generated.People.Person.newBuilder((protogen.generated.People.Person) thing_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            thing_ = value;
+          }
+          onChanged();
+        } else {
+          if (thingCase_ == 25) {
+            personBuilder_.mergeFrom(value);
+          }
+          personBuilder_.setMessage(value);
+        }
+        thingCase_ = 25;
+        return this;
+      }
+      /**
+       * <code>.protogen.generated.Person person = 25;</code>
+       */
+      public Builder clearPerson() {
+        if (personBuilder_ == null) {
+          if (thingCase_ == 25) {
+            thingCase_ = 0;
+            thing_ = null;
+            onChanged();
+          }
+        } else {
+          if (thingCase_ == 25) {
+            thingCase_ = 0;
+            thing_ = null;
+          }
+          personBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.protogen.generated.Person person = 25;</code>
+       */
+      public protogen.generated.People.Person.Builder getPersonBuilder() {
+        return getPersonFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.protogen.generated.Person person = 25;</code>
+       */
+      public protogen.generated.People.PersonOrBuilder getPersonOrBuilder() {
+        if ((thingCase_ == 25) && (personBuilder_ != null)) {
+          return personBuilder_.getMessageOrBuilder();
+        } else {
+          if (thingCase_ == 25) {
+            return (protogen.generated.People.Person) thing_;
+          }
+          return protogen.generated.People.Person.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.protogen.generated.Person person = 25;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilderV3<
+          protogen.generated.People.Person, protogen.generated.People.Person.Builder, protogen.generated.People.PersonOrBuilder> 
+          getPersonFieldBuilder() {
+        if (personBuilder_ == null) {
+          if (!(thingCase_ == 25)) {
+            thing_ = protogen.generated.People.Person.getDefaultInstance();
+          }
+          personBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
+              protogen.generated.People.Person, protogen.generated.People.Person.Builder, protogen.generated.People.PersonOrBuilder>(
+                  (protogen.generated.People.Person) thing_,
+                  getParentForChildren(),
+                  isClean());
+          thing_ = null;
+        }
+        thingCase_ = 25;
+        onChanged();;
+        return personBuilder_;
+      }
+
+      /**
+       * <code>.protogen.generated.Level level = 26;</code>
+       * @return The enum numeric value on the wire for level.
+       */
+      public int getLevelValue() {
+        if (thingCase_ == 26) {
+          return ((java.lang.Integer) thing_).intValue();
+        }
+        return 0;
+      }
+      /**
+       * <code>.protogen.generated.Level level = 26;</code>
+       * @param value The enum numeric value on the wire for level to set.
+       * @return This builder for chaining.
+       */
+      public Builder setLevelValue(int value) {
+        thingCase_ = 26;
+        thing_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>.protogen.generated.Level level = 26;</code>
+       * @return The level.
+       */
+      public protogen.generated.People.Level getLevel() {
+        if (thingCase_ == 26) {
+          @SuppressWarnings("deprecation")
+          protogen.generated.People.Level result = protogen.generated.People.Level.valueOf(
+              (java.lang.Integer) thing_);
+          return result == null ? protogen.generated.People.Level.UNRECOGNIZED : result;
+        }
+        return protogen.generated.People.Level.LOW;
+      }
+      /**
+       * <code>.protogen.generated.Level level = 26;</code>
+       * @param value The level to set.
+       * @return This builder for chaining.
+       */
+      public Builder setLevel(protogen.generated.People.Level value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        thingCase_ = 26;
+        thing_ = value.getNumber();
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>.protogen.generated.Level level = 26;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearLevel() {
+        if (thingCase_ == 26) {
+          thingCase_ = 0;
+          thing_ = null;
+          onChanged();
+        }
         return this;
       }
       @java.lang.Override
@@ -7449,6 +8563,11 @@ public final class People {
     com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
       internal_static_protogen_generated_Person_BlaEntry_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_protogen_generated_Person_RelationsLikeLevelEntry_descriptor;
+  private static final 
+    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+      internal_static_protogen_generated_Person_RelationsLikeLevelEntry_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_protogen_generated_UUID_descriptor;
   private static final 
     com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
@@ -7483,7 +8602,7 @@ public final class People {
   static {
     java.lang.String[] descriptorData = {
       "\n\014people.proto\022\022protogen.generated\032\036goog" +
-      "le/protobuf/wrappers.proto\"\200\006\n\006Person\022\n\n" +
+      "le/protobuf/wrappers.proto\"\251\010\n\006Person\022\n\n" +
       "\002id\030\001 \001(\005\022\014\n\004name\030\002 \001(\t\022\r\n\005email\030\003 \001(\t\022," +
       "\n\007address\030\004 \001(\0132\033.protogen.generated.Add" +
       "ress\022\'\n\005likes\030\007 \003(\0132\030.protogen.generated" +
@@ -7499,20 +8618,27 @@ public final class People {
       "n.generated.UUID\022\'\n\002bv\030\023 \001(\0132\033.google.pr" +
       "otobuf.BytesValue\0220\n\003bla\030\024 \003(\0132#.protoge" +
       "n.generated.Person.BlaEntry\022\020\n\010ids_list\030" +
-      "\025 \003(\005\032L\n\016RelationsEntry\022\013\n\003key\030\001 \001(\t\022)\n\005" +
-      "value\030\002 \001(\0132\032.protogen.generated.Person:" +
-      "\0028\001\032H\n\010BlaEntry\022\013\n\003key\030\001 \001(\t\022+\n\005value\030\002 " +
-      "\001(\0132\034.google.protobuf.DoubleValue:\0028\001\"\025\n" +
-      "\004UUID\022\r\n\005value\030\001 \001(\t\"\242\001\n\007Address\022\014\n\004city" +
-      "\030\001 \001(\t\022\016\n\006street\030\002 \001(\t\022\021\n\thouse_num\030\003 \001(" +
-      "\005\022*\n\005house\030\004 \001(\0132\031.protogen.generated.Ho" +
-      "useH\000\0222\n\tapartment\030\005 \001(\0132\035.protogen.gene" +
-      "rated.ApartmentH\000B\006\n\004home\">\n\004Like\022\014\n\004des" +
-      "c\030\001 \001(\t\022(\n\005level\030\002 \001(\0162\031.protogen.genera" +
-      "ted.Level\"\032\n\005House\022\021\n\tnum_rooms\030\001 \001(\005\"\036\n" +
-      "\tApartment\022\021\n\tfloor_num\030\001 \001(\005*<\n\005Level\022\007" +
-      "\n\003LOW\020\000\022\n\n\006MEDIUM\020\005\022\010\n\004HIGH\020\n\022\020\n\014ALIASED" +
-      "_HIGH\020\n\032\002\020\001b\006proto3"
+      "\025 \003(\005\022P\n\024relations_like_level\030\026 \003(\01322.pr" +
+      "otogen.generated.Person.RelationsLikeLev" +
+      "elEntry\022\r\n\003num\030\027 \001(\rH\000\022\r\n\003str\030\030 \001(\tH\000\022,\n" +
+      "\006person\030\031 \001(\0132\032.protogen.generated.Perso" +
+      "nH\000\022*\n\005level\030\032 \001(\0162\031.protogen.generated." +
+      "LevelH\000\032L\n\016RelationsEntry\022\013\n\003key\030\001 \001(\t\022)" +
+      "\n\005value\030\002 \001(\0132\032.protogen.generated.Perso" +
+      "n:\0028\001\032H\n\010BlaEntry\022\013\n\003key\030\001 \001(\t\022+\n\005value\030" +
+      "\002 \001(\0132\034.google.protobuf.DoubleValue:\0028\001\032" +
+      "T\n\027RelationsLikeLevelEntry\022\013\n\003key\030\001 \001(\t\022" +
+      "(\n\005value\030\002 \001(\0162\031.protogen.generated.Leve" +
+      "l:\0028\001B\007\n\005thing\"\025\n\004UUID\022\r\n\005value\030\001 \001(\t\"\242\001" +
+      "\n\007Address\022\014\n\004city\030\001 \001(\t\022\016\n\006street\030\002 \001(\t\022" +
+      "\021\n\thouse_num\030\003 \001(\005\022*\n\005house\030\004 \001(\0132\031.prot" +
+      "ogen.generated.HouseH\000\0222\n\tapartment\030\005 \001(" +
+      "\0132\035.protogen.generated.ApartmentH\000B\006\n\004ho" +
+      "me\">\n\004Like\022\014\n\004desc\030\001 \001(\t\022(\n\005level\030\002 \001(\0162" +
+      "\031.protogen.generated.Level\"\032\n\005House\022\021\n\tn" +
+      "um_rooms\030\001 \001(\005\"\036\n\tApartment\022\021\n\tfloor_num" +
+      "\030\001 \001(\005*<\n\005Level\022\007\n\003LOW\020\000\022\n\n\006MEDIUM\020\005\022\010\n\004" +
+      "HIGH\020\n\022\020\n\014ALIASED_HIGH\020\n\032\002\020\001b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -7524,7 +8650,7 @@ public final class People {
     internal_static_protogen_generated_Person_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_protogen_generated_Person_descriptor,
-        new java.lang.String[] { "Id", "Name", "Email", "Address", "Likes", "Relations", "PetNames", "PrivateKey", "AgeMillis", "IsVegetarian", "HeightCm", "WeightKg", "Levels", "SocialSecurity", "MaidenName", "Uuid", "Bv", "Bla", "IdsList", });
+        new java.lang.String[] { "Id", "Name", "Email", "Address", "Likes", "Relations", "PetNames", "PrivateKey", "AgeMillis", "IsVegetarian", "HeightCm", "WeightKg", "Levels", "SocialSecurity", "MaidenName", "Uuid", "Bv", "Bla", "IdsList", "RelationsLikeLevel", "Num", "Str", "Person", "Level", "Thing", });
     internal_static_protogen_generated_Person_RelationsEntry_descriptor =
       internal_static_protogen_generated_Person_descriptor.getNestedTypes().get(0);
     internal_static_protogen_generated_Person_RelationsEntry_fieldAccessorTable = new
@@ -7536,6 +8662,12 @@ public final class People {
     internal_static_protogen_generated_Person_BlaEntry_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_protogen_generated_Person_BlaEntry_descriptor,
+        new java.lang.String[] { "Key", "Value", });
+    internal_static_protogen_generated_Person_RelationsLikeLevelEntry_descriptor =
+      internal_static_protogen_generated_Person_descriptor.getNestedTypes().get(2);
+    internal_static_protogen_generated_Person_RelationsLikeLevelEntry_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
+        internal_static_protogen_generated_Person_RelationsLikeLevelEntry_descriptor,
         new java.lang.String[] { "Key", "Value", });
     internal_static_protogen_generated_UUID_descriptor =
       getDescriptor().getMessageTypes().get(1);
