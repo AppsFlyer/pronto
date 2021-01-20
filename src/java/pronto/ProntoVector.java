@@ -83,10 +83,6 @@ public class ProntoVector extends APersistentVector implements IObj, IEditableCo
 
     @Override
     public Object reduce(IFn f, Object init) {
-        if (isEmpty()) {
-            return f.invoke();
-        }
-
         for (int i = 0; i < count(); i++) {
             Object obj = nth(i);
             init = f.invoke(init, transformer.fromProto(obj));
