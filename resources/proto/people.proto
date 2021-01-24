@@ -46,6 +46,7 @@ message Address {
     House house = 4;
     Apartment apartment = 5;
   }
+  UUID address_id = 6;
 }
 
 enum Level {

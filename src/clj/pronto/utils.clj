@@ -1,7 +1,7 @@
 (ns pronto.utils
-  (:require [clojure.string :as s])
+  (:require [clojure.string :as s]
+            [pronto.protos :refer [global-ns]])
   (:import
-   [java.lang.reflect Field]
    [clojure.lang Symbol]
    [com.google.protobuf
     Descriptors$FieldDescriptor
@@ -9,11 +9,15 @@
     Descriptors$FieldDescriptor$Type]))
 
 
+(defn javaify [s] (s/replace s "-" "_"))
+
+(defn normalize-path [s]
+  (-> s
+      (s/replace "." "_")
+      (s/replace "$" "__")))
+
 (defn sanitized-class-name [^Class clazz]
-  ;; TODO: did I reimplement a crappier .getSimpleName?
-  (let [package-name (.getName (.getPackage clazz))
-        class-name   (.getName clazz)]
-    (subs class-name (inc (count package-name)))))
+  (normalize-path (.getName clazz)))
 
 (defn class->map-class-name [^Class clazz]
   (symbol (str (sanitized-class-name clazz) "ProtoMap")))
@@ -25,14 +29,16 @@
   (symbol (str (sanitized-class-name clazz) "AbstractPersistentMap")))
 
 
-
 (defn class->transient-class-name [^Class clazz]
-  (symbol (str 'transient- (sanitized-class-name clazz))))
+  (symbol (str 'transient_ (sanitized-class-name clazz))))
 
 
-(defn ->kebab-case [^String s]
+(defn ->kebab-case
+  "Converts `s`, assumed to be in snake_case, to kebab-case"
+  [^String s]
   (when s
     (s/lower-case (.replace s \_ \-))))
+
 
 (defn with-type-hint [sym ^Class clazz]
   (with-meta sym {:tag (symbol (.getName clazz))}))
@@ -98,11 +104,6 @@
                             clazz field-name expected-type value)))
 
 
-(defn implode [[x & xs]]
-  (cond (not x)  []
-        (not xs) [x]
-        :else    [x (implode xs)]))
-
 
 (defmacro with-ns [new-ns & body]
   (let [orig-ns          *ns*
@@ -110,32 +111,31 @@
         ns-name-sym      (symbol new-ns)
         existing-classes (set (when-let [n (find-ns ns-name-sym)]
                                 (vals (ns-imports n))))]
-    `(do
-       (in-ns (quote ~ns-name-sym))
-       ~@(for [[^Symbol class-sym ^Class clazz]
-               (ns-imports orig-ns)
-               :let  [class-name (.getName clazz)
-                      package-prefix (subs class-name 0
-                                           (- (count class-name)
-                                              (count (name class-sym))
-                                              1))]
-               :when (not (get existing-classes clazz))]
-           `(import '[~(symbol package-prefix) ~class-sym]))
-       ~@body
-       #_(finally)
-       (in-ns (quote ~(symbol orig-ns-name))))))
-
-
-(defmacro ... [f o]
-  (let [t (gensym 't)]
-    `(let [~t ~o]
-       (try
-         (~(symbol (str "." f)) ~t)
-         (catch IllegalArgumentException ~'_
-           (let [^Field rf# (.getDeclaredField (class ~t) ~(str f))]
-             (.setAccessible rf# true)
-             (.get rf# ~t)))))))
-
+    (if (or (nil? new-ns)
+            (= new-ns (str *ns*)))
+      body
+      `(do
+         (create-ns (quote ~ns-name-sym))
+         (in-ns (quote ~ns-name-sym))
+         ~@(for [[^Symbol class-sym ^Class clazz]
+                 (ns-imports orig-ns)
+                 :let  [class-name (.getName clazz)
+                        package-prefix (subs class-name 0
+                                             (- (count class-name)
+                                                (count (name class-sym))
+                                                1))]
+                 :when (not (get existing-classes clazz))
+                 ;; don't import generated classes created by the lib, as this might
+                 ;; lead to collision between different mappers when importing
+                 ;; these classes into the global ns
+                 :when (not (s/starts-with? class-name (javaify global-ns)))]
+             `(import '[~(symbol package-prefix) ~class-sym]))
+         ;; clojure.core is not auto-loaded so load it explicitly
+         ;; in order for any of its vars to be resolvable
+         (use '[clojure.core])
+         ~@body
+         #_(finally)
+         (in-ns (quote ~(symbol orig-ns-name)))))))
 
 
 (defn- split' [f coll]
@@ -208,3 +208,5 @@
   (try
     (resolve x)
     (catch Exception _)))
+
+

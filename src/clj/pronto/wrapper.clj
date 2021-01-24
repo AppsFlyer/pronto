@@ -4,7 +4,8 @@
             [pronto.reflection :as reflect])
   (:import [com.google.protobuf ByteString
             Descriptors$FieldDescriptor
-            Descriptors$EnumValueDescriptor]))
+            Descriptors$EnumValueDescriptor]
+           [pronto ProtoMap]))
 
 (defprotocol Wrapper
   (wrap [this v])
@@ -137,6 +138,13 @@
                  (pronto.RT/getProto ~u)))
 
            (identical? (class ~v) ~clazz) ~v
+
+
+           ;; TODO: consolidate this with first clause
+           (instance? ProtoMap ~v)
+           ~ (let [u (with-meta (gensym 'u) {:tag 'pronto.ProtoMap})]
+               `(let [~u ~v]
+                  (pronto.RT/getProto ~u)))
 
            (map? ~v)
            ;; TODO: duplicate code

@@ -1,6 +1,9 @@
+(def protobuf-version "3.9.0")
+
+
 (defproject pronto "1.0.19-SNAPSHOT"
   :description "clojure support for protocol buffers"
-  :url "http://example.com/FIXME"
+  :url "https://***REMOVED***/clojure/pronto"
   :license {:name "Eclipse Public License"
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
   :source-paths ["src/clj"]
@@ -11,10 +14,15 @@
                         ["snapshots"  {:url           "***REMOVED***" :username :***REMOVED***
                                        :password      :***REMOVED***
                                        :sign-releases false}]]
+  :repositories [["releases" {:url "***REMOVED***/"}]]
+
+  :plugins [[lein-protodeps "0.1.20"]
+            [lein-codox "0.10.7"]]
+
   :dependencies [[org.clojure/clojure "1.10.1"]
                  [potemkin "0.4.5"]]
-  :profiles {:provided {:dependencies [[com.google.protobuf/protobuf-java "3.10.0"]]}
-             :dev      {:dependencies      [[clj-kondo "RELEASE"]
+  :profiles {:provided {:dependencies [[com.google.protobuf/protobuf-java ~protobuf-version]]}
+             :dev      {:dependencies      [[clj-kondo "RELEASE"] ;; TODO: pin this, or use it as a binary
                                             [jmh-clojure "0.4.0"]
                                             [com.clojure-goes-fast/clj-java-decompiler "0.3.0"]
                                             [org.openjdk.jol/jol-core "0.13"]
@@ -37,4 +45,13 @@
                         :jvm-opts          []}}
 
   :repl-options {:init-ns pronto.core}
-  :global-vars {*warn-on-reflection* true})
+  :global-vars {*warn-on-reflection* true}
+
+  :codox {:namespaces [pronto.core]}
+
+  :lein-protodeps {:output-path   "test/java/"
+                   :proto-version ~protobuf-version
+                   :repos         {:examples {:repo-type    :filesystem
+                                              :config       {:path "."}
+                                              :proto-paths  ["resources"]
+                                              :dependencies [[resources/proto]]}}})

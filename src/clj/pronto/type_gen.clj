@@ -173,8 +173,7 @@
                                  (transformKey [_ keyItem]
                                    ~(w/wrap key-wrapper 'keyItem))
                                  (transformVal [_ valItem]
-                                   ~(w/wrap val-wrapper 'valItem)))))
-           )))))
+                                   ~(w/wrap val-wrapper 'valItem))))))))))
 
 #_(defmethod get-type-gen
     :one-of

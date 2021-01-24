@@ -1,6 +1,6 @@
 (ns pronto.core-test
   (:require [clojure.test :refer :all]
-            [pronto.core :refer [defproto] :as p]
+            [pronto.core :refer [defmapper] :as p]
             [pronto.utils :as u])
   (:import [protogen.generated People$Person People$Person$Builder
             People$Address People$Like People$Level
@@ -61,9 +61,9 @@
 
 (defmacro ensure-immutable [w & body]
   `(do ~@(map (fn [expr]
-                `(let [m1# (into {} ~w)
+                `(let [m1#  (into {} ~w)
                        res# ~expr
-                       m2# (into {} ~w)]
+                       m2#  (into {} ~w)]
                    (is (= m1# m2#)) 
                    res#))
               body)))
@@ -78,7 +78,7 @@
                        (is (= expected-result curr-val))
                        (is (= (type expected-result) (type curr-val)))))))
 
-(defproto People$Person
+(defmapper mapper [People$Person]
   :encoders {protogen.generated.People$UUID
              {:from-proto #(try
                              (java.util.UUID/fromString (.getValue ^People$UUID %))
@@ -110,7 +110,7 @@
         addr-map          {:city      city :street street
                            :house_num house-num
                            :house     {:num_rooms num-rooms}}
-        addr              (p/clj-map->proto-map People$Address addr-map)
+        addr              (p/clj-map->proto-map mapper People$Address addr-map)
         ^People$Address a (p/proto-map->proto addr)]
     (is (= (.getCity a) (:city addr) city))
     (is (= (.getStreet a) (:street addr) street))
@@ -119,24 +119,24 @@
 
     (is (= (assoc addr-map
                   :apartment
-                  (p/proto-map->clj-map (p/proto-map People$Apartment)))
+                  (p/proto-map->clj-map (p/proto-map mapper People$Apartment)))
            (p/proto-map->clj-map addr)))))
 
 (deftest enum-test
 
   ;; test translations:
 
-  (is (= :LOW (:level (p/proto->proto-map (make-like :level People$Level/LOW)))))
+  (is (= :LOW (:level (p/proto->proto-map mapper (make-like :level People$Level/LOW)))))
 
-  (is (= :MEDIUM (:level (p/proto->proto-map (make-like :level People$Level/MEDIUM)))))
+  (is (= :MEDIUM (:level (p/proto->proto-map mapper (make-like :level People$Level/MEDIUM)))))
 
-  (is (= :HIGH (:level (p/proto->proto-map (make-like :level People$Level/HIGH)))))
+  (is (= :HIGH (:level (p/proto->proto-map mapper (make-like :level People$Level/HIGH)))))
 
-  (is (= :HIGH (:level (p/proto->proto-map (make-like :level People$Level/ALIASED_HIGH)))))
+  (is (= :HIGH (:level (p/proto->proto-map mapper (make-like :level People$Level/ALIASED_HIGH)))))
 
   ;; test transitions
   (let [p (make-like :desc "my description" :level People$Level/LOW)
-        w (p/proto->proto-map p)]
+        w (p/proto->proto-map mapper p)]
     (is (= :LOW (:level w)))
     (is (= :MEDIUM (:level (assoc w :level :MEDIUM))))
     (is (= :HIGH (:level (assoc w :level :HIGH))))
@@ -158,32 +158,32 @@
 
 (deftest bad-assoc
   ;; TODO: how to test ex-info?
-  (is (thrown? Exception (assoc (p/proto->proto-map (make-person)) :fake-key 123))))
+  (is (thrown? Exception (assoc (p/proto->proto-map mapper (make-person)) :fake-key 123))))
 
 (deftest int-test
   (test-numeric int
-                (p/proto->proto-map (make-person))
+                (p/proto->proto-map mapper (make-person))
                 :id))
 
 (deftest long-test
   (test-numeric long
-                (p/proto->proto-map (make-person))
+                (p/proto->proto-map mapper (make-person))
                 :age_millis))
 
 
 (deftest double-test
   (test-numeric double
-                (p/proto->proto-map (make-person))
+                (p/proto->proto-map mapper (make-person))
                 :height_cm))
 
 (deftest float-test
   (test-numeric float
-                (p/proto->proto-map (make-person))
+                (p/proto->proto-map mapper (make-person))
                 :weight_kg))
 
 
 (deftest boolean-test
-  (let [p (p/proto->proto-map (make-person :is_vegetarian false))]
+  (let [p (p/proto->proto-map  mapper (make-person :is_vegetarian false))]
     (is (true? (check-assoc p :is_vegetarian true)))
     ;; TODO: how to test ex-info?
     (is (thrown? Exception (assoc p :is_vegetarian nil)))
@@ -193,7 +193,7 @@
 (deftest repeated-string-test
   (let [pet-names ["aaa" "bbb"]
         p         (make-person :pet-names pet-names)
-        w         (p/proto->proto-map p)]
+        w         (p/proto->proto-map mapper p)]
     (is (= pet-names (:pet_names w)))
     (is (= ["ccc"] (:pet_names (assoc w :pet_names ["ccc"]))))
     ;; TODO: how to test ex-info?
@@ -205,7 +205,7 @@
 (deftest repeated-primitive-test
   (let [ids-list [(int 1) (int 2)]
         p        (make-person :ids-list ids-list)
-        w        (p/proto->proto-map p)]
+        w        (p/proto->proto-map mapper p)]
     (is (= ids-list (:ids_list w)))
     (is (= [3] (:ids_list (assoc w :ids_list [3]))))
     ;; TODO: how to test ex-info?
@@ -216,7 +216,7 @@
   (let [likes [(make-like :desc "desc1" :level People$Level/LOW)
                (make-like :desc "desc2" :level People$Level/MEDIUM)]
         p     (make-person :likes likes)
-        w     (p/proto->proto-map p)]
+        w     (p/proto->proto-map mapper p)]
     (is (= likes (:likes w)))
     (is (= [(make-like :desc "desc3" :level People$Level/HIGH)]
            (:likes (assoc w :likes [(make-like :desc "desc3" :level People$Level/HIGH)]))))
@@ -231,17 +231,17 @@
   (let [levels [People$Level/LOW
                 People$Level/MEDIUM]
         p      (make-person :levels levels)
-        w      (p/proto->proto-map p)]
+        w      (p/proto->proto-map mapper p)]
     (is (= (:levels w) [:LOW :MEDIUM]))
     (is (thrown? Exception (assoc w :levels 123)))
     (is (thrown? Exception (assoc w :levels [1 2 3])))))
 
 (deftest one-of-test
-  (let [address   (p/clj-map->proto-map People$Address {})
+  (let [address   (p/clj-map->proto-map mapper People$Address {})
         house     (make-house :num_rooms 5)
         apartment (make-apartment :floor_num 4)
-        address2  (assoc address :house (p/proto->proto-map house))
-        address3  (assoc address2 :apartment (p/proto->proto-map apartment))]
+        address2  (assoc address :house (p/proto->proto-map mapper house))
+        address3  (assoc address2 :apartment (p/proto->proto-map mapper apartment))]
     (is (nil? (p/which-one-of address :home)))
     (is (nil? (p/one-of address :home)))
 
@@ -259,7 +259,7 @@
         person (make-person :name "foo"
                             :relations {"bff" bff}
                             :relations-like-level {"bff" People$Level/HIGH})
-        w      (p/proto->proto-map person)]
+        w      (p/proto->proto-map mapper person)]
     (is (= {:bff bff} (:relations (assoc-in w [:relations :bff] bff))))
     (is (= {:bff bff :sister sister} (:relations (assoc-in w [:relations :sister] sister))))
 
@@ -274,26 +274,27 @@
     (is (thrown? Exception (assoc-in w [:s2s 1] "a")))))
 
 (deftest init-with-values
-  (let [p (p/proto-map People$Person
-                       :name "gaga"
-                       :age_millis 11)]
+  (let [p (p/proto-map mapper
+                        People$Person
+                        :name "gaga"
+                        :age_millis 11)]
     (is (= (:name p) "gaga"))
     (is (= (:age_millis p) 11))))
 
 (deftest transient-test
-  (let [transient-person (transient (p/proto->proto-map (make-person)))]
+  (let [transient-person (transient (p/proto->proto-map mapper (make-person)))]
     (assoc! transient-person :name "foo")
     (assoc! transient-person :id 2)
     (is (thrown? Exception (assoc! transient-person :fake-key "hello")))
     (is (thrown? Exception (assoc! transient-person :id "foo")))
-    (is (= (persistent! transient-person) (p/proto->proto-map (make-person :id 2 :name "foo"))))))
+    (is (= (persistent! transient-person) (p/proto->proto-map mapper (make-person :id 2 :name "foo"))))))
 
 (deftest bytes-test
   (let [person (make-person :id 5 :name "hello"
                             :address (make-address :city "some-city" :street "broadway")
                             :age_millis 111111)]
     (is (= person
-           (p/proto-map->proto (p/bytes->proto-map People$Person (p/proto-map->bytes (p/proto->proto-map person))))))))
+           (p/proto-map->proto (p/bytes->proto-map mapper People$Person (p/proto-map->bytes (p/proto->proto-map mapper person))))))))
 
 
 (defn check-clear
@@ -310,30 +311,30 @@
 
 
 (deftest clear-field-test
-  (check-clear #(p/clj-map->proto-map People$Person %) :id 5 0)
+  (check-clear #(p/clj-map->proto-map mapper People$Person %) :id 5 0)
 
-  (check-clear #(p/clj-map->proto-map People$Person %) :name "foo" "")
+  (check-clear #(p/clj-map->proto-map mapper People$Person %) :name "foo" "")
 
-  (check-clear #(p/clj-map->proto-map People$Person %) :address
+  (check-clear #(p/clj-map->proto-map mapper People$Person %) :address
                (make-address :city "NYC" :street "Broadway")
                nil
                true)
 
-  (check-clear #(p/clj-map->proto-map People$Person %) :height_cm 5.0 0.0)
+  (check-clear #(p/clj-map->proto-map mapper People$Person %) :height_cm 5.0 0.0)
 
-  (check-clear #(p/clj-map->proto-map People$Person %) :weight_kg 5.0 0.0)
+  (check-clear #(p/clj-map->proto-map mapper People$Person %) :weight_kg 5.0 0.0)
 
-  (check-clear #(p/clj-map->proto-map People$Person %) :is_vegetarian true false)
+  (check-clear #(p/clj-map->proto-map mapper People$Person %) :is_vegetarian true false)
 
-  (check-clear #(p/clj-map->proto-map People$Person %) :likes
+  (check-clear #(p/clj-map->proto-map mapper People$Person %) :likes
                [(make-like :desc "wow" :level People$Level/LOW)]
                [])
 
-  (check-clear #(p/clj-map->proto-map People$Person %) :relations
+  (check-clear #(p/clj-map->proto-map mapper People$Person %) :relations
                {:friend (make-person)}
                {})
 
-  (check-clear #(p/clj-map->proto-map People$Address %) :house
+  (check-clear #(p/clj-map->proto-map mapper People$Address %) :house
                (make-house :num-rooms 3)
                nil
                true))
@@ -344,12 +345,13 @@
   (is (= "AfSub1" (u/->camel-case "af_sub1"))))
 
 (deftest map-test
-  (is (= (p/clj-map->proto-map People$Person {}) (p/clj-map->proto-map People$Person nil))))
+  (is (= (p/clj-map->proto-map mapper People$Person {})
+         (p/clj-map->proto-map mapper People$Person nil))))
 
 
 (deftest well-known-types-test
   (let [p (make-person)
-        w (p/proto->proto-map p)]
+        w (p/proto->proto-map mapper p)]
     (is (nil? (:maiden_name p)))
     (is (thrown? Exception (assoc w :maiden_name 123)))
     (is (= "Blabla" (:maiden_name (assoc w :maiden_name "Blabla"))))
@@ -357,7 +359,7 @@
 
 (deftest custom-encoder-test
   (let [p    (make-person)
-        w    (p/proto->proto-map p)
+        w    (p/proto->proto-map mapper p)
         uuid (java.util.UUID/randomUUID)]
     (is (nil? (:uuid p)))
     (is (= uuid (:uuid (assoc w :uuid uuid))))
@@ -365,36 +367,19 @@
 
 (deftest metadata-test
   (let [p  (make-person)
-        w  (p/proto->proto-map p)
+        w  (p/proto->proto-map mapper p)
         md {:x? true}]
     (is (nil? (meta w)))
     (is (= md (meta (with-meta w md))))
     (is (= md (meta (assoc (with-meta w md) :name "bla"))))
-    (is (= md (meta (p/clj-map->proto-map People$Person (with-meta {:name "bla"} md)))))))
+    (is (= md (meta (p/clj-map->proto-map mapper People$Person (with-meta {:name "bla"} md)))))))
 
 (deftest proto-or-builder-impl-test
   (let [^People$PersonOrBuilder p (make-person :name "booga" :id 5 :levels [People$Level/MEDIUM])
-        ^People$PersonOrBuilder w (p/proto->proto-map p)]
+        ^People$PersonOrBuilder w (p/proto->proto-map mapper p)]
     (is (= (.getName p) (.getName w)))
     (is (= (.getId p) (.getId w)))
     (is (= (.getLevelsList p) (.getLevelsList w)))))
-
-#_(deftest inflate-test
-    (let [^People$Address address (make-address :city "NYC" :street "Broadway")
-          p                       (-> (p/proto-map People$Person)
-                                      (assoc :name "Name"))]
-      (is (nil? (:address p)))
-      (is (= (p/proto-map->proto (p/proto-map People$Address)) (p/proto-map->proto (:address (p/inflate p)))))
-      (is (= "Name" (:name (p/inflate p))))
-      (is (nil? (:address (p/deflate (p/inflate p)))))
-      (is (= address (p/proto-map->proto (:address (assoc (p/inflate p) :address address)))))))
-
-
-(deftest implode-test
-  (is (= [] (u/implode [])))
-  (is (= [1] (u/implode [1])))
-  (is (= [1 [2 [3 [4]]]] (u/implode [1 2 3 4]))))
-
 
 
 (deftest kv-forest-test []
@@ -437,13 +422,18 @@
 (deftest proto-map?-test []
   (is (false? (p/proto-map? 1)))
   (is (false? (p/proto-map? (make-person))))
-  (is (true? (p/proto-map? (p/proto->proto-map (make-person))))))
+  (is (true? (p/proto-map? (p/proto->proto-map mapper (make-person))))))
+
+
+(deftest proto->proto-map-test []
+  (let [address (make-address)]
+    (is (identical? address (p/proto-map->proto (p/proto->proto-map mapper address))))))
 
 (defn change-city [^:transient-proto m city]
   (p/p-> m (assoc-in [:address :city] city)))
 
 (deftest p->-test []
-  (let [m     (p/proto-map People$Person)
+  (let [m     (p/proto-map mapper People$Person)
         a-key :name]
     (is (= (p/p-> m
                   (assoc-in [:address :city] "New York")
@@ -462,19 +452,21 @@
                   (change-city "Boston")
                   (assoc-in [:address :street] "Broadway")
                   (assoc-in [:address :house] {:num_rooms 5}))
-           (p/clj-map->proto-map People$Person
-                                 {:id          4
-                                  :name        "Foo"
-                                  :address     {:city      "Boston"
-                                                :street    "Broadway"
-                                                :house_num 6
-                                                :house     {:num_rooms 5}}
-                                  :maiden_name "Booga"
-                                  :likes       [{:desc "desc1" :level :LOW}]}))
-        (is (= m (p/proto-map People$Person))))))
+           (p/clj-map->proto-map
+             mapper
+             People$Person
+             {:id          4
+              :name        "Foo"
+              :address     {:city      "Boston"
+                            :street    "Broadway"
+                            :house_num 6
+                            :house     {:num_rooms 5}}
+              :maiden_name "Booga"
+              :likes       [{:desc "desc1" :level :LOW}]}))
+        (is (= m (p/proto-map mapper People$Person))))))
 
 (deftest pcond->-test []
-  (let [m     (p/proto-map People$Person)
+  (let [m     (p/proto-map mapper People$Person)
         a-key :name]
     (is (= (p/pcond-> m
                       true (assoc :id 3)
@@ -487,20 +479,22 @@
                       false (change-city "Boston")
                       false (assoc-in [:address :street] "Broadway")
                       true (assoc-in [:address :house] {:num_rooms 5}))
-           (p/clj-map->proto-map People$Person
-                                 {:id          3
-                                  :name        "Foo"
-                                  :address     {:city      "New York"
-                                                :street    ""
-                                                :house_num 3
-                                                :house     {:num_rooms 5}}
-                                  :maiden_name "Booga"
-                                  :likes       []}))
-        (is (= m (p/proto-map People$Person))))))
+           (p/clj-map->proto-map
+             mapper
+             People$Person
+             {:id          3
+              :name        "Foo"
+              :address     {:city      "New York"
+                            :street    ""
+                            :house_num 3
+                            :house     {:num_rooms 5}}
+              :maiden_name "Booga"
+              :likes       []}))
+        (is (= m (p/proto-map mapper People$Person))))))
 
 (deftest default-instance-test []
-  (is (identical? (p/proto-map People$Person) (p/proto-map People$Person)))
-  (is (identical? (p/proto-map People$Person) (empty (assoc (p/proto-map People$Person) :id 123)))))
+  (is (identical? (p/proto-map mapper People$Person) (p/proto-map mapper People$Person)))
+  (is (identical? (p/proto-map mapper People$Person) (empty (assoc (p/proto-map mapper People$Person) :id 123)))))
 
 
 (defmacro ensure-vector-immutable [w & body]
@@ -516,7 +510,7 @@
   (let [likes [(make-like :desc "desc1" :level People$Level/LOW)
                (make-like :desc "desc2" :level People$Level/MEDIUM)
                (make-like :desc "desc3" :level People$Level/HIGH)]
-        p     (p/proto-map People$Person :likes likes)
+        p     (p/proto-map mapper People$Person :likes likes)
         v     (:likes p)]
     (is (instance? ProntoVector v))
     (is (= likes v))
@@ -550,7 +544,8 @@
 
 
 (deftest proto-map->clj-map-test []
-  (let [p        (p/proto-map People$Person
+  (let [p        (p/proto-map mapper
+                              People$Person
                               :likes [{}]
                               :address {})
         c        (p/proto-map->clj-map p)
@@ -562,7 +557,7 @@
 
 
 (deftest schema-test []
-  (is (= (p/schema (p/proto-map People$Person))
+  (is (= (p/schema (p/proto-map mapper People$Person))
          (p/schema People$Person)))
 
   (is (nil? (p/schema People$Person :fake-key)))
@@ -572,7 +567,8 @@
           :street         String
           :house_num      Integer/TYPE
           :home/house     People$House
-          :home/apartment People$Apartment}))
+          :home/apartment People$Apartment
+          :address_id     People$UUID}))
 
   (is (= (p/schema People$Person :address :home/house)
          {:num_rooms Integer/TYPE}))
@@ -607,7 +603,7 @@
 (deftest remove-default-values-xf-tests
   (testing "that default values are removed when converting to a clj-map using the xf"
     (is (= {:level :LOW}
-           (-> (p/proto-map People$Person)
+           (-> (p/proto-map mapper People$Person)
                (p/proto-map->clj-map p/remove-default-values-xf)))))
   (testing "that default values are kept when converting to a clj-map"
     (is (= {:id                   0
@@ -635,11 +631,53 @@
             :person               nil
             :level                :LOW
             :s2s                  {}}
-           (-> (p/proto-map People$Person)
+           (-> (p/proto-map mapper People$Person)
                p/proto-map->clj-map)))))
 
-(deftest byte-mapper-test
-  (let [person (p/proto-map People$Person :id 12345 :name "booga" :age_millis 9999999)
-        bytes  (p/proto-map->bytes person)
-        mapper (p/byte-mapper People$Person)]
-    (= person (mapper bytes))))
+
+(defmapper mapper-with-uuid-encoder [People$Person]
+  :encoders
+  {protogen.generated.People$UUID
+   {:from-proto #(try
+                   (java.util.UUID/fromString (.getValue ^People$UUID %))
+                   (catch Exception _))
+    :to-proto   #(let [b (People$UUID/newBuilder)]
+                   (.setValue b (str %))
+                   (.build b))}})
+
+(defmapper mapper-without-uuid-encoder [People$Person])
+
+(deftest mapper-interop-test []
+  (let [person     (p/proto-map mapper-without-uuid-encoder People$Person)
+        address-id (java.util.UUID/randomUUID)
+        person     (assoc person
+                          :address
+                          (p/proto-map mapper-with-uuid-encoder
+                                       People$Address
+                                       :address_id
+                                       address-id))]
+    (testing "that address is now a protobuf UUID generated type rather than Java's UUID"
+      (is (= (p/p-> person :address :address_id) {:value (str address-id)})))))
+
+(deftest remap-test []
+  (let [address-id (java.util.UUID/randomUUID)
+        address    (p/proto-map mapper-with-uuid-encoder People$Address
+                                :address_id address-id)]
+    (testing "after remap, the address should have a protobuf UUID instance of address id"
+      (is (= {:value (str address-id)}
+             (:address_id (p/remap mapper-without-uuid-encoder address)))))
+
+    (testing "remapping twice work and we're back to a Java UUID instance"
+      (is (= address-id
+             (:address_id (->> address
+                               (p/remap mapper-without-uuid-encoder)
+                               (p/remap mapper-with-uuid-encoder))))))))
+
+(deftest byte-mapper-test []
+  (let [byte-mapper (p/byte-mapper People$Address)
+        address     (p/proto-map mapper People$Address
+                                 :city "tel aviv"
+                                 :street "ibn gvirol"
+                                 :house_num 100)
+        bytes       (p/proto-map->bytes address)]
+    (is (= address (byte-mapper bytes)))))

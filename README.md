@@ -39,22 +39,22 @@ Every `proto-map`
 
 ## Quick example
 
-Let's use this [example](https://***REMOVED***/Architecture/pronto/blob/deftype/resources/proto/people.proto): 
+Let's use this [example](https://***REMOVED***/clojure/pronto/blob/master/resources/proto/people.proto):
 
 ```clj
 (import 'protogen.generated.People$Person)
 
 (require '[pronto.core :as p])
 
-(p/defproto People$Person)
+(p/defmapper my-mapper [People$Person])
 ```
 
-`defproto` is a macro which generates new `proto-map` classes for the supplied class and for any message type dependency it has.
+`defmapper` is a macro which generates new `proto-map` classes for the supplied class and for any message type dependency it has.
 
 Now we can work with protobuf while writing idiomatic Clojure code:
 
 ```clj
-(-> (p/proto-map People$Person) ;; create a Person proto-map
+(-> (p/proto-map mapper People$Person) ;; create a Person proto-map
     (assoc :name "Rich" :id 0 :pet_names ["FOO" "BAR"])
     (update :pet_names #(map clojure.string/lower-case %))
     (assoc-in [:address :street] "Broadway"))
@@ -110,23 +110,23 @@ When unset, they take on their "zero-value" rather than `null`. However, for mes
 
 (require '[pronto.core :as p])
 
-(p/defproto People$Person)
+(p/defmapper my-mapper People$Person)
 
 ;; Create a new empty Person proto-map:
-(p/proto-map People$Person)
+(p/proto-map my-mapper People$Person)
 
 ;; Serialize a byte array into a proto-map (and accompanying POJO):
 (p/proto-map->bytes my-proto-map)
 
 ;; Deserialize byte array into a proto-map (and accompanying POJO):
-(p/bytes->proto-map People$Person (read-person-byte-array-from-kafka))
+(p/bytes->proto-map my-mapper People$Person (read-person-byte-array-from-kafka))
 
 ;; Generate a new proto-map from a Clojure map adhering to the schema:
-(p/clj-map->proto-map People$Person {:id 0 :name "hello" :address {:city "London"}})
+(p/clj-map->proto-map my-mapper People$Person {:id 0 :name "hello" :address {:city "London"}})
 
 ;; Wrap around an existing instance of a POJO:
 (let [person (. (People$Person/newBuilder) build)]
-  (p/proto->proto-map person))
+  (p/proto->proto-map my-mapper person))
   
 ;; Get the underlying POJO of a proto-map:
 (p/proto-map->proto my-proto-map)
@@ -157,7 +157,7 @@ However, you can control the naming strategy of keys. For example, if you'd like
 
 ```clj
 (require '[pronto.utils :as u])
-(p/defproto People$Person 
+(p/defmapper my-mapper People$Person 
     :key-name-fn u/->kebab-case)
 ```
 
@@ -172,8 +172,8 @@ It is also important to note that Clojure uses `long`s to represent natural numb
 In any case, handling of overflows is left to the user.
 
 #### Message types
-When calling `defproto`, the macro will also find all message types on which the class depends, and generate specialized wrapper types for them as well,
-so you do not have to call `defproto` recursively yourselves.
+When calling `defmapper`, the macro will also find all message types on which the class depends, and generate specialized wrapper types for them as well,
+so you do not have to call `defmapper` recursively yourselves.
 
 When reading a field whose type is a message type, a `proto-map` is returned.
 
@@ -194,17 +194,17 @@ Enumerations are also represented by a keyword:
 
 ```clj
 (import 'protogen.generated.People$Like)
-(p/defproto People$Like)
+(p/defmapper my-mapper People$Like)
 
-(:level (p/proto-map People$Like)) ;; either Level/LOW, Level/MEDIUM, Level/HIGH
+(:level (p/proto-map my-mapper People$Like)) ;; either Level/LOW, Level/MEDIUM, Level/HIGH
 => :LOW
 ```
 It is possible to use kebab-case (or any other case) for enums. 
 
 ```clj
-(p/defproto People$Like
+(p/defmapper my-mapper People$Like
     :enum-value-fn u/->kebab-case)
-(:level (p/proto-map People$Like))
+(:level (p/proto-map my-mapper People$Like))
 => :low
 ```
 

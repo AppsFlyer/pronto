@@ -1,21 +1,26 @@
 (ns pronto.emitters
   (:require [pronto.type-gen :as t]
             [pronto.utils :as u]
+            [pronto.protos :refer [global-ns]]
             [clojure.string :as s]
-            [pronto.potemkin-types :refer [def-abstract-type deftype+]])
+            [pronto.potemkin-types :refer [def-abstract-type deftype+]]
+            [pronto.reflection :as reflect])
   (:import [com.google.protobuf
             Descriptors$FieldDescriptor
             Descriptors$OneofDescriptor]
            [com.google.protobuf Internal$EnumLite]
-           [java.lang.reflect Method]))
+           [java.lang.reflect Method]
+           [pronto ProtoMapper]))
 
 
 (defn get-builder-class [^Class clazz]
   (.getReturnType (.getDeclaredMethod clazz "toBuilder" (make-array Class 0))))
 
 
-(defn empty-map-var-name [^Class clazz]
-  (symbol (str "__PROTOCLJ_EMPTY_" (s/replace (.getName clazz) "." "_"))))
+(defn empty-map-var-name
+  ([clazz] (empty-map-var-name clazz nil))
+  ([^Class clazz ns]
+   (symbol ns (str "__EMPTY_" (u/sanitized-class-name clazz)))))
 
 
 (defn- proto-or-builder-interface [^Class clazz]
@@ -48,13 +53,24 @@
 
 
 (defn intf-info->intf-name [{:keys [iname itype]}]
-  (symbol (str 'I iname "_" (s/replace (.getName ^Class itype) "." "_"))))
+  (symbol (str 'I iname "_" (u/sanitized-class-name itype))))
 
 
 (defn clear [field builder]
   (let [clear-method (symbol (str ".clear" (u/field->camel-case (:fd field))))]
     `(~clear-method ~(u/with-type-hint builder
                        (get-builder-class (:class field))))))
+
+
+(defn emit-default-ctor [^Class clazz]
+  (let [wrapper-class-name (u/class->map-class-name clazz)]
+    `(new ~wrapper-class-name (.build (~(u/static-call clazz "newBuilder"))) nil)))
+
+
+(defn emit-default-transient-ctor [^Class clazz ns]
+  (let [transient-wrapper-class-name (u/class->transient-class-name clazz)]
+    `(~(symbol ns (str '-> transient-wrapper-class-name)) (~(u/static-call clazz "newBuilder")) true false)))
+
 
 
 (defn get-interfaces [^Class clazz ctx]
@@ -67,7 +83,7 @@
     (for [field fields]
       (let [intf-info (fd->interface-info field)
             intf-name (intf-info->intf-name intf-info)]
-        {:name intf-name
+        {:name (str (u/javaify global-ns) "." intf-name)
          :intf
          `(definterface ~intf-name
             (~(assoc-intf-name2 intf-info)
@@ -115,16 +131,59 @@
             ~(clear field builder-sym)))}))))
 
 
-(def ^:private intfs (atom #{}))
+(defn- emit-interfaces
+  [interfaces]
+  (let [new-interfaces (filter
+                         (comp
+                           (complement reflect/class-defined?)
+                           name
+                           :name)
+                         interfaces)]
+    `(u/with-ns ~global-ns
+       (do
+         ~@(for [intf new-interfaces]
+             (:intf intf))))))
 
-(defn- emit-interfaces [^Class clazz ctx]
-  (let [interfaces     (get-interfaces clazz ctx)
-        new-interfaces (filter (comp (complement @intfs) :name) interfaces)
-        ]
-    (swap! intfs #(apply conj % (map :name new-interfaces)))
-    `(do
-       ~@(for [intf new-interfaces]
-           (:intf intf)))))
+(defn builder-interface-name [^Class clazz]
+  (symbol (str "Builder_" (u/sanitized-class-name clazz))))
+
+(defn builder-interface-get-proto-method-name [^Class clazz]
+  (symbol (str "getProto_" (u/sanitized-class-name clazz))))
+
+(defn builder-interface-from-proto-method-name [^Class clazz]
+  (symbol (str "fromProto_" (u/sanitized-class-name clazz))))
+
+(defn builder-interface-get-transient-method-name [^Class clazz]
+  (symbol (str "getTransient_" (u/sanitized-class-name clazz))))
+
+(defn- proto-builder-interface [ns ^Class clazz]
+  (let [intf-name     (builder-interface-name clazz)
+        proto-obj-sym (gensym 'pos)]
+    {:name (symbol (str (u/javaify global-ns) "." intf-name))
+     :intf
+     `(definterface ~intf-name
+        (~(builder-interface-get-proto-method-name clazz)
+         [])
+
+        (~(builder-interface-from-proto-method-name clazz)
+         [~'proto-obj])
+
+        (~(builder-interface-get-transient-method-name clazz)
+         []))
+     :impl
+     `((~(builder-interface-get-proto-method-name clazz)
+        [~'_]
+        ~(empty-map-var-name clazz ns))
+
+       (~(builder-interface-from-proto-method-name clazz)
+        [~'_ ~proto-obj-sym]
+        (new ~(symbol (str (u/javaify ns) "." (u/class->map-class-name clazz)))
+             ~proto-obj-sym
+             nil))
+
+       (~(builder-interface-get-transient-method-name clazz)
+        [~'_]
+        ~(emit-default-transient-ctor clazz ns)))}))
 
 
 (defn- delegate-method [^Method method delegate-sym]
@@ -244,17 +303,7 @@
 
 
 (defprotocol ProtoMapBuilder
-  (proto->proto-map [this]))
-
-
-(defn emit-default-ctor [^Class clazz]
-  (let [wrapper-class-name (u/class->map-class-name clazz)]
-    `(new ~wrapper-class-name (.build (~(u/static-call clazz "newBuilder"))) nil)))
-
-
-(defn emit-default-transient-ctor [^Class clazz ns]
-  (let [transient-wrapper-class-name (u/class->transient-class-name clazz)]
-    `(~(symbol ns (str '-> transient-wrapper-class-name)) (~(u/static-call clazz "newBuilder")) true false)))
+  (proto->proto-map [this mapper]))
 
 
 (def ^:private pojo (gensym 'pojo))
@@ -341,7 +390,7 @@
              interfaces)))))
 
 (defn- abstract-type-sym [ctx sym-name]
-  (symbol (:ns ctx)
+  (symbol #_(:ns ctx)
           (name sym-name)))
 
 (defn emit-deftype [^Class clazz ctx]
@@ -349,7 +398,8 @@
         o                    (u/with-type-hint pojo clazz)
         wrapper-class-name   (u/class->map-class-name clazz)
         transient-class-name (u/class->transient-class-name clazz)
-        md                   (gensym 'md)]
+        md                   (gensym 'md)
+        mapper               (gensym 'mapper)]
     `(deftype+ ~wrapper-class-name [~o ~md]
 
        ~(abstract-type-sym ctx (u/class->abstract-map-class-name clazz))
@@ -365,6 +415,13 @@
        (pmap_getBuilder [this#] (.toBuilder ~o))
 
        (pmap_copy [this# builder#] (new ~wrapper-class-name (.build builder#) ~md))
+
+       (remap [this# ~mapper]
+              ~(let [mapper (with-meta mapper
+                              {:tag (str (u/javaify global-ns)
+                                         "."
+                                         (builder-interface-name clazz))})]
+                 `(. ~mapper ~(builder-interface-from-proto-method-name clazz) ~o)))
 
        clojure.lang.IObj
 
@@ -538,12 +595,12 @@
              (pronto.TransientMapHelpers/conj this# val#)))))
 
 
-(defn- emit-mapper [^Class clazz]
-  (let [proto-map-class-name (u/class->map-class-name clazz)]
+(defn- emit-builder [^Class clazz]
+  (let [mapper (with-meta 'mapper {:tag (str (u/javaify global-ns) "." (builder-interface-name clazz))})]
     `(extend-type ~clazz
        ProtoMapBuilder
-       (proto->proto-map [this#]
-         (new ~proto-map-class-name this# nil)))))
+       (proto->proto-map [this# ~mapper]
+         (. ~mapper ~(builder-interface-from-proto-method-name clazz) this#)))))
 
 
 (defn- declare-class [class-name nargs]
@@ -564,10 +621,27 @@
      ~(declare-class (u/class->map-class-name clazz) 2)
      ~(declare-class (u/class->transient-class-name clazz) 3)
      ~(declare-empty-map clazz)
-     ~(emit-interfaces clazz ctx)
+     ~(emit-interfaces (get-interfaces clazz ctx))
+     ~(emit-interfaces [(proto-builder-interface (:ns ctx) clazz)])
      ~(emit-abstract-type clazz ctx)
      ~(emit-deftype clazz ctx)
      ~(emit-transient clazz ctx)
      ~(emit-empty-map clazz)
-     ~(emit-mapper clazz)))
+     ~(emit-builder clazz)))
 
+(defn emit-mapper [name classes ns]
+  (let [type-name  (gensym 'ProtoMapper)
+        interfaces (map (partial proto-builder-interface ns) classes)]
+    `(do
+       (deftype ~type-name []
+
+         ProtoMapper
+
+         (getNamespace [this#] ~ns)
+
+         ~@(mapcat
+             (fn [{:keys [name impl]}]
+               (into [name] impl))
+             interfaces))
+
+       (def ~name (new ~type-name)))))
