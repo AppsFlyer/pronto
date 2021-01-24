@@ -16,7 +16,7 @@
     (subs class-name (inc (count package-name)))))
 
 (defn class->map-class-name [^Class clazz]
-  (symbol (str (sanitized-class-name clazz) "Map")))
+  (symbol (str (sanitized-class-name clazz) "ProtoMap")))
 
 (defn class->abstract-map-class-name [^Class clazz]
   (symbol (str (sanitized-class-name clazz) "AbstractMap")))
