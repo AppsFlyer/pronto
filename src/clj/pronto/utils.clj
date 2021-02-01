@@ -30,8 +30,9 @@
   (symbol (str 'transient- (sanitized-class-name clazz))))
 
 
-(defn ->kebab-case [s]
-  (s/lower-case (s/join "-" (s/split s #"_"))))
+(defn ->kebab-case [^String s]
+  (when s
+    (s/lower-case (.replace s \_ \-))))
 
 (defn with-type-hint [sym ^Class clazz]
   (with-meta sym {:tag (symbol (.getName clazz))}))
@@ -39,30 +40,27 @@
 (defn ctor-name [prefix ^Class clazz]
   (symbol (str prefix '-> (class->map-class-name clazz))))
 
-(defn- char-in-range? [c start end]
-  (<= (int start) (int c) (int end)))
-
 (defn ->camel-case
   "Implements protobuf's camel case conversion for Java. See: https://github.com/protocolbuffers/protobuf/blob/v3.12.4/src/google/protobuf/compiler/java/java_helpers.cc#L157"
-  [s]
-  (loop [cc              ""
-         [x & xs]        s
-         cap-next-letter true]
-    (if-not x
-      cc
-      (cond
-        (char-in-range? x \a \z)
-        (recur (str cc (if cap-next-letter
-                         (char (+ (int x) (- (int \A) (int \a))))
-                         x))
-               xs
-               false)
-        (char-in-range? x \A \Z)
-        (recur (str cc x) xs false)
-        (char-in-range? x \0 \9)
-        (recur (str cc x) xs true)
-        :else
-        (recur cc xs true)))))
+  [^String s]
+  (when-let [length (some-> s .length)]
+    (loop [i                 0
+           ^StringBuilder sb (StringBuilder.)
+           cap-next-letter?  true]
+      (if (= i length)
+        (.toString sb)
+        (let [x (.charAt s i)]
+          (cond
+            (Character/isLowerCase x)
+            (recur (inc i)
+                   (.append sb (if cap-next-letter? (Character/toUpperCase x) x))
+                   false)
+            (Character/isUpperCase x)
+            (recur (inc i) (.append sb x) false)
+            (Character/isDigit x)
+            (recur (inc i) (.append sb x) true)
+            :else
+            (recur (inc i) sb true)))))))
 
 (defn field->camel-case [^Descriptors$GenericDescriptor field]
   (->camel-case (.getName field)))
