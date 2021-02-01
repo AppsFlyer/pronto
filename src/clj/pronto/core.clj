@@ -8,12 +8,11 @@
             [pronto.runtime :as r]
             [pronto.reflection :as reflect]
             [clojure.walk :refer [macroexpand-all]]
-            [potemkin]
-            [pronto.core :as p])
+            [potemkin])
   (:import [pronto ProtoMap]
            [com.google.protobuf Message GeneratedMessageV3
-            Descriptors$FieldDescriptor
-            Descriptors$Descriptor]))
+                                Descriptors$FieldDescriptor
+                                Descriptors$Descriptor ByteString]))
 
 (def ^:private loaded-classes (atom {}))
 
@@ -21,6 +20,9 @@
 
 (def ^:private global-ns "pronto.protos")
 
+(def ^:private default-values #{0 0.0 nil "" false {} [] (byte-array 0) ByteString/EMPTY})
+(def remove-default-values-xf
+  (remove (fn [[_ v]] (contains? default-values v))))
 
 (defn- resolve-class [class-sym]
   (let [clazz (resolve class-sym)]

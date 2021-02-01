@@ -595,3 +595,36 @@
           :thing/str            String
           :thing/person         People$Person
           :thing/level          #{"HIGH" "LOW" "MEDIUM" "ALIASED_HIGH"}})))
+
+(deftest remove-default-values-xf-tests
+  (testing "that default values are removed when converting to a clj-map using the xf"
+    (is (= {:level :LOW}
+           (-> (p/proto-map People$Person)
+               (p/proto-map->clj-map p/remove-default-values-xf)))))
+  (testing "that default values are kept when converting to a clj-map"
+    (is (= {:id 0
+            :name ""
+            :email ""
+            :address nil
+            :likes []
+            :relations {}
+            :pet_names []
+            :private_key ByteString/EMPTY
+            :age_millis 0
+            :is_vegetarian false
+            :height_cm 0.0
+            :weight_kg 0.0
+            :levels []
+            :social_security nil
+            :maiden_name nil
+            :uuid nil
+            :bv nil
+            :bla {}
+            :ids_list []
+            :relations_like_level {}
+            :num 0
+            :str ""
+            :person nil
+            :level :LOW}
+           (-> (p/proto-map People$Person)
+               p/proto-map->clj-map)))))
