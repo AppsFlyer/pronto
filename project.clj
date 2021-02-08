@@ -1,4 +1,4 @@
-(defproject pronto "1.0.18-SNAPSHOT"
+(defproject pronto "1.0.18-SNAPSHOT-loadfix"
   :description "clojure support for protocol buffers"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
