@@ -4,11 +4,6 @@
             [clj-java-decompiler.core :as d]))
 
 
-(use-fixtures :each
-  (fn [f]
-    (p/unload-classes!)
-    (f)))
-
 (defn- reflects? [^String bytecode]
   (.contains bytecode "clojure/lang/Reflector"))
 

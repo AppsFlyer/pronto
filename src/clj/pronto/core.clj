@@ -11,10 +11,8 @@
             [potemkin])
   (:import [pronto ProtoMap]
            [com.google.protobuf Message GeneratedMessageV3
-                                Descriptors$FieldDescriptor
-                                Descriptors$Descriptor ByteString]))
-
-(def ^:private loaded-classes (atom {}))
+            Descriptors$FieldDescriptor
+            Descriptors$Descriptor ByteString]))
 
 (def ^:dynamic *instrument?* false)
 
@@ -25,7 +23,7 @@
   (remove (fn [[_ v]] (contains? default-values v))))
 
 (defn- resolve-class [class-sym]
-  (let [clazz (resolve class-sym)]
+  (let [clazz (if (class? class-sym) class-sym (resolve class-sym))]
     (when-not clazz
       (throw (IllegalArgumentException. (str "Cannot resolve \"" class-sym "\". Did you forget to import it?"))))
     (when-not (instance? Class clazz)
@@ -35,11 +33,18 @@
     clazz))
 
 
-(defn- resolve-loaded-class [class-sym]
+
+(defn- resolve-loaded-class-safely [class-sym]
   (let [clazz (resolve-class class-sym)]
-    (if (get @loaded-classes clazz)
+    (try
+      (Class/forName (str (.replace ^String global-ns "-" "_") "." (u/class->map-class-name clazz)))
       clazz
-      (throw (IllegalArgumentException. (str clazz " not loaded"))))))
+      (catch ClassNotFoundException _))))
+
+(defn- resolve-loaded-class [class-sym]
+  (if-let [c (resolve-loaded-class-safely class-sym)]
+    c
+    (throw (IllegalArgumentException. (str class-sym " not loaded")))))
 
 
 (defn disable-instrumentation! []
@@ -229,14 +234,15 @@
         (update' :key-name-fn eval)
         (update' :enum-value-fn eval)
         (update' :iter-xf resolve')
-        (update' :encoders #(into {}
-                                  (map
-                                    (fn [[k v]]
-                                      (let [resolved-k
-                                            (cond-> k
-                                              (symbol? k) resolve)]
-                                        [resolved-k v])))
-                                  (eval %))))))
+        (update' :encoders #(into
+                              {}
+                              (map
+                                (fn [[k v]]
+                                  (let [resolved-k
+                                        (cond-> k
+                                          (symbol? k) resolve)]
+                                    [resolved-k v])))
+                              (eval %))))))
 
 
 (defn dependencies [^Class clazz]
@@ -247,15 +253,6 @@
   (boolean (get (dependencies dependent) dependency)))
 
 
-(defn unload-classes! [] (swap! loaded-classes empty))
-
-
-(defn- emit-proto-map [^Class clazz ctx]
-  (when-not (get @loaded-classes clazz)
-    (swap! loaded-classes assoc clazz (str *ns*))
-    (e/emit-proto-map clazz ctx)))
-
-
 (defmacro defproto [class & opts]
   (let [ctx          (init-ctx opts)
         ^Class clazz (resolve-class class)
@@ -263,9 +260,9 @@
     `(u/with-ns "pronto.protos"
        ~@(doall
            (for [dep deps]
-             (emit-proto-map dep ctx)))
+             (e/emit-proto-map dep ctx)))
 
-       ~(emit-proto-map clazz ctx))))
+       ~(e/emit-proto-map clazz ctx))))
 
 
 (defn macroexpand-class [^Class clazz]
