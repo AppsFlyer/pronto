@@ -539,6 +539,40 @@ public final class People {
      */
     protogen.generated.People.Level getLevel();
 
+    /**
+     * <code>map&lt;string, string&gt; s2s = 27;</code>
+     */
+    int getS2SCount();
+    /**
+     * <code>map&lt;string, string&gt; s2s = 27;</code>
+     */
+    boolean containsS2S(
+        java.lang.String key);
+    /**
+     * Use {@link #getS2SMap()} instead.
+     */
+    @java.lang.Deprecated
+    java.util.Map<java.lang.String, java.lang.String>
+    getS2S();
+    /**
+     * <code>map&lt;string, string&gt; s2s = 27;</code>
+     */
+    java.util.Map<java.lang.String, java.lang.String>
+    getS2SMap();
+    /**
+     * <code>map&lt;string, string&gt; s2s = 27;</code>
+     */
+
+    java.lang.String getS2SOrDefault(
+        java.lang.String key,
+        java.lang.String defaultValue);
+    /**
+     * <code>map&lt;string, string&gt; s2s = 27;</code>
+     */
+
+    java.lang.String getS2SOrThrow(
+        java.lang.String key);
+
     public protogen.generated.People.Person.ThingCase getThingCase();
   }
   /**
@@ -833,6 +867,19 @@ public final class People {
               thing_ = rawValue;
               break;
             }
+            case 218: {
+              if (!((mutable_bitField0_ & 0x00000080) != 0)) {
+                s2S_ = com.google.protobuf.MapField.newMapField(
+                    S2SDefaultEntryHolder.defaultEntry);
+                mutable_bitField0_ |= 0x00000080;
+              }
+              com.google.protobuf.MapEntry<java.lang.String, java.lang.String>
+              s2S__ = input.readMessage(
+                  S2SDefaultEntryHolder.defaultEntry.getParserForType(), extensionRegistry);
+              s2S_.getMutableMap().put(
+                  s2S__.getKey(), s2S__.getValue());
+              break;
+            }
             default: {
               if (!parseUnknownField(
                   input, unknownFields, extensionRegistry, tag)) {
@@ -880,6 +927,8 @@ public final class People {
           return internalGetBla();
         case 22:
           return internalGetRelationsLikeLevel();
+        case 27:
+          return internalGetS2S();
         default:
           throw new RuntimeException(
               "Invalid map field number: " + number);
@@ -1732,6 +1781,82 @@ public final class People {
       return protogen.generated.People.Level.LOW;
     }
 
+    public static final int S2S_FIELD_NUMBER = 27;
+    private static final class S2SDefaultEntryHolder {
+      static final com.google.protobuf.MapEntry<
+          java.lang.String, java.lang.String> defaultEntry =
+              com.google.protobuf.MapEntry
+              .<java.lang.String, java.lang.String>newDefaultInstance(
+                  protogen.generated.People.internal_static_protogen_generated_Person_S2sEntry_descriptor, 
+                  com.google.protobuf.WireFormat.FieldType.STRING,
+                  "",
+                  com.google.protobuf.WireFormat.FieldType.STRING,
+                  "");
+    }
+    private com.google.protobuf.MapField<
+        java.lang.String, java.lang.String> s2S_;
+    private com.google.protobuf.MapField<java.lang.String, java.lang.String>
+    internalGetS2S() {
+      if (s2S_ == null) {
+        return com.google.protobuf.MapField.emptyMapField(
+            S2SDefaultEntryHolder.defaultEntry);
+      }
+      return s2S_;
+    }
+
+    public int getS2SCount() {
+      return internalGetS2S().getMap().size();
+    }
+    /**
+     * <code>map&lt;string, string&gt; s2s = 27;</code>
+     */
+
+    public boolean containsS2S(
+        java.lang.String key) {
+      if (key == null) { throw new java.lang.NullPointerException(); }
+      return internalGetS2S().getMap().containsKey(key);
+    }
+    /**
+     * Use {@link #getS2SMap()} instead.
+     */
+    @java.lang.Deprecated
+    public java.util.Map<java.lang.String, java.lang.String> getS2S() {
+      return getS2SMap();
+    }
+    /**
+     * <code>map&lt;string, string&gt; s2s = 27;</code>
+     */
+
+    public java.util.Map<java.lang.String, java.lang.String> getS2SMap() {
+      return internalGetS2S().getMap();
+    }
+    /**
+     * <code>map&lt;string, string&gt; s2s = 27;</code>
+     */
+
+    public java.lang.String getS2SOrDefault(
+        java.lang.String key,
+        java.lang.String defaultValue) {
+      if (key == null) { throw new java.lang.NullPointerException(); }
+      java.util.Map<java.lang.String, java.lang.String> map =
+          internalGetS2S().getMap();
+      return map.containsKey(key) ? map.get(key) : defaultValue;
+    }
+    /**
+     * <code>map&lt;string, string&gt; s2s = 27;</code>
+     */
+
+    public java.lang.String getS2SOrThrow(
+        java.lang.String key) {
+      if (key == null) { throw new java.lang.NullPointerException(); }
+      java.util.Map<java.lang.String, java.lang.String> map =
+          internalGetS2S().getMap();
+      if (!map.containsKey(key)) {
+        throw new java.lang.IllegalArgumentException();
+      }
+      return map.get(key);
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -1837,6 +1962,12 @@ public final class People {
       if (thingCase_ == 26) {
         output.writeEnum(26, ((java.lang.Integer) thing_));
       }
+      com.google.protobuf.GeneratedMessageV3
+        .serializeStringMapTo(
+          output,
+          internalGetS2S(),
+          S2SDefaultEntryHolder.defaultEntry,
+          27);
       unknownFields.writeTo(output);
     }
 
@@ -1980,6 +2111,16 @@ public final class People {
         size += com.google.protobuf.CodedOutputStream
           .computeEnumSize(26, ((java.lang.Integer) thing_));
       }
+      for (java.util.Map.Entry<java.lang.String, java.lang.String> entry
+           : internalGetS2S().getMap().entrySet()) {
+        com.google.protobuf.MapEntry<java.lang.String, java.lang.String>
+        s2S__ = S2SDefaultEntryHolder.defaultEntry.newBuilderForType()
+            .setKey(entry.getKey())
+            .setValue(entry.getValue())
+            .build();
+        size += com.google.protobuf.CodedOutputStream
+            .computeMessageSize(27, s2S__);
+      }
       size += unknownFields.getSerializedSize();
       memoizedSize = size;
       return size;
@@ -2051,6 +2192,8 @@ public final class People {
           .equals(other.getIdsListList())) return false;
       if (!internalGetRelationsLikeLevel().equals(
           other.internalGetRelationsLikeLevel())) return false;
+      if (!internalGetS2S().equals(
+          other.internalGetS2S())) return false;
       if (!getThingCase().equals(other.getThingCase())) return false;
       switch (thingCase_) {
         case 23:
@@ -2150,6 +2293,10 @@ public final class People {
       if (!internalGetRelationsLikeLevel().getMap().isEmpty()) {
         hash = (37 * hash) + RELATIONS_LIKE_LEVEL_FIELD_NUMBER;
         hash = (53 * hash) + internalGetRelationsLikeLevel().hashCode();
+      }
+      if (!internalGetS2S().getMap().isEmpty()) {
+        hash = (37 * hash) + S2S_FIELD_NUMBER;
+        hash = (53 * hash) + internalGetS2S().hashCode();
       }
       switch (thingCase_) {
         case 23:
@@ -2288,6 +2435,8 @@ public final class People {
             return internalGetBla();
           case 22:
             return internalGetRelationsLikeLevel();
+          case 27:
+            return internalGetS2S();
           default:
             throw new RuntimeException(
                 "Invalid map field number: " + number);
@@ -2303,6 +2452,8 @@ public final class People {
             return internalGetMutableBla();
           case 22:
             return internalGetMutableRelationsLikeLevel();
+          case 27:
+            return internalGetMutableS2S();
           default:
             throw new RuntimeException(
                 "Invalid map field number: " + number);
@@ -2396,6 +2547,7 @@ public final class People {
         idsList_ = emptyIntList();
         bitField0_ = (bitField0_ & ~0x00000020);
         internalGetMutableRelationsLikeLevel().clear();
+        internalGetMutableS2S().clear();
         thingCase_ = 0;
         thing_ = null;
         return this;
@@ -2504,6 +2656,8 @@ public final class People {
         if (thingCase_ == 26) {
           result.thing_ = thing_;
         }
+        result.s2S_ = internalGetS2S();
+        result.s2S_.makeImmutable();
         result.thingCase_ = thingCase_;
         onBuilt();
         return result;
@@ -2656,6 +2810,8 @@ public final class People {
         }
         internalGetMutableRelationsLikeLevel().mergeFrom(
             other.internalGetRelationsLikeLevel());
+        internalGetMutableS2S().mergeFrom(
+            other.internalGetS2S());
         switch (other.getThingCase()) {
           case NUM: {
             setNum(other.getNum());
@@ -4984,6 +5140,129 @@ public final class People {
           thing_ = null;
           onChanged();
         }
+        return this;
+      }
+
+      private com.google.protobuf.MapField<
+          java.lang.String, java.lang.String> s2S_;
+      private com.google.protobuf.MapField<java.lang.String, java.lang.String>
+      internalGetS2S() {
+        if (s2S_ == null) {
+          return com.google.protobuf.MapField.emptyMapField(
+              S2SDefaultEntryHolder.defaultEntry);
+        }
+        return s2S_;
+      }
+      private com.google.protobuf.MapField<java.lang.String, java.lang.String>
+      internalGetMutableS2S() {
+        onChanged();;
+        if (s2S_ == null) {
+          s2S_ = com.google.protobuf.MapField.newMapField(
+              S2SDefaultEntryHolder.defaultEntry);
+        }
+        if (!s2S_.isMutable()) {
+          s2S_ = s2S_.copy();
+        }
+        return s2S_;
+      }
+
+      public int getS2SCount() {
+        return internalGetS2S().getMap().size();
+      }
+      /**
+       * <code>map&lt;string, string&gt; s2s = 27;</code>
+       */
+
+      public boolean containsS2S(
+          java.lang.String key) {
+        if (key == null) { throw new java.lang.NullPointerException(); }
+        return internalGetS2S().getMap().containsKey(key);
+      }
+      /**
+       * Use {@link #getS2SMap()} instead.
+       */
+      @java.lang.Deprecated
+      public java.util.Map<java.lang.String, java.lang.String> getS2S() {
+        return getS2SMap();
+      }
+      /**
+       * <code>map&lt;string, string&gt; s2s = 27;</code>
+       */
+
+      public java.util.Map<java.lang.String, java.lang.String> getS2SMap() {
+        return internalGetS2S().getMap();
+      }
+      /**
+       * <code>map&lt;string, string&gt; s2s = 27;</code>
+       */
+
+      public java.lang.String getS2SOrDefault(
+          java.lang.String key,
+          java.lang.String defaultValue) {
+        if (key == null) { throw new java.lang.NullPointerException(); }
+        java.util.Map<java.lang.String, java.lang.String> map =
+            internalGetS2S().getMap();
+        return map.containsKey(key) ? map.get(key) : defaultValue;
+      }
+      /**
+       * <code>map&lt;string, string&gt; s2s = 27;</code>
+       */
+
+      public java.lang.String getS2SOrThrow(
+          java.lang.String key) {
+        if (key == null) { throw new java.lang.NullPointerException(); }
+        java.util.Map<java.lang.String, java.lang.String> map =
+            internalGetS2S().getMap();
+        if (!map.containsKey(key)) {
+          throw new java.lang.IllegalArgumentException();
+        }
+        return map.get(key);
+      }
+
+      public Builder clearS2S() {
+        internalGetMutableS2S().getMutableMap()
+            .clear();
+        return this;
+      }
+      /**
+       * <code>map&lt;string, string&gt; s2s = 27;</code>
+       */
+
+      public Builder removeS2S(
+          java.lang.String key) {
+        if (key == null) { throw new java.lang.NullPointerException(); }
+        internalGetMutableS2S().getMutableMap()
+            .remove(key);
+        return this;
+      }
+      /**
+       * Use alternate mutation accessors instead.
+       */
+      @java.lang.Deprecated
+      public java.util.Map<java.lang.String, java.lang.String>
+      getMutableS2S() {
+        return internalGetMutableS2S().getMutableMap();
+      }
+      /**
+       * <code>map&lt;string, string&gt; s2s = 27;</code>
+       */
+      public Builder putS2S(
+          java.lang.String key,
+          java.lang.String value) {
+        if (key == null) { throw new java.lang.NullPointerException(); }
+        if (value == null) { throw new java.lang.NullPointerException(); }
+        internalGetMutableS2S().getMutableMap()
+            .put(key, value);
+        return this;
+      }
+      /**
+       * <code>map&lt;string, string&gt; s2s = 27;</code>
+       */
+
+      public Builder putAllS2S(
+          java.util.Map<java.lang.String, java.lang.String> values) {
+        internalGetMutableS2S().getMutableMap()
+            .putAll(values);
         return this;
       }
       @java.lang.Override
@@ -8568,6 +8847,11 @@ public final class People {
     com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
       internal_static_protogen_generated_Person_RelationsLikeLevelEntry_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_protogen_generated_Person_S2sEntry_descriptor;
+  private static final 
+    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+      internal_static_protogen_generated_Person_S2sEntry_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_protogen_generated_UUID_descriptor;
   private static final 
     com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
@@ -8602,7 +8886,7 @@ public final class People {
   static {
     java.lang.String[] descriptorData = {
       "\n\014people.proto\022\022protogen.generated\032\036goog" +
-      "le/protobuf/wrappers.proto\"\251\010\n\006Person\022\n\n" +
+      "le/protobuf/wrappers.proto\"\207\t\n\006Person\022\n\n" +
       "\002id\030\001 \001(\005\022\014\n\004name\030\002 \001(\t\022\r\n\005email\030\003 \001(\t\022," +
       "\n\007address\030\004 \001(\0132\033.protogen.generated.Add" +
       "ress\022\'\n\005likes\030\007 \003(\0132\030.protogen.generated" +
@@ -8623,22 +8907,25 @@ public final class People {
       "elEntry\022\r\n\003num\030\027 \001(\rH\000\022\r\n\003str\030\030 \001(\tH\000\022,\n" +
       "\006person\030\031 \001(\0132\032.protogen.generated.Perso" +
       "nH\000\022*\n\005level\030\032 \001(\0162\031.protogen.generated." +
-      "LevelH\000\032L\n\016RelationsEntry\022\013\n\003key\030\001 \001(\t\022)" +
-      "\n\005value\030\002 \001(\0132\032.protogen.generated.Perso" +
-      "n:\0028\001\032H\n\010BlaEntry\022\013\n\003key\030\001 \001(\t\022+\n\005value\030" +
-      "\002 \001(\0132\034.google.protobuf.DoubleValue:\0028\001\032" +
-      "T\n\027RelationsLikeLevelEntry\022\013\n\003key\030\001 \001(\t\022" +
-      "(\n\005value\030\002 \001(\0162\031.protogen.generated.Leve" +
-      "l:\0028\001B\007\n\005thing\"\025\n\004UUID\022\r\n\005value\030\001 \001(\t\"\242\001" +
-      "\n\007Address\022\014\n\004city\030\001 \001(\t\022\016\n\006street\030\002 \001(\t\022" +
-      "\021\n\thouse_num\030\003 \001(\005\022*\n\005house\030\004 \001(\0132\031.prot" +
-      "ogen.generated.HouseH\000\0222\n\tapartment\030\005 \001(" +
-      "\0132\035.protogen.generated.ApartmentH\000B\006\n\004ho" +
-      "me\">\n\004Like\022\014\n\004desc\030\001 \001(\t\022(\n\005level\030\002 \001(\0162" +
-      "\031.protogen.generated.Level\"\032\n\005House\022\021\n\tn" +
-      "um_rooms\030\001 \001(\005\"\036\n\tApartment\022\021\n\tfloor_num" +
-      "\030\001 \001(\005*<\n\005Level\022\007\n\003LOW\020\000\022\n\n\006MEDIUM\020\005\022\010\n\004" +
-      "HIGH\020\n\022\020\n\014ALIASED_HIGH\020\n\032\002\020\001b\006proto3"
+      "LevelH\000\0220\n\003s2s\030\033 \003(\0132#.protogen.generate" +
+      "d.Person.S2sEntry\032L\n\016RelationsEntry\022\013\n\003k" +
+      "ey\030\001 \001(\t\022)\n\005value\030\002 \001(\0132\032.protogen.gener" +
+      "ated.Person:\0028\001\032H\n\010BlaEntry\022\013\n\003key\030\001 \001(\t" +
+      "\022+\n\005value\030\002 \001(\0132\034.google.protobuf.Double" +
+      "Value:\0028\001\032T\n\027RelationsLikeLevelEntry\022\013\n\003" +
+      "key\030\001 \001(\t\022(\n\005value\030\002 \001(\0162\031.protogen.gene" +
+      "rated.Level:\0028\001\032*\n\010S2sEntry\022\013\n\003key\030\001 \001(\t" +
+      "\022\r\n\005value\030\002 \001(\t:\0028\001B\007\n\005thing\"\025\n\004UUID\022\r\n\005" +
+      "value\030\001 \001(\t\"\242\001\n\007Address\022\014\n\004city\030\001 \001(\t\022\016\n" +
+      "\006street\030\002 \001(\t\022\021\n\thouse_num\030\003 \001(\005\022*\n\005hous" +
+      "e\030\004 \001(\0132\031.protogen.generated.HouseH\000\0222\n\t" +
+      "apartment\030\005 \001(\0132\035.protogen.generated.Apa" +
+      "rtmentH\000B\006\n\004home\">\n\004Like\022\014\n\004desc\030\001 \001(\t\022(" +
+      "\n\005level\030\002 \001(\0162\031.protogen.generated.Level" +
+      "\"\032\n\005House\022\021\n\tnum_rooms\030\001 \001(\005\"\036\n\tApartmen" +
+      "t\022\021\n\tfloor_num\030\001 \001(\005*<\n\005Level\022\007\n\003LOW\020\000\022\n" +
+      "\n\006MEDIUM\020\005\022\010\n\004HIGH\020\n\022\020\n\014ALIASED_HIGH\020\n\032\002" +
+      "\020\001b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -8650,7 +8937,7 @@ public final class People {
     internal_static_protogen_generated_Person_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_protogen_generated_Person_descriptor,
-        new java.lang.String[] { "Id", "Name", "Email", "Address", "Likes", "Relations", "PetNames", "PrivateKey", "AgeMillis", "IsVegetarian", "HeightCm", "WeightKg", "Levels", "SocialSecurity", "MaidenName", "Uuid", "Bv", "Bla", "IdsList", "RelationsLikeLevel", "Num", "Str", "Person", "Level", "Thing", });
+        new java.lang.String[] { "Id", "Name", "Email", "Address", "Likes", "Relations", "PetNames", "PrivateKey", "AgeMillis", "IsVegetarian", "HeightCm", "WeightKg", "Levels", "SocialSecurity", "MaidenName", "Uuid", "Bv", "Bla", "IdsList", "RelationsLikeLevel", "Num", "Str", "Person", "Level", "S2S", "Thing", });
     internal_static_protogen_generated_Person_RelationsEntry_descriptor =
       internal_static_protogen_generated_Person_descriptor.getNestedTypes().get(0);
     internal_static_protogen_generated_Person_RelationsEntry_fieldAccessorTable = new
@@ -8668,6 +8955,12 @@ public final class People {
     internal_static_protogen_generated_Person_RelationsLikeLevelEntry_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_protogen_generated_Person_RelationsLikeLevelEntry_descriptor,
+        new java.lang.String[] { "Key", "Value", });
+    internal_static_protogen_generated_Person_S2sEntry_descriptor =
+      internal_static_protogen_generated_Person_descriptor.getNestedTypes().get(3);
+    internal_static_protogen_generated_Person_S2sEntry_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
+        internal_static_protogen_generated_Person_S2sEntry_descriptor,
         new java.lang.String[] { "Key", "Value", });
     internal_static_protogen_generated_UUID_descriptor =
       getDescriptor().getMessageTypes().get(1);

@@ -31,6 +31,7 @@ message Person {
     Person person = 25;
     Level level = 26;
   }
+  map<string, string> s2s = 27;
 }
 
 message UUID {
