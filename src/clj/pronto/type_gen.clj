@@ -131,17 +131,20 @@
   [^Class clazz ^Descriptors$FieldDescriptor fd ctx]
   (let [cc                          (u/field->camel-case fd)
         {:keys [key-type val-type]} (map-type-info clazz fd)
+        instrumented-ctx            (assoc ctx :instrument? true)
         key-wrapper                 (if (= String key-type)
-                      (reify w/Wrapper
-                        (wrap [_ v]
-                          ;; -> keyword
-                          `(keyword ~v))
+                                      (reify w/Wrapper
+                                        (wrap [_ v]
+                                          ;; -> keyword
+                                          `(keyword ~v))
 
-                        (unwrap [_ v]
-                          ;; -> string
-                          `(name ~v)))
-                      (w/gen-wrapper key-type ctx))
-        val-wrapper    (w/gen-wrapper val-type ctx)
+                                        (unwrap [_ v]
+                                          ;; -> string
+                                          `(name ~v)))
+                                      (w/gen-wrapper
+                                        key-type
+                                        instrumented-ctx))
+        val-wrapper    (w/gen-wrapper val-type instrumented-ctx)
         clear-method   (symbol (str ".clear" cc))
         put-all-method (symbol (str ".putAll" cc))
         m              (u/with-type-hint (gensym 'm) java.util.Map)]

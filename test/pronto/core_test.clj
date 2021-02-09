@@ -264,7 +264,14 @@
     (is (= {:bff bff :sister sister} (:relations (assoc-in w [:relations :sister] sister))))
 
     (is (= {:bff :HIGH} (:relations_like_level w)))
-    (is (= {:bff :MEDIUM} (:relations_like_level (assoc-in w [:relations_like_level :bff] :MEDIUM))))))
+    (is (= {:bff :MEDIUM} (:relations_like_level (assoc-in w [:relations_like_level :bff] :MEDIUM))))
+
+    (is (= {:hello "world"} (:s2s (assoc-in w [:s2s "hello"] "world"))))
+
+    (is (thrown? Exception (assoc-in w [:relations :sister] 1)))
+    (is (thrown? Exception (assoc-in w [:relations 123] "aaa")))
+    (is (thrown? Exception (assoc-in w [:s2s "a"] 1)))
+    (is (thrown? Exception (assoc-in w [:s2s 1] "a")))))
 
 (deftest init-with-values
   (let [p (p/proto-map People$Person
@@ -594,7 +601,8 @@
           :thing/num            Integer/TYPE
           :thing/str            String
           :thing/person         People$Person
-          :thing/level          #{"HIGH" "LOW" "MEDIUM" "ALIASED_HIGH"}})))
+          :thing/level          #{"HIGH" "LOW" "MEDIUM" "ALIASED_HIGH"}
+          :s2s                  {String String}})))
 
 (deftest remove-default-values-xf-tests
   (testing "that default values are removed when converting to a clj-map using the xf"
@@ -602,29 +610,30 @@
            (-> (p/proto-map People$Person)
                (p/proto-map->clj-map p/remove-default-values-xf)))))
   (testing "that default values are kept when converting to a clj-map"
-    (is (= {:id 0
-            :name ""
-            :email ""
-            :address nil
-            :likes []
-            :relations {}
-            :pet_names []
-            :private_key ByteString/EMPTY
-            :age_millis 0
-            :is_vegetarian false
-            :height_cm 0.0
-            :weight_kg 0.0
-            :levels []
-            :social_security nil
-            :maiden_name nil
-            :uuid nil
-            :bv nil
-            :bla {}
-            :ids_list []
+    (is (= {:id                   0
+            :name                 ""
+            :email                ""
+            :address              nil
+            :likes                []
+            :relations            {}
+            :pet_names            []
+            :private_key          ByteString/EMPTY
+            :age_millis           0
+            :is_vegetarian        false
+            :height_cm            0.0
+            :weight_kg            0.0
+            :levels               []
+            :social_security      nil
+            :maiden_name          nil
+            :uuid                 nil
+            :bv                   nil
+            :bla                  {}
+            :ids_list             []
             :relations_like_level {}
-            :num 0
-            :str ""
-            :person nil
-            :level :LOW}
+            :num                  0
+            :str                  ""
+            :person               nil
+            :level                :LOW
+            :s2s                  {}}
            (-> (p/proto-map People$Person)
                p/proto-map->clj-map)))))
