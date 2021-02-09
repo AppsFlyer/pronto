@@ -27,7 +27,9 @@
                                             :report-to-file "target/junit.xml"}
                         :java-source-paths ["src/java" "test/java"]
                         :plugins           [[lein-jmh "0.3.0"]
-                                            [lein-eftest "0.5.9"]]}
+                                            [lein-eftest "0.5.9"]
+                                            [lein-cloverage "1.2.2"]]
+                        :cloverage         {:ns-exclude-regex [#"pronto.potemkin-types"]}}
              :jmh      {:source-paths      ["benchmarks/src/clj"]
                         :java-source-paths ["benchmarks/src/java"]
                         :resource-paths    ["benchmarks/resources"]
