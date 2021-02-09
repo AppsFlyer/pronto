@@ -637,3 +637,9 @@
             :s2s                  {}}
            (-> (p/proto-map People$Person)
                p/proto-map->clj-map)))))
+
+(deftest byte-mapper-test
+  (let [person (p/proto-map People$Person :id 12345 :name "booga" :age_millis 9999999)
+        bytes  (p/proto-map->bytes person)
+        mapper (p/byte-mapper People$Person)]
+    (= person (mapper bytes))))
