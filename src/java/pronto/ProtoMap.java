@@ -3,22 +3,20 @@ package pronto;
 import clojure.lang.Keyword;
 import com.google.protobuf.GeneratedMessageV3;
 
-public interface ProtoMap {
+public interface ProtoMap<T extends GeneratedMessageV3> {
     boolean pmap_isMutable();
 
     boolean pmap_hasField(Keyword key);
 
-    ProtoMap pmap_clearField(Keyword key);
+    ProtoMap<T> pmap_clearField(Keyword key);
 
-    GeneratedMessageV3 pmap_getProto();
+    T pmap_getProto();
 
     Keyword pmap_whichOneOf(Keyword key);
 
-    //ProtoMap pmap_inflate();
-
-    //ProtoMap pmap_deflate();
-
     GeneratedMessageV3.Builder pmap_getBuilder();
 
-    ProtoMap pmap_copy(GeneratedMessageV3.Builder builder);
+    ProtoMap<T> pmap_copy(GeneratedMessageV3.Builder builder);
+
+    ProtoMap<T> remap(ProtoMapper mapper);
 }

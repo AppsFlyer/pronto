@@ -13,19 +13,19 @@
 
 
 (deftest defproto-test
-  (reflection-free? (pronto.core/defproto protogen.generated.People$Person)))
+  (reflection-free? (pronto.core/defmapper mapper [protogen.generated.People$Person])))
 
 
 (deftest p->-test
   (reflection-free?
-    (pronto.core/defproto protogen.generated.People$Person)
-    (let [m (pronto.core/proto-map protogen.generated.People$Person)]
-      (pronto.core/p-> m :id)
-      (pronto.core/p-> m :address :city)
-      (pronto.core/p->
-        m
-        (assoc :name "abc")
-        (assoc :id 213)
-        (assoc :address {:city "tel aviv"})
-        (assoc-in [:address :street] "dizengof")
-        (update :pet_names conj "booga")))))
+   (pronto.core/defmapper mapper [protogen.generated.People$Person])
+   (let [m (pronto.core/proto-map mapper protogen.generated.People$Person)]
+     (pronto.core/p-> m :id)
+     (pronto.core/p-> m :address :city)
+     (pronto.core/p->
+      m
+      (assoc :name "abc")
+      (assoc :id 213)
+      (assoc :address {:city "tel aviv"})
+      (assoc-in [:address :street] "dizengof")
+      (update :pet_names conj "booga")))))

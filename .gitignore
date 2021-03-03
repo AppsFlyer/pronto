@@ -12,3 +12,6 @@ pom.xml.asc
 .hg/
 .idea/
 .clj-kondo/.cache
+test/java/
+.cider-repl-history
+*.iml

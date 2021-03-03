@@ -4,19 +4,18 @@
             [pronto.type-gen :as t]
             [pronto.transformations :as transform]
             [pronto.utils :as u]
-            [pronto.protos]
+            [pronto.protos :refer [global-ns]]
             [pronto.runtime :as r]
             [pronto.reflection :as reflect]
             [clojure.walk :refer [macroexpand-all]]
-            [potemkin])
-  (:import [pronto ProtoMap]
+            [potemkin]
+            [clojure.string :as s])
+  (:import [pronto ProtoMap ProtoMapper]
            [com.google.protobuf Message GeneratedMessageV3
             Descriptors$FieldDescriptor
             Descriptors$Descriptor ByteString]))
 
 (def ^:dynamic *instrument?* false)
-
-(def ^:private global-ns "pronto.protos")
 
 (def ^:private default-values #{0 0.0 nil "" false {} [] (byte-array 0) ByteString/EMPTY})
 (def remove-default-values-xf
@@ -34,15 +33,17 @@
 
 
 
-(defn- resolve-loaded-class-safely [class-sym]
+(defn- resolve-loaded-class-safely [class-sym ^ProtoMapper mapper]
   (let [clazz (resolve-class class-sym)]
-    (try
-      (Class/forName (str (.replace ^String global-ns "-" "_") "." (u/class->map-class-name clazz)))
-      clazz
-      (catch ClassNotFoundException _))))
+    (when (reflect/class-defined?
+            (str
+              (u/javaify (.getNamespace mapper))
+              "."
+              (u/class->map-class-name clazz)))
+      clazz)))
 
-(defn- resolve-loaded-class [class-sym]
-  (if-let [c (resolve-loaded-class-safely class-sym)]
+(defn- resolve-loaded-class [class-sym mapper]
+  (if-let [c (resolve-loaded-class-safely class-sym mapper)]
     c
     (throw (IllegalArgumentException. (str class-sym " not loaded")))))
 
@@ -74,13 +75,18 @@
     (get m k')))
 
 
-(defmacro proto-map [clazz & kvs]
+(defn- resolve-mapper [mapper-sym] @(resolve mapper-sym))
+
+(defmacro proto-map [mapper clazz & kvs]
   {:pre [(even? (count kvs))]}
-  (let [clazz (resolve-loaded-class clazz)]
+  (let [clazz  (resolve-loaded-class clazz (resolve-mapper mapper))
+        mapper (with-meta
+                 mapper
+                 {:tag (str (u/javaify global-ns) "." (e/builder-interface-name clazz))})]
     (if (empty? kvs)
-      (symbol global-ns (str (e/empty-map-var-name clazz)))
+      `(. ~mapper ~(e/builder-interface-get-proto-method-name clazz))
       (let [chain (map (fn [[k v]] `(assoc ~k ~v)) (partition 2 kvs))]
-        `(r/p-> ~(e/emit-default-transient-ctor clazz global-ns)
+        `(r/p-> (. ~mapper ~(e/builder-interface-get-transient-method-name clazz))
                 ~@chain)))))
 
 
@@ -88,58 +94,68 @@
   (instance? ProtoMap m))
 
 
-(defmacro clj-map->proto-map [clazz m]
-  (let [clazz (resolve-loaded-class clazz)]
+(defmacro clj-map->proto-map [mapper clazz m]
+  (let [clazz  (resolve-loaded-class clazz (resolve-mapper mapper))
+        mapper (with-meta mapper {:tag (str (u/javaify global-ns) "." (e/builder-interface-name clazz))})]
     `(transform/map->proto-map
-       ~(e/emit-default-transient-ctor clazz global-ns)
+       (. ~mapper ~(e/builder-interface-get-transient-method-name clazz))
        ~m)))
 
-(defn proto->proto-map [^GeneratedMessageV3 proto]
-  (e/proto->proto-map proto))
+(defn proto->proto-map [mapper proto]
+  (e/proto->proto-map proto mapper))
 
 
 (defn proto-map->clj-map
   ([proto-map] (proto-map->clj-map proto-map (map identity)))
   ([proto-map xform]
-   (let [mapper (map (fn [[k v]]
-                       [k (cond
-                            (proto-map? v) (proto-map->clj-map v xform)
-                            (coll? v)      (let [fst (first v)]
-                                             (if (proto-map? fst)
-                                               (into []
-                                                     (map #(proto-map->clj-map  % xform))
-                                                     v)
-                                               v))
-                            :else          v)]))
+   (let [mapper
+         (map
+          (fn [[k v]]
+            [k (cond
+                 (proto-map? v) (proto-map->clj-map v xform)
+                 (coll? v)      (let [fst (first v)]
+                                  (if (proto-map? fst)
+                                    (into []
+                                          (map #(proto-map->clj-map % xform))
+                                          v)
+                                    v))
+                 :else          v)]))
          xform  (comp mapper xform)]
      (into {}
            xform
            proto-map))))
 
-(defmacro bytes->proto-map [^Class clazz ^bytes bytes]
-  (let [clazz (resolve-loaded-class clazz)
-        bytea (with-meta bytes {:tag "[B"})]
-    `(~(symbol
-         global-ns
-         (str '-> (u/class->map-class-name clazz)))
-      (~(u/static-call clazz "parseFrom")
-       ~bytea) nil)))
+(defmacro bytes->proto-map [mapper ^Class clazz ^bytes bytes]
+  (let [^ProtoMapper mapper (resolve-mapper mapper)
+        clazz               (resolve-loaded-class clazz mapper)
+        bytea               (with-meta bytes {:tag "[B"})]
+    `(. ~mapper ~(e/builder-interface-from-proto-method-name clazz)
+        (~(u/static-call clazz "parseFrom")
+         ~bytea))))
 
 (defn byte-mapper [^Class clazz]
   (let [csym (symbol (.getName clazz))]
     (eval
       `(do
-         (defproto ~csym)
+         (defmapper mapper# [~csym])
          (fn [bytes#]
-           (bytes->proto-map ~csym bytes#))))))
+           (bytes->proto-map mapper# ~csym bytes#))))))
 
 
 (defn proto-map->bytes [proto-map]
   (.toByteArray ^GeneratedMessageV3 (proto-map->proto proto-map)))
 
+
+(defn remap
+  "Remaps `proto-map` using `mapper`.
+  The returned proto-map is subject to the configuration of the new mapper."
+  [mapper proto-map]
+  (.remap ^ProtoMap proto-map mapper))
+
+
 (defn- resolve-deps
-  ([^Class clazz ctx] (first (resolve-deps clazz #{} ctx)))
-  ([^Class clazz seen-classes ctx]
+  ([ctx ^Class clazz] (first (resolve-deps ctx clazz #{})))
+  ([ctx ^Class clazz seen-classes]
    (let [fields       (t/get-fields clazz ctx)
          deps-classes (->> fields
                            (map #(t/get-class (:type-gen %)))
@@ -151,7 +167,7 @@
                (if (get seen dep-class)
                  acc
                  (let [new-deps (conj deps dep-class)
-                       [x y]    (resolve-deps dep-class seen-classes ctx)]
+                       [x y]    (resolve-deps ctx dep-class seen-classes)]
                    [(into new-deps x) y])))
              [[] seen-classes]
              deps-classes))))
@@ -225,48 +241,64 @@
 
 (defn- init-ctx [opts]
   (merge
-    {:key-name-fn   identity
-     :enum-value-fn identity
-     :iter-xf       nil
-     :ns            "pronto.protos"
-     :instrument?   *instrument?*}
-    (-> (apply hash-map opts)
-        (update' :key-name-fn eval)
-        (update' :enum-value-fn eval)
-        (update' :iter-xf resolve')
-        (update' :encoders #(into
-                              {}
-                              (map
-                                (fn [[k v]]
-                                  (let [resolved-k
-                                        (cond-> k
-                                          (symbol? k) resolve)]
-                                    [resolved-k v])))
-                              (eval %))))))
+   {:key-name-fn   identity
+    :enum-value-fn identity
+    :iter-xf       nil
+    :instrument?   *instrument?*}
+   (-> (apply hash-map opts)
+       (update' :key-name-fn eval)
+       (update' :enum-value-fn eval)
+       (update' :iter-xf resolve')
+       (update' :encoders
+                #(into
+                  {}
+                  (map
+                   (fn [[k v]]
+                     (let [resolved-k
+                           (cond-> k
+                             (symbol? k) resolve)]
+                       [resolved-k v])))
+                  (eval %))))))
 
 
 (defn dependencies [^Class clazz]
-  (set (resolve-deps clazz (init-ctx nil))))
+  (set (resolve-deps (init-ctx nil) clazz)))
 
 
 (defn depends-on? [^Class dependent ^Class dependency]
   (boolean (get (dependencies dependent) dependency)))
 
 
-(defmacro defproto [class & opts]
-  (let [ctx          (init-ctx opts)
-        ^Class clazz (resolve-class class)
-        deps         (reverse (resolve-deps clazz ctx))]
-    `(u/with-ns "pronto.protos"
-       ~@(doall
-           (for [dep deps]
-             (e/emit-proto-map dep ctx)))
+(defn- proto-ns-name [mapper-sym-name]
+  (s/join "." [global-ns *ns* mapper-sym-name]))
 
-       ~(e/emit-proto-map clazz ctx))))
+
+(defmacro defmapper [name classes & opts]
+  {:pre [(symbol? name)
+         (vector? classes)
+         (not-empty classes)
+         (even? (count opts))]}
+  (let [resolved-classes (mapv resolve classes)]
+    (when (some nil? resolved-classes)
+      (throw (ex-info "Cannot resolve classes" {:classes classes})))
+    (let [ctx           (init-ctx opts)
+          proto-ns-name (proto-ns-name name)
+          ctx           (assoc ctx :ns proto-ns-name)
+          sub-deps      (->> resolved-classes
+                             (mapcat (partial resolve-deps ctx))
+                             reverse)
+          deps          (distinct (concat sub-deps resolved-classes))]
+      `(do
+         (u/with-ns ~proto-ns-name
+           ~@(doall
+               (for [dep deps]
+                 (e/emit-proto-map dep ctx))))
+
+         ~(e/emit-mapper name deps proto-ns-name)))))
 
 
 (defn macroexpand-class [^Class clazz]
-  (macroexpand-all `(defproto ~(symbol (.getName clazz)))))
+  (macroexpand-all `(defmapper abc [~(symbol (.getName clazz))])))
 
 
 
@@ -275,5 +307,6 @@
                        pcond->
                        clear-field
                        clear-field!
-                       assoc-if])
-
+                       assoc-if]
+                      [pronto.utils
+                       ->kebab-case])

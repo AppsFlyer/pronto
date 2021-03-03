@@ -2,8 +2,8 @@
   (:refer-clojure
    :exclude [get])
   (:require [pronto.emitters :as e]
-            [pronto.utils :as u])
-
+            [pronto.utils :as u]
+            [pronto.protos :refer [global-ns]])
   (:import [com.google.protobuf GeneratedMessageV3$Builder]
            [pronto ProtoMap TransientProtoMap]))
 
@@ -26,6 +26,10 @@
 (defn assoc-if [m k v]
   (assoc-or-else m k v (fn [m _k _v] m)))
 
+
+(defn- intf-fqn [intf-name]
+  (str (u/javaify global-ns) "." intf-name))
+
 (defmacro rget [m k not-found]
   (if-not (keyword? k)
     `(clojure.core/get ~m ~k)
@@ -38,7 +42,7 @@
            (when-not (nil? ~m2)
              (~(symbol (str "." val-at-method))
               ~(with-meta m2
-                 {:tag (str "pronto.protos." intf-name)})))
+                 {:tag (intf-fqn intf-name)})))
            ~not-found)))))
 
 
@@ -48,7 +52,7 @@
         assoc-method (e/assoc-intf-name2 intf-info)]
     `(~(symbol (str "." assoc-method))
       ~(with-meta m
-         {:tag (str "pronto.protos." intf-name)})
+         {:tag (intf-fqn intf-name)})
       ~builder
       ~v)))
 
@@ -59,7 +63,7 @@
         empty-method (e/empty-intf-name2 intf-info)]
     `(~(symbol (str "." empty-method))
       ~(with-meta m
-         {:tag (str "pronto.protos." intf-name)}))))
+         {:tag (intf-fqn intf-name)}))))
 
 
 (defmacro rassoc! [m b k v]
@@ -70,7 +74,7 @@
           assoc-method (e/assoc-intf-name2 intf-info)]
       `(~(symbol (str "." assoc-method))
         ~(with-meta m
-           {:tag (str "pronto.protos." intf-name)})
+           {:tag (intf-fqn intf-name)})
         ~(u/with-type-hint
            b
            GeneratedMessageV3$Builder)
@@ -138,7 +142,7 @@
               clear-method (e/clear-intf-name2 intf-info)]
           `(~(symbol (str "." clear-method))
             ~(with-meta msym
-               {:tag (str "pronto.protos." intf-name)})
+               {:tag (intf-fqn intf-name)})
             ~(u/with-type-hint
                bsym
                GeneratedMessageV3$Builder)))))]])
