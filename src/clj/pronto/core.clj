@@ -31,15 +31,13 @@
       (throw (IllegalArgumentException. (str clazz " is not a protobuf class"))))
     clazz))
 
-
-
 (defn- resolve-loaded-class-safely [class-sym ^ProtoMapper mapper]
   (let [clazz (resolve-class class-sym)]
     (when (reflect/class-defined?
-            (str
-              (u/javaify (.getNamespace mapper))
-              "."
-              (u/class->map-class-name clazz)))
+           (str
+            (u/javaify (.getNamespace mapper))
+            "."
+            (u/class->map-class-name clazz)))
       clazz)))
 
 (defn- resolve-loaded-class [class-sym mapper]
@@ -47,35 +45,31 @@
     c
     (throw (IllegalArgumentException. (str class-sym " not loaded")))))
 
-
 (defn disable-instrumentation! []
   (alter-var-root #'*instrument?* (constantly false)))
 
-
 (defn enable-instrumentation! []
   (alter-var-root #'*instrument?* (constantly true)))
-
 
 (defn proto-map->proto
   "Returns the protobuf instance associated with the proto-map"
   [^ProtoMap m]
   (.pmap_getProto m))
 
-
 (defn has-field? [^ProtoMap m k]
   (.pmap_hasField m k))
 
-
 (defn which-one-of [^ProtoMap m k]
   (.pmap_whichOneOf m k))
-
 
 (defn one-of [^ProtoMap m k]
   (when-let [k' (which-one-of m k)]
     (get m k')))
 
-
-(defn- resolve-mapper [mapper-sym] @(resolve mapper-sym))
+(defn- resolve-mapper [mapper-sym]
+  (if (instance? ProtoMapper mapper-sym)
+    mapper-sym
+    @(resolve mapper-sym)))
 
 (defmacro proto-map [mapper clazz & kvs]
   {:pre [(even? (count kvs))]}
@@ -89,21 +83,18 @@
         `(r/p-> (. ~mapper ~(e/builder-interface-get-transient-method-name clazz))
                 ~@chain)))))
 
-
 (defn proto-map? [m]
   (instance? ProtoMap m))
-
 
 (defmacro clj-map->proto-map [mapper clazz m]
   (let [clazz  (resolve-loaded-class clazz (resolve-mapper mapper))
         mapper (with-meta mapper {:tag (str (u/javaify global-ns) "." (e/builder-interface-name clazz))})]
     `(transform/map->proto-map
-       (. ~mapper ~(e/builder-interface-get-transient-method-name clazz))
-       ~m)))
+      (. ~mapper ~(e/builder-interface-get-transient-method-name clazz))
+      ~m)))
 
 (defn proto->proto-map [mapper proto]
   (e/proto->proto-map proto mapper))
-
 
 (defn proto-map->clj-map
   ([proto-map] (proto-map->clj-map proto-map (map identity)))
@@ -133,25 +124,21 @@
         (~(u/static-call clazz "parseFrom")
          ~bytea))))
 
-(defn byte-mapper [^Class clazz]
-  (let [csym (symbol (.getName clazz))]
+(defn byte-mapper [mapper ^Class clazz]
+  (let [msym (.getSym ^ProtoMapper mapper)
+        csym (symbol (.getName clazz))]
     (eval
-      `(do
-         (defmapper mapper# [~csym])
-         (fn [bytes#]
-           (bytes->proto-map mapper# ~csym bytes#))))))
-
+     `(fn [bytes#]
+        (bytes->proto-map ~msym ~csym bytes#)))))
 
 (defn proto-map->bytes [proto-map]
   (.toByteArray ^GeneratedMessageV3 (proto-map->proto proto-map)))
-
 
 (defn remap
   "Remaps `proto-map` using `mapper`.
   The returned proto-map is subject to the configuration of the new mapper."
   [mapper proto-map]
   (.remap ^ProtoMap proto-map mapper))
-
 
 (defn- resolve-deps
   ([ctx ^Class clazz] (first (resolve-deps ctx clazz #{})))
@@ -171,7 +158,6 @@
                    [(into new-deps x) y])))
              [[] seen-classes]
              deps-classes))))
-
 
 (defn- update' [m k f]
   (if-let [v (get m k)]
@@ -209,35 +195,33 @@
       (let [[k & ks] ks
             ^Descriptors$FieldDescriptor descriptor
             (some
-              (fn [^Descriptors$FieldDescriptor d]
-                (when (= (name k) (.getName d))
-                  d))
-              descriptors)]
+             (fn [^Descriptors$FieldDescriptor d]
+               (when (= (name k) (.getName d))
+                 d))
+             descriptors)]
         (when descriptor
           (let [sub-descs (.getFields ^Descriptors$Descriptor (.getMessageType descriptor))
                 clazz     (t/field-type clazz descriptor)]
             (recur clazz sub-descs ks)))))))
-
 
 (defn schema [proto-map-or-class & ks]
   (let [clazz               (cond
                               (class? proto-map-or-class)     proto-map-or-class
                               (proto-map? proto-map-or-class) (class (proto-map->proto proto-map-or-class)))
         [clazz descriptors] (find-descriptors
-                              clazz
-                              (map :fd (t/get-fields clazz {}))
-                              ks)]
+                             clazz
+                             (map :fd (t/get-fields clazz {}))
+                             ks)]
     (when descriptors
       (into {}
             (map
-              (fn [^Descriptors$FieldDescriptor fd]
-                [(keyword
-                   (when-let [oneof (.getContainingOneof fd)]
-                     (.getName oneof))
-                   (.getName fd))
-                 (field-schema clazz fd)]))
+             (fn [^Descriptors$FieldDescriptor fd]
+               [(keyword
+                 (when-let [oneof (.getContainingOneof fd)]
+                   (.getName oneof))
+                 (.getName fd))
+                (field-schema clazz fd)]))
             descriptors))))
-
 
 (defn- init-ctx [opts]
   (merge
@@ -291,16 +275,13 @@
       `(do
          (u/with-ns ~proto-ns-name
            ~@(doall
-               (for [dep deps]
-                 (e/emit-proto-map dep ctx))))
+              (for [dep deps]
+                (e/emit-proto-map dep ctx))))
 
          ~(e/emit-mapper name deps proto-ns-name)))))
 
-
 (defn macroexpand-class [^Class clazz]
   (macroexpand-all `(defmapper abc [~(symbol (.getName clazz))])))
-
-
 
 (potemkin/import-vars [pronto.runtime
                        p->

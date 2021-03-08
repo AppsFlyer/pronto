@@ -674,10 +674,11 @@
                                (p/remap mapper-with-uuid-encoder))))))))
 
 (deftest byte-mapper-test []
-  (let [byte-mapper (p/byte-mapper People$Address)
-        address     (p/proto-map mapper People$Address
+  (let [address-class People$Address
+        byte-mapper   (p/byte-mapper mapper address-class)
+        address       (p/proto-map mapper People$Address
                                  :city "tel aviv"
                                  :street "ibn gvirol"
                                  :house_num 100)
-        bytes       (p/proto-map->bytes address)]
+        bytes         (p/proto-map->bytes address)]
     (is (= address (byte-mapper bytes)))))

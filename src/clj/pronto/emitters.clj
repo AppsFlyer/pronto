@@ -631,11 +631,14 @@
 
 (defn emit-mapper [name classes ns]
   (let [type-name  (gensym 'ProtoMapper)
-        interfaces (map (partial proto-builder-interface ns) classes)]
+        interfaces (map (partial proto-builder-interface ns) classes)
+        sym        (symbol (str *ns*) (str name))]
     `(do
        (deftype ~type-name []
 
          ProtoMapper
+
+         (getSym [this#] (quote ~sym))
 
          (getNamespace [this#] ~ns)
 
