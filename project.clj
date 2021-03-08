@@ -16,7 +16,7 @@
                                        :sign-releases false}]]
   :repositories [["releases" {:url "***REMOVED***/"}]]
 
-  :plugins [[lein-protodeps "0.1.20"]
+  :plugins [[lein-protodeps "0.1.21"]
             [lein-codox "0.10.7"]]
 
   :dependencies [[org.clojure/clojure "1.10.1"]
