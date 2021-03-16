@@ -616,11 +616,17 @@
      ~(emit-default-ctor clazz)))
 
 
+(defn emit-decls [classes]
+  `(do
+     ~@(mapcat
+        (fn [clazz]
+          [(declare-class (u/class->map-class-name clazz) 2)
+           (declare-class (u/class->transient-class-name clazz) 3)
+           (declare-empty-map clazz)])
+        classes)))
+
 (defn emit-proto-map [^Class clazz ctx]
   `(do
-     ~(declare-class (u/class->map-class-name clazz) 2)
-     ~(declare-class (u/class->transient-class-name clazz) 3)
-     ~(declare-empty-map clazz)
      ~(emit-interfaces (get-interfaces clazz ctx))
      ~(emit-interfaces [(proto-builder-interface (:ns ctx) clazz)])
      ~(emit-abstract-type clazz ctx)
