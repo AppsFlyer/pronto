@@ -274,9 +274,10 @@
           deps          (distinct (concat sub-deps resolved-classes))]
       `(do
          (u/with-ns ~proto-ns-name
+           ~(e/emit-decls deps)
            ~@(doall
-              (for [dep deps]
-                (e/emit-proto-map dep ctx))))
+               (for [dep deps]
+                 (e/emit-proto-map dep ctx))))
 
          ~(e/emit-mapper name deps proto-ns-name)))))
 

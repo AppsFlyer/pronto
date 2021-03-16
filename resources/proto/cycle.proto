@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package protogen.generated;
+
+
+message A {
+  B b = 1;
+}
+
+message B {
+  A a = 1;
+}
