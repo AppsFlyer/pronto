@@ -31,19 +31,6 @@
       (throw (IllegalArgumentException. (str clazz " is not a protobuf class"))))
     clazz))
 
-(defn- resolve-loaded-class-safely [class-sym ^ProtoMapper mapper]
-  (let [clazz (resolve-class class-sym)]
-    (when (reflect/class-defined?
-           (str
-            (u/javaify (.getNamespace mapper))
-            "."
-            (u/class->map-class-name clazz)))
-      clazz)))
-
-(defn- resolve-loaded-class [class-sym mapper]
-  (if-let [c (resolve-loaded-class-safely class-sym mapper)]
-    c
-    (throw (IllegalArgumentException. (str class-sym " not loaded")))))
 
 (defn disable-instrumentation! []
   (alter-var-root #'*instrument?* (constantly false)))
@@ -66,32 +53,51 @@
   (when-let [k' (which-one-of m k)]
     (get m k')))
 
-(defn- resolve-mapper [mapper-sym]
-  (if (instance? ProtoMapper mapper-sym)
+
+(defn- with-builder-class-hint [mapper-sym clazz]
+  (with-meta
     mapper-sym
-    @(resolve mapper-sym)))
+    {:tag (str (u/javaify global-ns) "." (e/builder-interface-name clazz))}))
+
+
+(defn- with-catch [mapper clazz & body]
+  (let [mapper (u/with-type-hint mapper ProtoMapper)]
+    `(try
+       ~@body
+       (catch Exception e#
+         ;; If the class was never loaded by the current mapper,
+         ;; rethrow with a more descriptive error message.
+         ;; We defer this level of validation by piggybacking on the try block,
+         ;; in order to avoid this code path which in practice indicates a user error.
+         (let [loaded-classes# (.getClasses ~mapper)]
+           (if (get loaded-classes# ~clazz)
+             (throw e#)
+             (throw (new IllegalArgumentException
+                         (str ~clazz " is not loaded by mapper")
+                         e#))))))))
+
 
 (defmacro proto-map [mapper clazz & kvs]
   {:pre [(even? (count kvs))]}
-  (let [clazz  (resolve-loaded-class clazz (resolve-mapper mapper))
-        mapper (with-meta
-                 mapper
-                 {:tag (str (u/javaify global-ns) "." (e/builder-interface-name clazz))})]
-    (if (empty? kvs)
-      `(. ~mapper ~(e/builder-interface-get-proto-method-name clazz))
-      (let [chain (map (fn [[k v]] `(assoc ~k ~v)) (partition 2 kvs))]
-        `(r/p-> (. ~mapper ~(e/builder-interface-get-transient-method-name clazz))
-                ~@chain)))))
+  (let [clazz  (resolve-class clazz)
+        mapper (with-builder-class-hint mapper clazz)]
+    (with-catch mapper clazz
+      (if (empty? kvs)
+        `(. ~mapper ~(e/builder-interface-get-proto-method-name clazz))
+        (let [chain (map (fn [[k v]] `(assoc ~k ~v)) (partition 2 kvs))]
+          `(r/p-> (. ~mapper ~(e/builder-interface-get-transient-method-name clazz))
+                  ~@chain))))))
 
 (defn proto-map? [m]
   (instance? ProtoMap m))
 
 (defmacro clj-map->proto-map [mapper clazz m]
-  (let [clazz  (resolve-loaded-class clazz (resolve-mapper mapper))
-        mapper (with-meta mapper {:tag (str (u/javaify global-ns) "." (e/builder-interface-name clazz))})]
-    `(transform/map->proto-map
-      (. ~mapper ~(e/builder-interface-get-transient-method-name clazz))
-      ~m)))
+  (let [clazz  (resolve-class clazz)
+        mapper (with-builder-class-hint mapper clazz)]
+    (with-catch mapper clazz
+      `(transform/map->proto-map
+         (. ~mapper ~(e/builder-interface-get-transient-method-name clazz))
+         ~m))))
 
 (defn proto->proto-map [mapper proto]
   (e/proto->proto-map proto mapper))
@@ -116,13 +122,14 @@
            xform
            proto-map))))
 
-(defmacro bytes->proto-map [mapper ^Class clazz ^bytes bytes]
-  (let [^ProtoMapper mapper (resolve-mapper mapper)
-        clazz               (resolve-loaded-class clazz mapper)
-        bytea               (with-meta bytes {:tag "[B"})]
-    `(. ~mapper ~(e/builder-interface-from-proto-method-name clazz)
-        (~(u/static-call clazz "parseFrom")
-         ~bytea))))
+(defmacro bytes->proto-map [mapper clazz bytes]
+  (let [clazz  (resolve-class clazz)
+        mapper (with-builder-class-hint mapper clazz)
+        bytea  (with-meta bytes {:tag "[B"})]
+    (with-catch mapper clazz
+      `(. ~mapper ~(e/builder-interface-from-proto-method-name clazz)
+          (~(u/static-call clazz "parseFrom")
+           ~bytea)))))
 
 (defn byte-mapper [mapper ^Class clazz]
   (let [msym (.getSym ^ProtoMapper mapper)

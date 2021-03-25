@@ -648,6 +648,9 @@
 
          (getNamespace [this#] ~ns)
 
+         (getClasses [this#]
+           #{ ~@classes })
+
          ~@(mapcat
              (fn [{:keys [name impl]}]
                (into [name] impl))
