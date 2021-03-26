@@ -5,6 +5,7 @@
   (:import
    [clojure.lang Reflector]
    [com.google.protobuf
+    ByteString
     Descriptors$Descriptor
     Descriptors$FieldDescriptor
     Descriptors$FieldDescriptor$Type
@@ -110,7 +111,12 @@
     (Class/forName (.getFullName (.getMessageType fd)))
     (condp = (.getJavaType fd)
       Descriptors$FieldDescriptor$JavaType/INT    Integer
-      Descriptors$FieldDescriptor$JavaType/STRING String)))
+      Descriptors$FieldDescriptor$JavaType/STRING String
+      Descriptors$FieldDescriptor$JavaType/BYTE_STRING ByteString
+      Descriptors$FieldDescriptor$JavaType/BOOLEAN Boolean
+      Descriptors$FieldDescriptor$JavaType/LONG Long
+      Descriptors$FieldDescriptor$JavaType/FLOAT Float
+      Descriptors$FieldDescriptor$JavaType/DOUBLE Double)))
 
 (defn get-parameterized-type [parameter-index ^Class clazz ^Descriptors$FieldDescriptor fd]
   (if (or (u/message? fd) (u/enum? fd))
@@ -198,12 +204,13 @@
 (defmethod get-type-gen
   :repeated
   [^Class clazz ^Descriptors$FieldDescriptor fd ctx]
-  (let [cc             (u/field->camel-case fd)
-        inner-type     (repeated-type-info clazz fd)
-        wrapper        (w/gen-wrapper inner-type ctx)
-        clear-method   (symbol (str ".clear" cc))
-        add-all-method (symbol (str ".addAll" cc))
-        get-list       (symbol (str ".get" cc "List"))]
+  (let [cc               (u/field->camel-case fd)
+        inner-type       (repeated-type-info clazz fd)
+        instrumented-ctx (assoc ctx :instrument? true)
+        wrapper          (w/gen-wrapper inner-type instrumented-ctx)
+        clear-method     (symbol (str ".clear" cc))
+        add-all-method   (symbol (str ".addAll" cc))
+        get-list         (symbol (str ".get" cc "List"))]
     (reify TypeGen
 
       (get-class [_] inner-type)
@@ -211,7 +218,8 @@
       (gen-setter [_ builder v]
         `(if (nil? ~v)
            (throw (u/make-type-error ~clazz ~(.getName fd) Iterable ~v))
-           (~add-all-method (~clear-method ~builder)
+           (~add-all-method
+            (~clear-method ~builder)
             (if (instance? ProntoVector ~v)
               ~v
               (TransformIterable.

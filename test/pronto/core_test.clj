@@ -598,7 +598,11 @@
           :thing/str            String
           :thing/person         People$Person
           :thing/level          #{"HIGH" "LOW" "MEDIUM" "ALIASED_HIGH"}
-          :s2s                  {String String}})))
+          :s2s                  {String String}
+          :repeated_bytes       [ByteString]
+          :repeated_bools       [Boolean]
+          :repeated_floats      [Float]
+          :repeated_doubles     [Double]})))
 
 (deftest remove-default-values-xf-tests
   (testing "that default values are removed when converting to a clj-map using the xf"
@@ -630,7 +634,11 @@
             :str                  ""
             :person               nil
             :level                :LOW
-            :s2s                  {}}
+            :s2s                  {}
+            :repeated_bytes       []
+            :repeated_bools       []
+            :repeated_doubles     []
+            :repeated_floats      []}
            (-> (p/proto-map mapper People$Person)
                p/proto-map->clj-map)))))
 

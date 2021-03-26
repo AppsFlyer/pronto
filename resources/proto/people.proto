@@ -32,6 +32,10 @@ message Person {
     Level level = 26;
   }
   map<string, string> s2s = 27;
+  repeated bytes repeated_bytes = 28;
+  repeated bool repeated_bools = 29;
+  repeated double repeated_doubles = 30;
+  repeated float repeated_floats = 31;
 }
 
 message UUID {

@@ -182,14 +182,14 @@
       (cond
         (= String clazz)
         (if-instrument ctx
-          `(= String (class ~v))
-          v
-          `(throw ~(make-error clazz ctx v)))
-        (= Boolean/TYPE clazz)
+                       `(= String (class ~v))
+                       v
+                       `(throw ~(make-error clazz ctx v)))
+        (or (= Boolean/TYPE clazz) (= Boolean clazz))
         (if-instrument ctx
-          `(= Boolean (class ~v))
-          v
-          `(throw ~(make-error clazz ctx v)))
+                       `(= Boolean (class ~v))
+                       v
+                       `(throw ~(make-error clazz ctx v)))
         (numeric-scalar? clazz)
         (let [vn              (u/with-type-hint v Number)
               boxed?          (get #{Long Integer Double Float} clazz)
@@ -201,8 +201,8 @@
                                   Float   Float/TYPE)
                                 clazz)]
           (if-instrument ctx
-            `(instance? Number ~vn)
-            `(~(symbol (str "." (str primitive-class) "Value")) ~vn)
-            `(throw ~(make-error clazz ctx v))))
+                         `(instance? Number ~vn)
+                         `(~(symbol (str "." (str primitive-class) "Value")) ~vn)
+                         `(throw ~(make-error clazz ctx v))))
         :else (throw (IllegalArgumentException. (str "don't know how to wrap " clazz)))))))
 
