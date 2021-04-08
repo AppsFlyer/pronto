@@ -141,17 +141,17 @@ When creating data you can control when exactly you stop working with maps and s
     (p/clj-map->proto-map my-mapper People$Person {:id 0 :name "hello" :address addr})))
 ```
 
-is mouthfull. While it fails for every mistake _at the pright place_ deeply nested structures creation quickly become bloated this way. 
+is mouthfull. While it fails for every mistake _at the right place_ deeply nested structures creation quickly becomes bloated this way. 
 
 However, this is also a valid code:
 
 ```clj
 (defn person-with-address [city]
-  (->> {:id 0 :name "hello" :address {:city city}})
+  (->> {:id 0 :name "hello" :address {:city city}}
        (p/clj-map->proto-map my-mapper People$Person))
 ```
 
-It has the downside that you might got either `Person` or `Address` wrong, but figuring which one is still easy enough. The point to move from plain maps into `proto-map`s can be chosen freely and should balance this tradeoff. 
+It has the downside that you might have gotten either `Person` or `Address` wrong, but figuring which one is still easy enough. The point to move from plain maps into `proto-map`s can be chosen freely and should balance this tradeoff. 
 
 
 ***
