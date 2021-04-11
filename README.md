@@ -132,6 +132,28 @@ When unset, they take on their "zero-value" rather than `null`. However, for mes
 (p/proto-map->proto my-proto-map)
 ```
 
+### Pro tip: On `proto-map`s scope
+When creating data you can control when exactly you stop working with maps and start working with `proto-map`s. A `proto-map` has the advantage of failing fast. Hence `assoc`ing an invalid field (wrong type, non-existent enum etc.) generates failures at the crime scene. This is a _good_ thing since you want to locate the bug quickly. However, this comes with the cost of creating `proto-maps`.
+
+```clj
+(defn person-with-address [city]
+  (let [addr (p/clj-map->proto-map my-mapper People$Address {:city city})]
+    (p/clj-map->proto-map my-mapper People$Person {:id 0 :name "hello" :address addr})))
+```
+
+is mouthful. While it fails for every mistake _at the right place_ deeply nested structures creation quickly becomes bloated this way. 
+
+However, this is also a valid code:
+
+```clj
+(defn person-with-address [city]
+  (->> {:id 0 :name "hello" :address {:city city}}
+       (p/clj-map->proto-map my-mapper People$Person))
+```
+
+It has the downside that you might have gotten either `Person` or `Address` wrong, but figuring which one is still easy enough. The point to move from plain maps into `proto-map`s can be chosen freely and should balance this tradeoff. 
+
+
 ***
 Please note that `proto-map`, `bytes->proto-map` and `clj-map->proto-map` are -- for efficiency reasons --  macros and not functions.
 
