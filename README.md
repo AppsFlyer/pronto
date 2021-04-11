@@ -141,7 +141,7 @@ When creating data you can control when exactly you stop working with maps and s
     (p/clj-map->proto-map my-mapper People$Person {:id 0 :name "hello" :address addr})))
 ```
 
-is mouthfull. While it fails for every mistake _at the right place_ deeply nested structures creation quickly becomes bloated this way. 
+is mouthful. While it fails for every mistake _at the right place_ deeply nested structures creation quickly becomes bloated this way. 
 
 However, this is also a valid code:
 
