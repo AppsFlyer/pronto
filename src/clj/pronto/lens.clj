@@ -1,11 +1,6 @@
 (ns pronto.lens
-  (:refer-clojure
-   :exclude [get])
-  (:require [pronto.emitters :as e]
-            [pronto.utils :as u]
-            [pronto.protos :refer [global-ns]])
-  (:import [com.google.protobuf GeneratedMessageV3$Builder]
-           [pronto ProtoMap TransientProtoMap]))
+  (:require [pronto.utils :as u])
+  (:import [pronto ProtoMap TransientProtoMap]))
 
 
 (defn clear-field [^ProtoMap m k]
@@ -27,72 +22,15 @@
   (assoc-or-else m k v (fn [m _k _v] m)))
 
 
-(defn- intf-fqn [intf-name]
-  (str (u/javaify global-ns) "." intf-name))
-
-(defmacro rget [m k not-found]
-  (if-not (keyword? k)
-    `(clojure.core/get ~m ~k)
-    (let [m2            (u/with-type-hint 'm2 ProtoMap)
-          intf-info     (e/interface-info k)
-          intf-name     (e/intf-info->intf-name intf-info)
-          val-at-method (e/val-at-intf-name2 intf-info)]
-      `(let [~m2 ~m]
-         (or
-           (when-not (nil? ~m2)
-             (~(symbol (str "." val-at-method))
-              ~(with-meta m2
-                 {:tag (intf-fqn intf-name)})))
-           ~not-found)))))
-
-
-(defn emit-assoc-method [m k v builder]
-  (let [intf-info    (e/interface-info k)
-        intf-name    (e/intf-info->intf-name intf-info)
-        assoc-method (e/assoc-intf-name2 intf-info)]
-    `(~(symbol (str "." assoc-method))
-      ~(with-meta m
-         {:tag (intf-fqn intf-name)})
-      ~builder
-      ~v)))
-
-
-(defn emit-empty-method [m k]
-  (let [intf-info    (e/interface-info k)
-        intf-name    (e/intf-info->intf-name intf-info)
-        empty-method (e/empty-intf-name2 intf-info)]
-    `(~(symbol (str "." empty-method))
-      ~(with-meta m
-         {:tag (intf-fqn intf-name)}))))
-
-
-(defmacro rassoc! [m b k v]
-  (if-not (keyword? k)
-    `(clojure.core/assoc! ~m ~k ~v)
-    (let [intf-info    (e/interface-info k)
-          intf-name    (e/intf-info->intf-name intf-info)
-          assoc-method (e/assoc-intf-name2 intf-info)]
-      `(~(symbol (str "." assoc-method))
-        ~(with-meta m
-           {:tag (intf-fqn intf-name)})
-        ~(u/with-type-hint
-           b
-           GeneratedMessageV3$Builder)
-        ~v))))
-
 
 (defmacro transform-in [m kvs]
   (let [m          (u/with-type-hint m ProtoMap)
         m2         (u/with-type-hint (gensym 'm2) TransientProtoMap)
         new-submap (gensym 'newsubmap)
         submap     (gensym 'submap)
-        kv-forest  (u/kv-forest kvs)
-        builder    (u/with-type-hint
-                     (gensym 'builder)
-                     GeneratedMessageV3$Builder)]
+        kv-forest  (u/kv-forest kvs)]
     `(let [~m2                  (if (.isMutable ~m) ~m (transient ~m))
-           was-in-transaction?# (.isInTransaction ~m2)
-           ~builder             (.pmap_getBuilder ~m2)]
+           was-in-transaction?# (.isInTransaction ~m2)]
        (.setInTransaction ~m2 true)
        ~@(doall
           (for [[k vs] kv-forest
@@ -102,11 +40,11 @@
                  ~@(doall
                     (for [leaf v]
                       (let [val-fn (eval (u/leaf-val leaf))]
-                        (val-fn m2 builder k)))))
-              `(let [~submap     (or (rget ~m2 ~k nil)
-                                     ~(emit-empty-method m2 k))
+                        (val-fn m2 k)))))
+              `(let [~submap     (or (get ~m2 ~k nil)
+                                     (.empty ~m2 ~k))
                      ~new-submap (pronto.lens/transform-in ~submap ~(u/flatten-forest v))]
-                 (rassoc! ~m2 ~builder ~k ~new-submap)))))
+                 (assoc! ~m2 ~k ~new-submap)))))
        (if was-in-transaction?#
          ~m2
          (persistent! ~m2)))))
@@ -118,43 +56,34 @@
        (map
          (fn [[ks v]]
            [ks
-            (fn [msym bsym k]
+            (fn [msym k]
               (rewrite-fn
-                `(rassoc!
-                   ~msym ~bsym ~k ~v)))]))))
+                `(assoc! ~msym ~k ~v)))]))))
 
 
 (defn- update-transform-kv [rewrite-fn ks f args]
   [[ks
-    (fn [msym bsym k]
+    (fn [msym k]
       (rewrite-fn
-        `(let [x# (rget ~msym ~k nil)
+        `(let [x# (get ~msym ~k nil)
                x# (~f x# ~@args)]
-           (rassoc! ~msym ~bsym ~k x#))))]])
+           (assoc! ~msym ~k x#))))]])
 
 
 (defn- clear-field-transform-kv [rewrite-fn k]
   [[[k]
-    (fn [msym bsym k]
+    (fn [msym k]
       (rewrite-fn
-        (let [intf-info    (e/interface-info k)
-              intf-name    (e/intf-info->intf-name intf-info)
-              clear-method (e/clear-intf-name2 intf-info)]
-          `(~(symbol (str "." clear-method))
-            ~(with-meta msym
-               {:tag (intf-fqn intf-name)})
-            ~(u/with-type-hint
-               bsym
-               GeneratedMessageV3$Builder)))))]])
+        `(clear-field! ~msym ~k)))]])
 
 (defn- assoc-if-transform-kvs [rewrite-fn k v]
   [[[k]
-    (fn [msym bsym k]
+    (fn [msym k]
       (let [v2 (gensym 'v)]
         (rewrite-fn
           `(let [~v2 ~v]
              (if (some? ~v2)
-               (rassoc! ~msym ~bsym ~k ~v2)
+               (assoc! ~msym ~k ~v2)
                ~msym)))))]])
 
 (defn- assoc-args->assoc-in-args [k v kvs]
@@ -245,7 +174,7 @@
                 (clear-field-transform-kv rewrite-fn k))
               (let [[f & args] form]
                 [[[(keyword (gensym))]
-                  (fn [msym _bsym _]
+                  (fn [msym _]
                     (rewrite-fn
                       (if args
                         `(~f ~msym ~@args)
@@ -275,7 +204,7 @@
                (rewrite-transformation g subform)
                (wrap-pred
                  (cond
-                   (keyword? x)            `(rget ~g ~x ~(second subform))
+                   (keyword? x)            `(get ~g ~x ~(second subform))
                    (= 'get (fn-name x))    `(p-> ~g ~(second x))
                    (= 'get-in (fn-name x)) `(p-> ~g ~@(second x))
                    :else                   `(-> ~g ~x)))))))))
@@ -294,7 +223,7 @@
                       (map
                         (fn [[test form]]
                           (let [form (if (keyword? form)
-                                       `(rget ~form nil)
+                                       `(get ~form nil)
                                        form)]
                             (vary-meta
                               form
