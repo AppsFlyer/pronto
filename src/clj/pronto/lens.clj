@@ -1,4 +1,4 @@
-(ns pronto.runtime
+(ns pronto.lens
   (:refer-clojure
    :exclude [get])
   (:require [pronto.emitters :as e]
@@ -9,14 +9,14 @@
 
 
 (defn clear-field [^ProtoMap m k]
-  (if (.pmap_isMutable m)
+  (if (.isMutable m)
     (throw (IllegalAccessError. "cannot clear-field on a transient"))
-    (.pmap_clearField m k)))
+    (.clearField m k)))
 
 (defn clear-field! [^ProtoMap m k]
-  (if-not (.pmap_isMutable m)
+  (if-not (.isMutable m)
     (throw (IllegalAccessError. "cannot clear-field! on a non-transient"))
-    (.pmap_clearField m k)))
+    (.clearField m k)))
 
 (defn assoc-or-else [m k v f]
   (if (some? v)
@@ -90,23 +90,23 @@
         builder    (u/with-type-hint
                      (gensym 'builder)
                      GeneratedMessageV3$Builder)]
-    `(let [~m2                  (if (.pmap_isMutable ~m) ~m (transient ~m))
-           was-in-transaction?# (.pmap_isInTransaction ~m2)
+    `(let [~m2                  (if (.isMutable ~m) ~m (transient ~m))
+           was-in-transaction?# (.isInTransaction ~m2)
            ~builder             (.pmap_getBuilder ~m2)]
-       (.pmap_setInTransaction ~m2 true)
+       (.setInTransaction ~m2 true)
        ~@(doall
-           (for [[k vs] kv-forest
-                 v      (partition-by u/leaf? vs)]
-             (if (u/leaf? (first v))
-               `(do
-                  ~@(doall
-                      (for [leaf v]
-                        (let [val-fn (eval (u/leaf-val leaf))]
-                          (val-fn m2 builder k)))))
-               `(let [~submap     (or (rget ~m2 ~k nil)
-                                      ~(emit-empty-method m2 k))
-                      ~new-submap (pronto.runtime/transform-in ~submap ~(u/flatten-forest v))]
-                  (rassoc! ~m2 ~builder ~k ~new-submap)))))
+          (for [[k vs] kv-forest
+                v      (partition-by u/leaf? vs)]
+            (if (u/leaf? (first v))
+              `(do
+                 ~@(doall
+                    (for [leaf v]
+                      (let [val-fn (eval (u/leaf-val leaf))]
+                        (val-fn m2 builder k)))))
+              `(let [~submap     (or (rget ~m2 ~k nil)
+                                     ~(emit-empty-method m2 k))
+                     ~new-submap (pronto.lens/transform-in ~submap ~(u/flatten-forest v))]
+                 (rassoc! ~m2 ~builder ~k ~new-submap)))))
        (if was-in-transaction?#
          ~m2
          (persistent! ~m2)))))

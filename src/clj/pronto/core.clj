@@ -5,7 +5,7 @@
             [pronto.transformations :as transform]
             [pronto.utils :as u]
             [pronto.protos :refer [global-ns]]
-            [pronto.runtime :as r]
+            [pronto.lens :as lens]
             [pronto.reflection :as reflect]
             [clojure.walk :refer [macroexpand-all]]
             [potemkin]
@@ -22,9 +22,7 @@
   (remove (fn [[_ v]] (contains? default-values v))))
 
 (defn- resolve-class [class-sym]
-  (let [clazz (if (class? class-sym) class-sym (resolve class-sym))]
-    (when-not clazz
-      (throw (IllegalArgumentException. (str "Cannot resolve \"" class-sym "\". Did you forget to import it?"))))
+  (when-let [clazz (if (class? class-sym) class-sym (resolve class-sym))]
     (when-not (instance? Class clazz)
       (throw (IllegalArgumentException. (str class-sym " is not a class"))))
     (when-not (.isAssignableFrom Message ^Class clazz)
@@ -47,17 +45,12 @@
   (.pmap_hasField m k))
 
 (defn which-one-of [^ProtoMap m k]
-  (.pmap_whichOneOf m k))
+  (.whichOneOf m k))
 
 (defn one-of [^ProtoMap m k]
   (when-let [k' (which-one-of m k)]
     (get m k')))
 
-
-(defn- with-builder-class-hint [mapper-sym clazz]
-  (with-meta
-    mapper-sym
-    {:tag (str (u/javaify global-ns) "." (e/builder-interface-name clazz))}))
 
 
 (defn- with-catch [mapper clazz & body]
@@ -70,7 +63,7 @@
          ;; We defer this level of validation by piggybacking on the try block,
          ;; in order to avoid this code path which in practice indicates a user error.
          (let [loaded-classes# (.getClasses ~mapper)]
-           (if (get loaded-classes# ~clazz)
+           (if (and ~clazz (get loaded-classes# ~clazz))
              (throw e#)
              (throw (new IllegalArgumentException
                          (str ~clazz " is not loaded by mapper")
@@ -79,24 +72,30 @@
 
 (defmacro proto-map [mapper clazz & kvs]
   {:pre [(even? (count kvs))]}
-  (let [clazz  (resolve-class clazz)
-        mapper (with-builder-class-hint mapper clazz)]
-    (with-catch mapper clazz
+  (let [resolved-class (resolve-class clazz)
+        mapper         (e/with-builder-class-hint mapper resolved-class)]
+    (with-catch mapper resolved-class
       (if (empty? kvs)
-        `(. ~mapper ~(e/builder-interface-get-proto-method-name clazz))
+        (if resolved-class
+          `(. ~mapper ~(e/builder-interface-get-proto-method-name resolved-class))
+          `(. ~mapper ~e/get-proto-method ~clazz))
         (let [chain (map (fn [[k v]] `(assoc ~k ~v)) (partition 2 kvs))]
-          `(r/p-> (. ~mapper ~(e/builder-interface-get-transient-method-name clazz))
-                  ~@chain))))))
+          `(lens/p-> ~(if resolved-class
+                        `(. ~mapper ~(e/builder-interface-get-transient-method-name resolved-class))
+                        `(. ~mapper ~e/get-transient-method ~clazz))
+                     ~@chain))))))
 
 (defn proto-map? [m]
   (instance? ProtoMap m))
 
 (defmacro clj-map->proto-map [mapper clazz m]
-  (let [clazz  (resolve-class clazz)
-        mapper (with-builder-class-hint mapper clazz)]
-    (with-catch mapper clazz
+  (let [resolved-class (resolve-class clazz)
+        mapper         (e/with-builder-class-hint mapper resolved-class)]
+    (with-catch mapper resolved-class
       `(transform/map->proto-map
-         (. ~mapper ~(e/builder-interface-get-transient-method-name clazz))
+         ~(if resolved-class
+            `(. ~mapper ~(e/builder-interface-get-transient-method-name resolved-class))
+            `(. ~mapper ~e/get-transient-method ~clazz))
          ~m))))
 
 (defn proto->proto-map [mapper proto]
@@ -123,20 +122,14 @@
            proto-map))))
 
 (defmacro bytes->proto-map [mapper clazz bytes]
-  (let [clazz  (resolve-class clazz)
-        mapper (with-builder-class-hint mapper clazz)
-        bytea  (with-meta bytes {:tag "[B"})]
-    (with-catch mapper clazz
-      `(. ~mapper ~(e/builder-interface-from-proto-method-name clazz)
-          (~(u/static-call clazz "parseFrom")
-           ~bytea)))))
+  (if-let [resolved-class  (resolve-class clazz)]
+    (let [mapper (e/with-builder-class-hint mapper resolved-class)]
+      (with-catch mapper clazz
+        `(. ~mapper ~(e/builder-interface-from-bytes-method-name resolved-class) ~bytes)))
+    `(. ~(u/with-type-hint mapper ProtoMapper)
+        ~e/from-bytes-method
+        ~clazz ~bytes)))
 
-(defn byte-mapper [mapper ^Class clazz]
-  (let [msym (.getSym ^ProtoMapper mapper)
-        csym (symbol (.getName clazz))]
-    (eval
-     `(fn [bytes#]
-        (bytes->proto-map ~msym ~csym bytes#)))))
 
 (defn proto-map->bytes [proto-map]
   (.toByteArray ^GeneratedMessageV3 (proto-map->proto proto-map)))
@@ -291,7 +284,7 @@
 (defn macroexpand-class [^Class clazz]
   (macroexpand-all `(defmapper abc [~(symbol (.getName clazz))])))
 
-(potemkin/import-vars [pronto.runtime
+(potemkin/import-vars [pronto.lens
                        p->
                        pcond->
                        clear-field
