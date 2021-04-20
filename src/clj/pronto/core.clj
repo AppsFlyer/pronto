@@ -6,14 +6,12 @@
             [pronto.utils :as u]
             [pronto.protos :refer [global-ns]]
             [pronto.lens :as lens]
-            [pronto.reflection :as reflect]
+            [pronto.schema :as schema]
             [clojure.walk :refer [macroexpand-all]]
             [potemkin]
             [clojure.string :as s])
   (:import [pronto ProtoMap ProtoMapper]
-           [com.google.protobuf Message GeneratedMessageV3
-            Descriptors$FieldDescriptor
-            Descriptors$Descriptor ByteString]))
+           [com.google.protobuf Message GeneratedMessageV3 ByteString]))
 
 (def ^:dynamic *instrument?* false)
 
@@ -170,58 +168,13 @@
     s))
 
 
-(defn- type-info [^Class clazz]
-  (cond
-    (reflect/enum? clazz) (into #{} (map str) (reflect/enum-values clazz))
-    :else                 clazz))
-
-
-(defn- field-schema [^Class clazz ^Descriptors$FieldDescriptor descriptor]
-  (cond
-    (.isMapField descriptor) (let [{:keys [key-type val-type]} (t/map-type-info clazz descriptor)]
-                               {(type-info key-type)
-                                (type-info val-type)})
-    (.isRepeated descriptor) [(type-info (t/repeated-type-info clazz descriptor))]
-    :else                    (let [^Class x (t/field-type clazz descriptor)]
-                               (type-info x))))
-
-
-(defn- find-descriptors [clazz descriptors ks]
-  (loop [clazz       clazz
-         descriptors descriptors
-         ks          ks]
-    (if-not (seq ks)
-      [clazz descriptors]
-      (let [[k & ks] ks
-            ^Descriptors$FieldDescriptor descriptor
-            (some
-             (fn [^Descriptors$FieldDescriptor d]
-               (when (= (name k) (.getName d))
-                 d))
-             descriptors)]
-        (when descriptor
-          (let [sub-descs (.getFields ^Descriptors$Descriptor (.getMessageType descriptor))
-                clazz     (t/field-type clazz descriptor)]
-            (recur clazz sub-descs ks)))))))
 
 (defn schema [proto-map-or-class & ks]
-  (let [clazz               (cond
-                              (class? proto-map-or-class)     proto-map-or-class
-                              (proto-map? proto-map-or-class) (class (proto-map->proto proto-map-or-class)))
-        [clazz descriptors] (find-descriptors
-                             clazz
-                             (map :fd (t/get-fields clazz {}))
-                             ks)]
-    (when descriptors
-      (into {}
-            (map
-             (fn [^Descriptors$FieldDescriptor fd]
-               [(keyword
-                 (when-let [oneof (.getContainingOneof fd)]
-                   (.getName oneof))
-                 (.getName fd))
-                (field-schema clazz fd)]))
-            descriptors))))
+  (schema/schema
+    (cond
+      (class? proto-map-or-class)     proto-map-or-class
+      (proto-map? proto-map-or-class) (class (proto-map->proto proto-map-or-class)))
+    ks))
 
 (defn- init-ctx [opts]
   (merge
