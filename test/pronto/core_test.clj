@@ -675,18 +675,23 @@
       (is (= {:value (str address-id)}
              (:address_id (p/remap mapper-without-uuid-encoder address)))))
 
-    (testing "remapping twice work and we're back to a Java UUID instance"
+    (testing "remapping twice works and we're back to a Java UUID instance"
       (is (= address-id
              (:address_id (->> address
                                (p/remap mapper-without-uuid-encoder)
                                (p/remap mapper-with-uuid-encoder))))))))
 
-(deftest byte-mapper-test []
+(deftest free-vars-test []
   (let [address-class People$Address
-        byte-mapper   (p/byte-mapper mapper address-class)
+        city          "tel aviv"
+        street        "ibn gvirol"
+        house-num     100
         address       (p/proto-map mapper People$Address
-                                   :city "tel aviv"
-                                   :street "ibn gvirol"
-                                   :house_num 100)
-        bytes         (p/proto-map->bytes address)]
-    (is (= address (byte-mapper bytes)))))
+                                   :city city
+                                   :street street
+                                   :house_num house-num)]
+    (is (= (p/proto-map mapper People$Address) (p/proto-map mapper address-class)))
+    (is (= address (p/proto-map mapper address-class :city city :street street :house_num house-num)))
+    (is (= address (p/bytes->proto-map mapper address-class (p/proto-map->bytes address))))
+    (is (= (p/clj-map->proto-map mapper People$Address address)
+           (p/clj-map->proto-map mapper address-class address)))))

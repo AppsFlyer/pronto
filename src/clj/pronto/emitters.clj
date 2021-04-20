@@ -144,6 +144,12 @@
          ~@(for [intf new-interfaces]
              (:intf intf))))))
 
+
+(def from-bytes-method 'fromBytes)
+(def get-transient-method 'getTransient)
+(def get-proto-method 'getProto)
+
+
 (defn builder-interface-name [^Class clazz]
   (symbol (str "Builder_" (u/sanitized-class-name clazz))))
 
@@ -153,12 +159,16 @@
 (defn builder-interface-from-proto-method-name [^Class clazz]
   (symbol (str "fromProto_" (u/sanitized-class-name clazz))))
 
+(defn builder-interface-from-bytes-method-name [^Class clazz]
+  (symbol (str from-bytes-method "_" (u/sanitized-class-name clazz))))
+
 (defn builder-interface-get-transient-method-name [^Class clazz]
   (symbol (str "getTransient_" (u/sanitized-class-name clazz))))
 
 (defn- proto-builder-interface [ns ^Class clazz]
   (let [intf-name     (builder-interface-name clazz)
-        proto-obj-sym (gensym 'pos)]
+        proto-obj-sym (gensym 'pos)
+        bytea         (gensym 'bytea)]
     {:name (symbol (str (u/javaify global-ns) "." intf-name))
      :intf
      `(definterface ~intf-name
@@ -169,7 +179,10 @@
          [~'proto-obj])
 
         (~(builder-interface-get-transient-method-name clazz)
-         []))
+         [])
+
+        (~(builder-interface-from-bytes-method-name clazz)
+         [~'bytea]))
      :impl
      `((~(builder-interface-get-proto-method-name clazz)
         [~'_]
@@ -183,7 +196,13 @@
 
        (~(builder-interface-get-transient-method-name clazz)
         [~'_]
-        ~(emit-default-transient-ctor clazz ns)))}))
+        ~(emit-default-transient-ctor clazz ns))
+
+       (~(builder-interface-from-bytes-method-name clazz)
+        [this# ~bytea]
+        (. this# ~(builder-interface-from-proto-method-name clazz)
+          (~(u/static-call clazz "parseFrom")
+           ~(with-meta bytea {:tag "[B"})))))}))
 
 
 (defn- delegate-method [^Method method delegate-sym]
@@ -209,36 +228,39 @@
              ;; interface - need to expand to super-interfaces
              (filter #(= interface (.getDeclaringClass ^Method %)))
              (map #(delegate-method
-                     ^Method %
-                     (u/with-type-hint
-                       delegate-sym
-                       interface)))))))
+                    ^Method %
+                    (u/with-type-hint
+                      delegate-sym
+                      interface)))))))
 
 
-(defn emit-fields-case [fields k throw-error? f]
-  (let [branches  (interleave
-                    (map :kw fields)
-                    (map f fields))
-        not-found (if-not throw-error? nil `(throw (IllegalArgumentException. (str "No such field " ~k))))]
-    (if (<= (count fields) 8)
+(defn- emit-case [k branches not-found]
+  (let [clauses (apply concat branches)]
+    (if (<= (count branches) 8)
       `(condp identical? ~k
-         ~@branches
+         ~@clauses
          ~not-found)
       `(case ~k
-         ~@branches
+         ~@clauses
          ~not-found))))
 
 
-(defn emit-assoc [fields this builder k v]
+(defn- emit-fields-case [fields k throw-error? f]
+  (let [branches  (map (juxt :kw f) fields)
+        not-found (if-not throw-error? nil `(throw (IllegalArgumentException. (str "No such field " ~k))))]
+    (emit-case k branches not-found)))
+
+
+(defn- emit-assoc [fields this builder k v]
   (emit-fields-case
-    fields k true
-    (fn [fd]
-      `(~(symbol (str "."
-                      (assoc-intf-name2
-                        (fd->interface-info fd))))
-        ~this
-        ~builder
-        ~v))))
+   fields k true
+   (fn [fd]
+     `(~(symbol (str "."
+                     (assoc-intf-name2
+                      (fd->interface-info fd))))
+       ~this
+       ~builder
+       ~v))))
 
 (defn direct-dispath-call [fd this-sym]
   `(~(symbol (str "." (val-at-intf-name2
@@ -329,9 +351,9 @@
                 k    (gensym 'k)
                 v    (gensym 'v)]
             `(~'assoc [~this ~k ~v]
-              (let [~builder-sym (.pmap_getBuilder ~this)]
-                ~(emit-assoc fields this builder-sym k v)
-                (.pmap_copy ~this ~builder-sym)))))
+                      (let [~builder-sym (.pmap_getBuilder ~this)]
+                        ~(emit-assoc fields this builder-sym k v)
+                        (.copy ~this ~builder-sym)))))
 
        (def-abstract-type ~(u/class->abstract-map-class-name clazz)
 
@@ -340,18 +362,18 @@
          (~'pmap_getProto [this#] ~pojo)
 
          ~(let [k (gensym 'k)]
-            `(~'pmap_clearField [this# ~k]
-              (let [~builder-sym (.pmap_getBuilder this#)]
-                ~(emit-clear fields builder-sym k)
-                (.pmap_copy this# ~builder-sym))))
+            `(~'clearField [this# ~k]
+                           (let [~builder-sym (.pmap_getBuilder this#)]
+                             ~(emit-clear fields builder-sym k)
+                             (.copy this# ~builder-sym))))
 
          ~(let [k (gensym 'k)]
             `(~'pmap_hasField [this# ~k]
-              ~(emit-has-field? fields o k)))
+                              ~(emit-has-field? fields o k)))
 
          ~(let [k (gensym 'k)]
-            `(~'pmap_whichOneOf [this# ~k]
-              ~(emit-which-one-of fields o k)))
+            `(~'whichOneOf [this# ~k]
+                                ~(emit-which-one-of fields o k)))
 
          (containsKey [this# k#]
                       (boolean (get ~(into #{} (map :kw fields))
@@ -380,14 +402,13 @@
          (invoke [this# arg1# not-found#]
                  (pronto.PersistentMapHelpers/invoke this# arg1# not-found#))
 
-
          ~@(implement-message-or-builder-interface clazz o)
 
          ~@(mapcat
-             (fn [{:keys [name impl]}]
-               (into [(symbol name)]
-                     impl))
-             interfaces)))))
+            (fn [{:keys [name impl]}]
+              (into [(symbol name)]
+                    impl))
+            interfaces)))))
 
 (defn- abstract-type-sym [ctx sym-name]
   (symbol #_(:ns ctx)
@@ -410,11 +431,11 @@
 
        pronto.ProtoMap
 
-       (~'pmap_isMutable [this#] false)
+       (~'isMutable [this#] false)
 
        (pmap_getBuilder [this#] (.toBuilder ~o))
 
-       (pmap_copy [this# builder#] (new ~wrapper-class-name (.build builder#) ~md))
+       (copy [this# builder#] (new ~wrapper-class-name (.build builder#) ~md))
 
        (remap [this# ~mapper]
               ~(let [mapper (with-meta mapper
@@ -546,19 +567,19 @@
 
        pronto.ProtoMap
 
-       (~'pmap_isMutable [this#] true)
+       (~'isMutable [this#] true)
 
        (pmap_getBuilder [this#] ~o)
 
-       (pmap_copy [this# builder#]
+       (copy [this# builder#]
                   (set! ~o builder#)
                   this#)
 
        pronto.TransientProtoMap
 
-       (pmap_setInTransaction [this# v#] (set! ~'in-transaction? v#))
+       (setInTransaction [this# v#] (set! ~'in-transaction? v#))
 
-       (pmap_isInTransaction [this#] ~'in-transaction?)
+       (isInTransaction [this#] ~'in-transaction?)
 
        clojure.lang.ITransientMap
 
@@ -635,16 +656,31 @@
      ~(emit-empty-map clazz)
      ~(emit-builder clazz)))
 
+
+(defn with-builder-class-hint [mapper-sym clazz]
+  (with-meta
+    mapper-sym
+    {:tag (if clazz
+            (str (u/javaify global-ns) "." (builder-interface-name clazz))
+            (.getName ProtoMapper))}))
+
+
 (defn emit-mapper [name classes ns]
-  (let [type-name  (gensym 'ProtoMapper)
-        interfaces (map (partial proto-builder-interface ns) classes)
-        sym        (symbol (str *ns*) (str name))]
+  (let [type-name    (symbol (str 'ProtoMapper '_ (s/replace *ns* \. \_) '_ name))
+        interfaces   (map (partial proto-builder-interface ns) classes)
+        sym          (symbol (str *ns*) (str name))
+        clazz        (gensym 'clazz)
+        this         (gensym 'this)
+        bytea        (gensym 'bytea)
+        emit-methods (fn [f]
+                       (emit-case
+                         clazz
+                         (map (juxt identity f) classes)
+                         `(throw (new IllegalArgumentException (str "unknown " ~clazz)))))]
     `(do
-       (deftype ~type-name []
+       (defrecord ~type-name []
 
          ProtoMapper
-
-         (getSym [this#] (quote ~sym))
 
          (getNamespace [this#] ~ns)
 
@@ -654,6 +690,25 @@
          ~@(mapcat
              (fn [{:keys [name impl]}]
                (into [name] impl))
-             interfaces))
+             interfaces)
 
+         (~from-bytes-method [~this ~clazz ~bytea]
+          ~(emit-methods
+             (fn [dep-class]
+               `(. ~this
+                   ~(builder-interface-from-bytes-method-name dep-class)
+                   ~bytea))))
+
+         (~get-transient-method [~this ~clazz]
+          ~(emit-methods
+             (fn [dep-class]
+               `(. ~this
+                   ~(builder-interface-get-transient-method-name dep-class)))))
+
+         (~get-proto-method [~this ~clazz]
+          ~(emit-methods
+             (fn [dep-class]
+               `(. ~this
+                   ~(builder-interface-get-proto-method-name dep-class))))))
+       
        (def ~name (new ~type-name)))))
