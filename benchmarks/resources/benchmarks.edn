@@ -44,7 +44,18 @@
    :args [:jmh/blackhole]
    :void true}
 
+  {:name :rget30
+   :fn   pronto.jmh.benchmarks/rget30
+   :args [:jmh/blackhole]
+   :void true}
+
+  {:name :rget50
+   :fn   pronto.jmh.benchmarks/rget50
+   :args [:jmh/blackhole]
+   :void true}
+
   ;;;
+
 
   {:name :assocs10_1
    :fn   pronto.jmh.benchmarks/assocs10_1
@@ -156,6 +167,5 @@
 
  :options
  {:jmh/default {:output-time-unit :us
-                :fork             {:jvm {:append-args ["-Xmx8G" "-Dclojure.compiler.direct-linking=true" #_"-XX:+UseShenandoahGC"  "-XX:+UseParallelGC"]}}}
-  }}
+                :fork             {:jvm {:append-args ["-Xmx8G" "-Dclojure.compiler.direct-linking=true" #_"-XX:+UseShenandoahGC"  "-XX:+UseParallelGC"]}}}}}
 

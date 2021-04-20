@@ -5,16 +5,23 @@
             Benchmarks$Strings5
             Benchmarks$Strings10
             Benchmarks$Strings20
-            Benchmarks$Strings30]))
+            Benchmarks$Strings30
+            Benchmarks$Strings50]))
 
 (p/disable-instrumentation!)
 
-(def ^String the-val "hello world")
+(def the-val "hello world")
 
 
 (def clj-map20 (into {} (map (fn [i] [(keyword (str "field_" i)) the-val]) (range 0 20))))
-(p/defproto Benchmarks$Strings20)
-(def proto-map20 (p/clj-map->proto-map Benchmarks$Strings20 clj-map20))
+
+(p/defmapper mapper [Benchmarks$Strings5
+                     Benchmarks$Strings10
+                     Benchmarks$Strings20
+                     Benchmarks$Strings30
+                     Benchmarks$Strings50])
+
+(def proto-map20 (p/clj-map->proto-map mapper Benchmarks$Strings20 clj-map20))
 
 (defn assocs20_1 [^Blackhole bh field]
   (.consume bh ^Object (assoc proto-map20 field the-val) #_(p/p-> proto-map20 (assoc :field_0 the-val))))
@@ -70,8 +77,7 @@
 ;;;;;;;;;
 
 (def clj-map10 (into {} (map (fn [i] [(keyword (str "field_" i)) the-val]) (range 0 10))))
-(p/defproto Benchmarks$Strings10)
-(def proto-map10 (p/clj-map->proto-map Benchmarks$Strings10 clj-map10))
+(def proto-map10 (p/clj-map->proto-map mapper Benchmarks$Strings10 clj-map10))
 
 (defn assocs10_1 [^Blackhole bh field]
   (.consume bh ^Object (assoc proto-map10 field the-val)))
@@ -129,8 +135,7 @@
 ;;;;;;;;;
 
 (def clj-map5 (into {} (map (fn [i] [(keyword (str "field_" i)) the-val]) (range 0 5))))
-(p/defproto Benchmarks$Strings5)
-(def proto-map5 (p/clj-map->proto-map Benchmarks$Strings5 clj-map5))
+(def proto-map5 (p/clj-map->proto-map mapper Benchmarks$Strings5 clj-map5))
 
 (defn assocs5_1 [^Blackhole bh field]
   (.consume bh ^Object (assoc proto-map5 field the-val)))
@@ -172,6 +177,24 @@
 (defn rget5 [^Blackhole bh]
   (.consume bh ^Object (p/p-> proto-map5 :field_1)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(def clj-map30 (into {} (map (fn [i] [(keyword (str "field_" i)) the-val]) (range 0 30))))
+(def proto-map30 (p/clj-map->proto-map mapper Benchmarks$Strings30 clj-map30))
+
+
+(defn rget30 [^Blackhole bh]
+  (.consume bh ^Object (p/p-> proto-map30 :field_1)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def clj-map50 (into {} (map (fn [i] [(keyword (str "field_" i)) the-val]) (range 0 50))))
+(def proto-map50 (p/clj-map->proto-map mapper Benchmarks$Strings50 clj-map50))
+
+
+(defn rget50 [^Blackhole bh]
+  (.consume bh ^Object (p/p-> proto-map50 :field_1)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn proto-map [^Blackhole bh]
-  (.consume bh ^Object (p/proto-map Benchmarks$Strings20)))
+  (.consume bh ^Object (p/proto-map mapper Benchmarks$Strings20)))
