@@ -324,6 +324,19 @@
          (throw (IllegalArgumentException. (str "Cannot check which one-of for " ~k)))))))
 
 
+(defn- emit-empty [clazz fields k]
+  (emit-fields-case
+    fields
+    k
+    true
+    (fn [field]
+      (let [^Descriptors$FieldDescriptor fd (:fd field)]
+        (when (and (u/message? fd)
+                 (not (.isMapField fd))
+                 (not (.isRepeated fd)))
+          (empty-map-var-name (t/field-type clazz fd)))))))
+
+
 (defprotocol ProtoMapBuilder
   (proto->proto-map [this mapper]))
 
@@ -374,6 +387,10 @@
          ~(let [k (gensym 'k)]
             `(~'whichOneOf [this# ~k]
                                 ~(emit-which-one-of fields o k)))
+
+         ~(let [k (gensym 'k)]
+            `(~'empty [this# ~k]
+              ~(emit-empty clazz fields k)))
 
          (containsKey [this# k#]
                       (boolean (get ~(into #{} (map :kw fields))

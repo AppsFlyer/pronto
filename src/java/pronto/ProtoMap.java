@@ -26,4 +26,6 @@ public interface ProtoMap<T extends GeneratedMessageV3> {
     ProtoMap<T> copy(GeneratedMessageV3.Builder builder);
 
     ProtoMap<T> remap(ProtoMapper mapper);
+
+    ProtoMap<?> empty(Keyword keyword);
 }
