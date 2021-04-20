@@ -6,7 +6,8 @@
    [com.google.protobuf
     Descriptors$FieldDescriptor
     Descriptors$GenericDescriptor
-    Descriptors$FieldDescriptor$Type]))
+    Descriptors$FieldDescriptor$Type
+    GeneratedMessageV3]))
 
 
 (defn javaify [s] (s/replace s "-" "_"))
@@ -117,19 +118,19 @@
       `(do
          (create-ns (quote ~ns-name-sym))
          (in-ns (quote ~ns-name-sym))
-         ~@(for [[^Symbol class-sym ^Class clazz]
+         ~@(for [[_ ^Class clazz]
                  (ns-imports orig-ns)
-                 :let  [class-name (.getName clazz)
-                        package-prefix (subs class-name 0
-                                             (- (count class-name)
-                                                (count (name class-sym))
-                                                1))]
+                 :let  [class-name (.getName clazz)]
                  :when (not (get existing-classes clazz))
+                 ;; No point to import POJO classes, and this can also
+                 ;; lead to conflicts if 2 namespaces import 2 classes
+                 ;; with the same name but different packages.
+                 :when (not= (.getSuperclass clazz) GeneratedMessageV3)
                  ;; don't import generated classes created by the lib, as this might
                  ;; lead to collision between different mappers when importing
                  ;; these classes into the global ns
                  :when (not (s/starts-with? class-name (javaify global-ns)))]
-             `(import '[~(symbol package-prefix) ~class-sym]))
+             `(import ~(symbol (.getName clazz))))
          ;; clojure.core is not auto-loaded so load it explicitly
          ;; in order for any of its vars to be resolvable
          (use '[clojure.core])
