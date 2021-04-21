@@ -8,7 +8,6 @@
             Benchmarks$Strings30
             Benchmarks$Strings50]))
 
-(p/disable-instrumentation!)
 
 (def the-val "hello world")
 

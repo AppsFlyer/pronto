@@ -2,7 +2,6 @@
   (:require [clojure.string :as s]
             [pronto.protos :refer [global-ns]])
   (:import
-   [clojure.lang Symbol]
    [com.google.protobuf
     Descriptors$FieldDescriptor
     Descriptors$GenericDescriptor
@@ -87,22 +86,18 @@
   (symbol (str (.getName class) "/" method-name)))
 
 
-(defn- type-error-info [error-type ^Class clazz field-name expected-type value]
-  {:error         error-type
-   :class         clazz
-   :field         (->kebab-case (name field-name))
+(defn type-error-info [clazz field-name expected-type value]
+  {:class         clazz
+   :field         field-name
    :expected-type expected-type
-   :actual-type   (type value)
    :value         value})
 
-(defn make-type-error [^Class clazz field-name expected-type value]
-  (ex-info "Invalid type"
-           (type-error-info :invalid-type clazz field-name expected-type value)))
-
-(defn make-enum-error [^Class clazz field-name expected-type value]
-  (ex-info "Invalid enum value"
-           (type-error-info :invalid-enum-value
-                            clazz field-name expected-type value)))
+(defn make-type-error
+  ([clazz field-name expected-type value]
+   (make-type-error clazz field-name expected-type value nil))
+  ([clazz field-name expected-type value cause]
+  ;; return as code so this frame isn't included in the stack trace
+   `(ex-info "Invalid type" ~(type-error-info clazz field-name expected-type value) ~cause)))
 
 
 

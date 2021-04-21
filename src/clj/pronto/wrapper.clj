@@ -52,10 +52,10 @@
       :else                             :scalar)))
 
 (defn make-error [^Class clazz ctx v]
-  `(u/make-type-error ~(:class ctx)
-                      ~(.getName ^Descriptors$FieldDescriptor (:fd ctx))
-                      ~clazz
-                      ~v))
+  (u/make-type-error (:class ctx)
+                     (.getName ^Descriptors$FieldDescriptor (:fd ctx))
+                     clazz
+                     v))
 
 
 (defmethod gen-wrapper
@@ -107,18 +107,15 @@
                  ~@(interleave
                      (map first kw->enum)
                      (map second kw->enum))
-                 (throw (u/make-enum-error ~(:class ctx)
-                                           ~(u/field->kebab-case (:fd ctx))
-                                           ~clazz
-                                           ~v2)))
+                 (throw ~(u/make-type-error (:class ctx)
+                                            (u/field->kebab-case (:fd ctx))
+                                            clazz
+                                            v2)))
                ~(if-instrument ctx
                   `(instance? ~clazz ~v)
                   v2
                   `(throw ~(make-error clazz ctx v))))))))))
 
-
-(defn make-error-message ^String [expected-class value]
-  (str "expected " expected-class ", but got " (or (class value) "nil")))
 
 
 (defmethod gen-wrapper
@@ -141,10 +138,12 @@
 
 
            ;; TODO: consolidate this with first clause
+
+
            (instance? ProtoMap ~v)
-           ~ (let [u (with-meta (gensym 'u) {:tag 'pronto.ProtoMap})]
-               `(let [~u ~v]
-                  (pronto.RT/getProto ~u)))
+           ~(let [u (with-meta (gensym 'u) {:tag 'pronto.ProtoMap})]
+              `(let [~u ~v]
+                 (pronto.RT/getProto ~u)))
 
            (map? ~v)
            ;; TODO: duplicate code
