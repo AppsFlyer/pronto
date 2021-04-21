@@ -63,8 +63,8 @@
           `(if (nil? ~v)
              ~(if (u/message? fd)
                 `(~clear-method ~builder)
-                `(throw (u/make-type-error ~clazz ~(.getName fd) ~field-type nil)))
-             (let [~res ~(w/unwrap wrapper v)]
+                `(throw ~(u/make-type-error clazz (.getName fd) field-type nil)))
+             (when-let [~res ~(w/unwrap wrapper v)]
                (~setter ~builder ~res)))))
 
       (gen-getter [_ o]
@@ -160,26 +160,26 @@
 
       (gen-setter [_ builder v]
         `(if (nil? ~v)
-           (throw (u/make-type-error ~clazz ~(.getName fd) java.util.Map ~v))
+           (throw ~(u/make-type-error clazz (.getName fd) java.util.Map v))
            (let [~m       ~v
                  ~builder (~clear-method ~builder)]
              (~put-all-method ~builder
-              (Utils/transformMap ~v
-                                  (reify Utils$PairXf
-                                    (transformKey [_ keyItem]
-                                      ~(w/unwrap key-wrapper 'keyItem))
-                                    (transformVal [_ valItem]
-                                      ~(w/unwrap val-wrapper 'valItem))))))))
+                              (Utils/transformMap ~v
+                                                  (reify Utils$PairXf
+                                                    (transformKey [_ keyItem]
+                                                      ~(w/unwrap key-wrapper 'keyItem))
+                                                    (transformVal [_ valItem]
+                                                      ~(w/unwrap val-wrapper 'valItem))))))))
 
       (gen-getter [_ o]
         `(let [~m (~(symbol (str ".get" cc "Map")) ~o)]
            (clojure.lang.PersistentArrayMap.
-             (Utils/mapToArray ~m
-                               (reify Utils$PairXf
-                                 (transformKey [_ keyItem]
-                                   ~(w/wrap key-wrapper 'keyItem))
-                                 (transformVal [_ valItem]
-                                   ~(w/wrap val-wrapper 'valItem))))))))))
+            (Utils/mapToArray ~m
+                              (reify Utils$PairXf
+                                (transformKey [_ keyItem]
+                                  ~(w/wrap key-wrapper 'keyItem))
+                                (transformVal [_ valItem]
+                                  ~(w/wrap val-wrapper 'valItem))))))))))
 
 #_(defmethod get-type-gen
     :one-of
@@ -217,16 +217,16 @@
 
       (gen-setter [_ builder v]
         `(if (nil? ~v)
-           (throw (u/make-type-error ~clazz ~(.getName fd) Iterable ~v))
+           (throw ~(u/make-type-error clazz (.getName fd) Iterable v))
            (~add-all-method
             (~clear-method ~builder)
             (if (instance? ProntoVector ~v)
               ~v
               (TransformIterable.
-                ~v
-                (reify TransformIterable$Xf
-                  (transform [_ item]
-                    ~(w/unwrap wrapper 'item))))))))
+               ~v
+               (reify TransformIterable$Xf
+                 (transform [_ item]
+                   ~(w/unwrap wrapper 'item))))))))
 
       (gen-getter [_ o]
         (let [item (gensym 'item)]

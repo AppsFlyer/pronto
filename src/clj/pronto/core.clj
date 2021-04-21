@@ -7,13 +7,10 @@
             [pronto.protos :refer [global-ns]]
             [pronto.lens :as lens]
             [pronto.schema :as schema]
-            [clojure.walk :refer [macroexpand-all]]
             [potemkin]
             [clojure.string :as s])
   (:import [pronto ProtoMap ProtoMapper]
            [com.google.protobuf Message GeneratedMessageV3 ByteString]))
-
-(def ^:dynamic *instrument?* false)
 
 (def ^:private default-values #{0 0.0 nil "" false {} [] (byte-array 0) ByteString/EMPTY})
 (def remove-default-values-xf
@@ -27,12 +24,6 @@
       (throw (IllegalArgumentException. (str clazz " is not a protobuf class"))))
     clazz))
 
-
-(defn disable-instrumentation! []
-  (alter-var-root #'*instrument?* (constantly false)))
-
-(defn enable-instrumentation! []
-  (alter-var-root #'*instrument?* (constantly true)))
 
 (defn proto-map->proto
   "Returns the protobuf instance associated with the proto-map"
@@ -179,9 +170,7 @@
 (defn- init-ctx [opts]
   (merge
    {:key-name-fn   identity
-    :enum-value-fn identity
-    :iter-xf       nil
-    :instrument?   *instrument?*}
+    :enum-value-fn identity}
    (-> (apply hash-map opts)
        (update' :key-name-fn eval)
        (update' :enum-value-fn eval)
@@ -234,8 +223,7 @@
 
          ~(e/emit-mapper name deps proto-ns-name)))))
 
-(defn macroexpand-class [^Class clazz]
-  (macroexpand-all `(defmapper abc [~(symbol (.getName clazz))])))
+
 
 (potemkin/import-vars [pronto.lens
                        p->

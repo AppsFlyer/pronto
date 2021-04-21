@@ -251,20 +251,26 @@
     (emit-case k branches not-found)))
 
 
-(defn- emit-assoc [fields this builder k v]
-  (emit-fields-case
-   fields k true
-   (fn [fd]
-     `(~(symbol (str "."
-                     (assoc-intf-name2
-                      (fd->interface-info fd))))
-       ~this
-       ~builder
-       ~v))))
+(defn emit-assoc [clazz fields this builder k v]
+  (let [ex (gensym 'ex)]
+    `(try
+       ~(emit-fields-case
+         fields k true
+         (fn [fd]
+           `(~(symbol (str "."
+                           (assoc-intf-name2
+                            (fd->interface-info fd))))
+             ~this
+             ~builder
+             ~v)))
+       (catch ClassCastException ~ex
+         (throw ~(u/make-type-error clazz k clazz v ex))))))
+
+
 
 (defn direct-dispath-call [fd this-sym]
   `(~(symbol (str "." (val-at-intf-name2
-                        (fd->interface-info fd))))
+                       (fd->interface-info fd))))
     ~this-sym))
 
 (defn emit-val-at [fields this k]
@@ -365,7 +371,7 @@
                 v    (gensym 'v)]
             `(~'assoc [~this ~k ~v]
                       (let [~builder-sym (.pmap_getBuilder ~this)]
-                        ~(emit-assoc fields this builder-sym k v)
+                        ~(emit-assoc clazz fields this builder-sym k v)
                         (.copy ~this ~builder-sym)))))
 
        (def-abstract-type ~(u/class->abstract-map-class-name clazz)
@@ -386,11 +392,11 @@
 
          ~(let [k (gensym 'k)]
             `(~'whichOneOf [this# ~k]
-                                ~(emit-which-one-of fields o k)))
+                           ~(emit-which-one-of fields o k)))
 
          ~(let [k (gensym 'k)]
             `(~'empty [this# ~k]
-              ~(emit-empty clazz fields k)))
+                      ~(emit-empty clazz fields k)))
 
          (containsKey [this# k#]
                       (boolean (get ~(into #{} (map :kw fields))
@@ -605,7 +611,7 @@
               v    (gensym 'v)]
           `(~'assoc [~this ~k ~v]
             (check-editable! ~'editable?)
-            ~(emit-assoc fields this o k v)
+            ~(emit-assoc clazz fields this o k v)
             ~this))
 
        (persistent

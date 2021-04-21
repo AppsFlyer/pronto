@@ -7,6 +7,7 @@
             People$House People$Apartment
             People$UUID People$PersonOrBuilder]
            [com.google.protobuf ByteString]
+           [clojure.lang ExceptionInfo]
            [pronto ProntoVector]))
 
 
@@ -268,10 +269,11 @@
 
     (is (= {:hello "world"} (:s2s (assoc-in w [:s2s "hello"] "world"))))
 
-    (is (thrown? Exception (assoc-in w [:relations :sister] 1)))
-    (is (thrown? Exception (assoc-in w [:relations 123] "aaa")))
-    (is (thrown? Exception (assoc-in w [:s2s "a"] 1)))
-    (is (thrown? Exception (assoc-in w [:s2s 1] "a")))))
+    (is (thrown? ExceptionInfo (assoc w :relations nil)))
+    (is (thrown? ExceptionInfo (assoc-in w [:relations :sister] 1)))
+    (is (thrown? ExceptionInfo (assoc-in w [:relations 123] "aaa")))
+    (is (thrown? ExceptionInfo (assoc-in w [:s2s "a"] 1)))
+    (is (thrown? ExceptionInfo (assoc-in w [:s2s 1] "a")))))
 
 (deftest init-with-values
   (let [p (p/proto-map mapper
@@ -695,3 +697,57 @@
     (is (= address (p/bytes->proto-map mapper address-class (p/proto-map->bytes address))))
     (is (= (p/clj-map->proto-map mapper People$Address address)
            (p/clj-map->proto-map mapper address-class address)))))
+
+
+(defn check-assoc-eagerness* [m k v p->?]
+  (let [mi (gensym 'mi)
+        ki (gensym 'ki)
+        vi (gensym 'vi)
+        mform `(do (swap! ~mi inc) ~m)
+        kform `(do (swap! ~ki inc) ~k)
+        vform `(do (swap! ~vi inc) ~v)]
+    `(let [~mi (atom 0)
+           ~ki (atom 0)
+           ~vi (atom 0)]
+       ~(if p->?
+          `(p/p-> ~mform (assoc ~kform ~vform))
+          `(assoc ~mform ~kform ~vform))
+       (is (= @~mi 1))
+       (is (= @~ki 1))
+       (is (= @~vi 1)))))
+
+(defmacro check-assoc-eagerness [m k v]
+  `(do
+     ~(check-assoc-eagerness* m k v false)
+     ~(check-assoc-eagerness* m k v true)))
+
+(deftest test-eagerness
+  (testing "The value to be assoced must be eval'd once. More than once signifies
+an error in the generated code"
+    (let  [p (p/proto-map mapper People$Person)]
+      (check-assoc-eagerness p :id 1)
+      (check-assoc-eagerness p :name "hello")
+      (check-assoc-eagerness p :address {:city "tel aviv"})
+      (check-assoc-eagerness p :address (p/proto-map
+                                        mapper
+                                        People$Address
+                                        :city "tel aviv"))
+      (check-assoc-eagerness p :address
+                           (p/proto-map->proto
+                             (p/proto-map
+                               mapper
+                               People$Address
+                               :city "tel aviv")))
+      (check-assoc-eagerness p :likes [(p/proto-map
+                                         mapper People$Like
+                                         :level :HIGH)])
+      (check-assoc-eagerness p :likes [{:level :HIGH}])
+      (check-assoc-eagerness p :is_vegetarian true)
+      (check-assoc-eagerness p :relations {"bff"
+                                           {:name "booga"}})
+      (check-assoc-eagerness p :relations {"bff"
+                                           (p/proto-map
+                                             mapper
+                                             People$Person
+                                             :name "booga")})
+      (check-assoc-eagerness p :num 42))))
