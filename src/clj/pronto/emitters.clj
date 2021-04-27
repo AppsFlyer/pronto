@@ -263,6 +263,7 @@
              ~builder
              ~v)))
        (catch ClassCastException ~ex
+         ;; TODO: Fix, we're reporting on the wrong field type
          (throw ~(u/make-type-error clazz k clazz v ex))))))
 
 
