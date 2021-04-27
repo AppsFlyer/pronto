@@ -3,7 +3,6 @@
             [pronto.utils :as u]
             [pronto.protos :refer [global-ns]]
             [clojure.string :as s]
-            [pronto.potemkin-types :refer [def-abstract-type deftype+]]
             [pronto.reflection :as reflect])
   (:import [com.google.protobuf
             Descriptors$FieldDescriptor
@@ -349,93 +348,6 @@
 
 (def ^:private pojo (gensym 'pojo))
 
-(defn emit-abstract-type [^Class clazz ctx]
-  (let [fields        (t/get-fields clazz ctx)
-        o             (u/with-type-hint pojo
-                        (proto-or-builder-interface clazz))
-        builder-class (get-builder-class clazz)
-        builder-sym   (u/with-type-hint (gensym 'builder) builder-class)
-        interfaces    (get-interfaces clazz ctx)]
-    `(do
-       (def-abstract-type ~(u/class->abstract-persistent-map-class-name clazz)
-
-         clojure.lang.IPersistentMap
-
-         (without [this# k#]
-                  (throw (UnsupportedOperationException. "cannot dissoc from a proto map")))
-
-         clojure.lang.Associative
-
-         ~(let [this (gensym 'this)
-                k    (gensym 'k)
-                v    (gensym 'v)]
-            `(~'assoc [~this ~k ~v]
-                      (let [~builder-sym (.pmap_getBuilder ~this)]
-                        ~(emit-assoc clazz fields this builder-sym k v)
-                        (.copy ~this ~builder-sym)))))
-
-       (def-abstract-type ~(u/class->abstract-map-class-name clazz)
-
-         pronto.ProtoMap
-
-         (~'pmap_getProto [this#] ~pojo)
-
-         ~(let [k (gensym 'k)]
-            `(~'clearField [this# ~k]
-                           (let [~builder-sym (.pmap_getBuilder this#)]
-                             ~(emit-clear fields builder-sym k)
-                             (.copy this# ~builder-sym))))
-
-         ~(let [k (gensym 'k)]
-            `(~'pmap_hasField [this# ~k]
-                              ~(emit-has-field? fields o k)))
-
-         ~(let [k (gensym 'k)]
-            `(~'whichOneOf [this# ~k]
-                           ~(emit-which-one-of fields o k)))
-
-         ~(let [k (gensym 'k)]
-            `(~'empty [this# ~k]
-                      ~(emit-empty clazz fields k)))
-
-         (containsKey [this# k#]
-                      (boolean (get ~(into #{} (map :kw fields))
-                                    k#)))
-
-         (entryAt [this# k#]
-                  (clojure.lang.MapEntry/create k# (.valAt this# k#)))
-
-         clojure.lang.MapEquivalence
-
-         clojure.lang.ILookup
-
-         ~(let [k    (gensym 'k)
-                this (gensym 'this)]
-            `(valAt [~this ~k]
-                    ~(emit-val-at fields this k)))
-
-         (valAt [this# k# not-found#]
-                (.valAt this# k#))
-
-         pronto.DefaultingFn
-
-         (invoke [this# arg1#]
-                 (pronto.PersistentMapHelpers/invoke this# arg1#))
-
-         (invoke [this# arg1# not-found#]
-                 (pronto.PersistentMapHelpers/invoke this# arg1# not-found#))
-
-         ~@(implement-message-or-builder-interface clazz o)
-
-         ~@(mapcat
-            (fn [{:keys [name impl]}]
-              (into [(symbol name)]
-                    impl))
-            interfaces)))))
-
-(defn- abstract-type-sym [ctx sym-name]
-  (symbol #_(:ns ctx)
-          (name sym-name)))
 
 (defn emit-deftype [^Class clazz ctx]
   (let [fields               (t/get-fields clazz ctx)
@@ -443,18 +355,30 @@
         wrapper-class-name   (u/class->map-class-name clazz)
         transient-class-name (u/class->transient-class-name clazz)
         md                   (gensym 'md)
-        mapper               (gensym 'mapper)]
-    `(deftype+ ~wrapper-class-name [~o ~md]
+        mapper               (gensym 'mapper)
+        builder-class (get-builder-class clazz)
+        builder-sym   (u/with-type-hint (gensym 'builder) builder-class)
+        interfaces    (get-interfaces clazz ctx)]
+    `(deftype ~wrapper-class-name [~o ~md]
 
-       ~(abstract-type-sym ctx (u/class->abstract-map-class-name clazz))
+       clojure.lang.IPersistentMap
 
-       ~(abstract-type-sym ctx (u/class->abstract-persistent-map-class-name clazz))
+       (without [this# k#]
+         (throw (UnsupportedOperationException. "cannot dissoc from a proto map")))
 
-       java.io.Serializable
+       clojure.lang.Associative
+
+       ~(let [this (gensym 'this)
+              k    (gensym 'k)
+              v    (gensym 'v)]
+          `(assoc [~this ~k ~v]
+                  (let [~builder-sym (.pmap_getBuilder ~this)]
+                    ~(emit-assoc clazz fields this builder-sym k v)
+                    (.copy ~this ~builder-sym))))
 
        pronto.ProtoMap
 
-       (~'isMutable [this#] false)
+       (isMutable [this#] false)
 
        (pmap_getBuilder [this#] (.toBuilder ~o))
 
@@ -466,6 +390,59 @@
                                          "."
                                          (builder-interface-name clazz))})]
                  `(. ~mapper ~(builder-interface-from-proto-method-name clazz) ~o)))
+
+       (pmap_getProto [this#] ~pojo)
+         
+       ~(let [k (gensym 'k)]
+          `(clearField [this# ~k]
+                       (let [~builder-sym (.pmap_getBuilder this#)]
+                         ~(emit-clear fields builder-sym k)
+                         (.copy this# ~builder-sym))))
+
+       ~(let [k (gensym 'k)]
+          `(pmap_hasField [this# ~k]
+                          ~(emit-has-field? fields o k)))
+       
+       ~(let [k (gensym 'k)]
+          `(whichOneOf [this# ~k]
+                       ~(emit-which-one-of fields o k)))
+
+       (containsKey [this# k#]
+         (boolean (get ~(into #{} (map :kw fields))
+                       k#)))
+
+       (entryAt [this# k#]
+         (clojure.lang.MapEntry/create k# (.valAt this# k#)))
+       
+       clojure.lang.MapEquivalence
+
+       clojure.lang.ILookup
+
+       ~(let [k    (gensym 'k)
+              this (gensym 'this)]
+          `(valAt [~this ~k]
+                  ~(emit-val-at fields this k)))
+
+       (valAt [this# k# not-found#]
+         (.valAt this# k#))
+
+       pronto.DefaultingFn
+
+       (invoke [this# arg1#]
+         (pronto.PersistentMapHelpers/invoke this# arg1#))
+
+       (invoke [this# arg1# not-found#]
+         (pronto.PersistentMapHelpers/invoke this# arg1# not-found#))
+
+       ~@(implement-message-or-builder-interface clazz o)
+
+       ~@(mapcat
+           (fn [{:keys [name impl]}]
+             (into [(symbol name)]
+                   impl))
+           interfaces)
+
+       java.io.Serializable
 
        clojure.lang.IObj
 
@@ -581,22 +558,72 @@
         builder-class                (get-builder-class clazz)
         o                            (u/with-type-hint pojo builder-class)
         transient-wrapper-class-name (u/class->transient-class-name clazz)
-        wrapper-class-name           (u/class->map-class-name clazz)]
-    `(deftype+ ~transient-wrapper-class-name [~(with-meta o {:unsynchronized-mutable true})
+        wrapper-class-name           (u/class->map-class-name clazz)
+        builder-class (get-builder-class clazz)
+        builder-sym   (u/with-type-hint (gensym 'builder) builder-class)
+        interfaces    (get-interfaces clazz ctx)]
+    `(deftype ~transient-wrapper-class-name [~(with-meta o {:unsynchronized-mutable true})
                                               ~(with-meta 'editable? {:unsynchronized-mutable true})
                                               ~(with-meta 'in-transaction? {:unsynchronized-mutable true})]
 
-       ~(abstract-type-sym ctx (u/class->abstract-map-class-name clazz))
-
        pronto.ProtoMap
 
-       (~'isMutable [this#] true)
+       (isMutable [this#] true)
 
        (pmap_getBuilder [this#] ~o)
 
        (copy [this# builder#]
                   (set! ~o builder#)
                   this#)
+
+       (pmap_getProto [this#] ~pojo)
+       
+       ~(let [k (gensym 'k)]
+          `(clearField [this# ~k]
+                       (let [~builder-sym (.pmap_getBuilder this#)]
+                         ~(emit-clear fields builder-sym k)
+                         (.copy this# ~builder-sym))))
+
+       ~(let [k (gensym 'k)]
+          `(pmap_hasField [this# ~k]
+                          ~(emit-has-field? fields o k)))
+
+       ~(let [k (gensym 'k)]
+          `(whichOneOf [this# ~k]
+                       ~(emit-which-one-of fields o k)))
+
+       ~(let [k (gensym 'k)]
+          `(empty [this# ~k]
+                  ~(emit-empty clazz fields k)))
+
+       
+       clojure.lang.MapEquivalence
+
+       clojure.lang.ILookup
+
+       ~(let [k    (gensym 'k)
+              this (gensym 'this)]
+          `(valAt [~this ~k]
+                  ~(emit-val-at fields this k)))
+
+       (valAt [this# k# not-found#]
+         (.valAt this# k#))
+
+       pronto.DefaultingFn
+
+       (invoke [this# arg1#]
+         (pronto.PersistentMapHelpers/invoke this# arg1#))
+
+       (invoke [this# arg1# not-found#]
+         (pronto.PersistentMapHelpers/invoke this# arg1# not-found#))
+
+       ~@(implement-message-or-builder-interface clazz o)
+
+       ~@(mapcat
+           (fn [{:keys [name impl]}]
+             (into [(symbol name)]
+                   impl))
+           interfaces)
 
        pronto.TransientProtoMap
 
@@ -673,7 +700,6 @@
   `(do
      ~(emit-interfaces (get-interfaces clazz ctx))
      ~(emit-interfaces [(proto-builder-interface (:ns ctx) clazz)])
-     ~(emit-abstract-type clazz ctx)
      ~(emit-deftype clazz ctx)
      ~(emit-transient clazz ctx)
      ~(emit-empty-map clazz)
