@@ -78,6 +78,12 @@
   (= (.getType fd)
      Descriptors$FieldDescriptor$Type/MESSAGE))
 
+
+(defn struct? [^Descriptors$FieldDescriptor fd]
+  (and (message? fd)
+       (not (.isMapField fd))
+       (not (.isRepeated fd))))
+
 (defn enum? [^Descriptors$FieldDescriptor fd]
   (= (.getType fd)
      Descriptors$FieldDescriptor$Type/ENUM))

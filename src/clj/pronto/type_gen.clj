@@ -97,14 +97,13 @@
 
 (defn find-type [^Class clazz ^Descriptors$FieldDescriptor fd]
   (.getGenericReturnType
-    (.getDeclaredMethod
-      clazz
-      (str "get" (u/field->camel-case fd)
-           (if (.isMapField fd)
-             "Map"
-             (when (.isRepeated fd)
-               "List")))
-      (make-array Class 0))))
+   (.getDeclaredMethod
+    clazz
+    (str "get" (u/field->camel-case fd)
+         (cond
+           (.isMapField fd) "Map"
+           (.isRepeated fd) "List"))
+    (make-array Class 0))))
 
 (defn fd->java-type [^Descriptors$FieldDescriptor fd]
   (if (u/message? fd)

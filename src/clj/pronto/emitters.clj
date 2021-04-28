@@ -71,7 +71,6 @@
     `(~(symbol ns (str '-> transient-wrapper-class-name)) (~(u/static-call clazz "newBuilder")) true false)))
 
 
-
 (defn get-interfaces [^Class clazz ctx]
   (let [fields          (t/get-fields clazz ctx)
         builder-class   (get-builder-class clazz)
@@ -81,7 +80,8 @@
         this            (gensym 'this)]
     (for [field fields]
       (let [intf-info (fd->interface-info field)
-            intf-name (intf-info->intf-name intf-info)]
+            intf-name (intf-info->intf-name intf-info)
+            ^Descriptors$FieldDescriptor fd (:fd field)]
         {:name (str (u/javaify global-ns) "." intf-name)
          :intf
          `(definterface ~intf-name
@@ -100,12 +100,25 @@
          :impl
          `((~(assoc-intf-name2 intf-info)
             [~this ~builder-sym ~val-sym]
-            ~(t/gen-setter
-               (:type-gen field)
-               (u/with-type-hint
-                 builder-sym
-                 builder-class)
-               val-sym))
+            ~(let [ex (gensym 'ex)]
+               `(try
+                  ~(t/gen-setter
+                     (:type-gen field)
+                     (u/with-type-hint
+                       builder-sym
+                       builder-class)
+                     val-sym)
+                  (catch ClassCastException ~ex
+                      (throw ~(u/make-type-error
+                                clazz
+                                (:kw field)
+                                (cond
+                                  (.isMapField fd) java.util.Map
+                                  (.isRepeated fd) java.util.List
+                                  :else (t/field-type clazz (:fd field)))
+                                val-sym
+                                ex))))))
+           
 
            (~(val-at-intf-name2 intf-info)
             [~this]
@@ -118,9 +131,7 @@
            (~(empty-intf-name2 intf-info)
             [~this]
             ~(let [^Descriptors$FieldDescriptor fd (:fd field)]
-               (if (and (u/message? fd)
-                        (not (.isMapField fd))
-                        (not (.isRepeated fd)))
+               (if (u/struct? fd)
                  (empty-map-var-name (t/field-type clazz (:fd field)))
                  `(throw (new UnsupportedOperationException
                               "Cannot call empty")))))
@@ -251,9 +262,7 @@
 
 
 (defn emit-assoc [clazz fields this builder k v]
-  (let [ex (gensym 'ex)]
-    `(try
-       ~(emit-fields-case
+  (emit-fields-case
          fields k true
          (fn [fd]
            `(~(symbol (str "."
@@ -261,10 +270,7 @@
                             (fd->interface-info fd))))
              ~this
              ~builder
-             ~v)))
-       (catch ClassCastException ~ex
-         ;; TODO: Fix, we're reporting on the wrong field type
-         (throw ~(u/make-type-error clazz k clazz v ex))))))
+             ~v))))
 
 
 
@@ -291,9 +297,7 @@
     fields k true
     (fn [field]
       (let [^Descriptors$FieldDescriptor fd (:fd field)]
-        (if (and (u/message? fd)
-                 (not (.isMapField fd))
-                 (not (.isRepeated fd)))
+        (if (u/struct? fd)
           (let [has-method (symbol (str ".has" (u/field->camel-case (:fd field))))]
             `(~has-method ~o))
           `(throw (IllegalArgumentException. (str "field " ~k " cannot be checked for field existence"))))))))
@@ -337,9 +341,7 @@
     true
     (fn [field]
       (let [^Descriptors$FieldDescriptor fd (:fd field)]
-        (when (and (u/message? fd)
-                 (not (.isMapField fd))
-                 (not (.isRepeated fd)))
+        (when (u/struct? fd)
           (empty-map-var-name (t/field-type clazz fd)))))))
 
 
