@@ -115,7 +115,7 @@
                                 (cond
                                   (.isMapField fd) java.util.Map
                                   (.isRepeated fd) java.util.List
-                                  :else (t/field-type clazz (:fd field)))
+                                  :else (t/field-type clazz fd))
                                 val-sym
                                 ex))))))
            
