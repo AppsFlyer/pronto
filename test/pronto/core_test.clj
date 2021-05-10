@@ -184,8 +184,12 @@
 
 
 (deftest boolean-test
-  (let [p (p/proto->proto-map  mapper (make-person :is_vegetarian false))]
-    (is (true? (check-assoc p :is_vegetarian true)))
+  (let [p (p/proto->proto-map  mapper (make-person :vegetarian? false))]
+    (check-assoc p :is_vegetarian true)
+    (check-assoc
+      (p/proto->proto-map mapper (make-person :vegetarian? true))
+      :is_vegetarian
+      false)
     ;; TODO: how to test ex-info?
     (is (thrown? Exception (assoc p :is_vegetarian nil)))
     (is (thrown? Exception (assoc p :is_vegetarian "1")))))

@@ -64,7 +64,7 @@
              ~(if (u/message? fd)
                 `(~clear-method ~builder)
                 `(throw ~(u/make-type-error clazz (.getName fd) field-type nil)))
-             (when-let [~res ~(w/unwrap wrapper v)]
+             (let [~res ~(w/unwrap wrapper v)]
                (~setter ~builder ~res)))))
 
       (gen-getter [_ o]
