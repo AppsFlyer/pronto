@@ -137,22 +137,11 @@
   (let [cc                          (u/field->camel-case fd)
         {:keys [key-type val-type]} (map-type-info clazz fd)
         instrumented-ctx            (assoc ctx :instrument? true)
-        key-wrapper                 (if (= String key-type)
-                                      (reify w/Wrapper
-                                        (wrap [_ v]
-                                          ;; -> keyword
-                                          `(keyword ~v))
-
-                                        (unwrap [_ v]
-                                          ;; -> string
-                                          `(name ~v)))
-                                      (w/gen-wrapper
-                                        key-type
-                                        instrumented-ctx))
-        val-wrapper    (w/gen-wrapper val-type instrumented-ctx)
-        clear-method   (symbol (str ".clear" cc))
-        put-all-method (symbol (str ".putAll" cc))
-        m              (u/with-type-hint (gensym 'm) java.util.Map)]
+        key-wrapper                 (w/gen-wrapper key-type instrumented-ctx)
+        val-wrapper                 (w/gen-wrapper val-type instrumented-ctx)
+        clear-method                (symbol (str ".clear" cc))
+        put-all-method              (symbol (str ".putAll" cc))
+        m                           (u/with-type-hint (gensym 'm) java.util.Map)]
     (reify TypeGen
 
       (get-class [_] val-type)
@@ -162,23 +151,26 @@
            (throw ~(u/make-type-error clazz (.getName fd) java.util.Map v))
            (let [~m       ~v
                  ~builder (~clear-method ~builder)]
-             (~put-all-method ~builder
-                              (Utils/transformMap ~v
-                                                  (reify Utils$PairXf
-                                                    (transformKey [_ keyItem]
-                                                      ~(w/unwrap key-wrapper 'keyItem))
-                                                    (transformVal [_ valItem]
-                                                      ~(w/unwrap val-wrapper 'valItem))))))))
+             (~put-all-method
+              ~builder
+              (Utils/transformMap
+               ~v
+               (reify Utils$PairXf
+                 (transformKey [_ keyItem]
+                   ~(w/unwrap key-wrapper 'keyItem))
+                 (transformVal [_ valItem]
+                   ~(w/unwrap val-wrapper 'valItem))))))))
 
       (gen-getter [_ o]
         `(let [~m (~(symbol (str ".get" cc "Map")) ~o)]
            (clojure.lang.PersistentArrayMap.
-            (Utils/mapToArray ~m
-                              (reify Utils$PairXf
-                                (transformKey [_ keyItem]
-                                  ~(w/wrap key-wrapper 'keyItem))
-                                (transformVal [_ valItem]
-                                  ~(w/wrap val-wrapper 'valItem))))))))))
+            (Utils/mapToArray
+             ~m
+             (reify Utils$PairXf
+               (transformKey [_ keyItem]
+                 ~(w/wrap key-wrapper 'keyItem))
+               (transformVal [_ valItem]
+                 ~(w/wrap val-wrapper 'valItem))))))))))
 
 #_(defmethod get-type-gen
     :one-of
