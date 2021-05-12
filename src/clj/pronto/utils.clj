@@ -2,6 +2,7 @@
   (:require [clojure.string :as s]
             [pronto.protos :refer [global-ns]])
   (:import
+   [pronto ProtoMap] 
    [com.google.protobuf
     Descriptors$FieldDescriptor
     Descriptors$GenericDescriptor
@@ -212,3 +213,5 @@
     (catch Exception _)))
 
 
+(defn proto-map? [m]
+  (instance? ProtoMap m))
