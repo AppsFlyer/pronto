@@ -74,18 +74,16 @@
                         `(. ~mapper ~e/get-transient-method ~clazz))
                      ~@chain))))))
 
-(defn proto-map? [m]
-  (instance? ProtoMap m))
 
 (defmacro clj-map->proto-map [mapper clazz m]
   (let [resolved-class (resolve-class clazz)
         mapper         (e/with-builder-class-hint mapper resolved-class)]
     (with-catch mapper resolved-class
       `(transform/map->proto-map
-         ~(if resolved-class
-            `(. ~mapper ~(e/builder-interface-get-transient-method-name resolved-class))
-            `(. ~mapper ~e/get-transient-method ~clazz))
-         ~m))))
+        ~(if resolved-class
+           `(. ~mapper ~(e/builder-interface-get-transient-method-name resolved-class))
+           `(. ~mapper ~e/get-transient-method ~clazz))
+        ~m))))
 
 (defn proto->proto-map [mapper proto]
   (e/proto->proto-map proto mapper))
@@ -97,9 +95,9 @@
          (map
           (fn [[k v]]
             [k (cond
-                 (proto-map? v) (proto-map->clj-map v xform)
+                 (u/proto-map? v) (proto-map->clj-map v xform)
                  (coll? v)      (let [fst (first v)]
-                                  (if (proto-map? fst)
+                                  (if (u/proto-map? fst)
                                     (into []
                                           (map #(proto-map->clj-map % xform))
                                           v)
@@ -164,7 +162,7 @@
   (schema/schema
     (cond
       (class? proto-map-or-class)     proto-map-or-class
-      (proto-map? proto-map-or-class) (class (proto-map->proto proto-map-or-class)))
+      (u/proto-map? proto-map-or-class) (class (proto-map->proto proto-map-or-class)))
     ks))
 
 (defn- init-ctx [opts]
@@ -232,4 +230,5 @@
                        clear-field!
                        assoc-if]
                       [pronto.utils
-                       ->kebab-case])
+                       ->kebab-case
+                       proto-map?])

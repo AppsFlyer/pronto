@@ -1,7 +1,8 @@
 (ns pronto.core-test
   (:require [clojure.test :refer :all]
             [pronto.core :refer [defmapper] :as p]
-            [pronto.utils :as u])
+            [pronto.utils :as u]
+            [clojure.string :as s])
   (:import [protogen.generated People$Person People$Person$Builder
             People$Address People$Like People$Level
             People$House People$Apartment
@@ -457,18 +458,24 @@
                   (assoc a-key "Foo")
                   (change-city "Boston")
                   (assoc-in [:address :street] "Broadway")
-                  (assoc-in [:address :house] {:num_rooms 5}))
+                  (assoc-in [:address :house] {:num_rooms 5})
+                  (assoc-in [:s2s "a"] "b")
+                  (assoc-in [:relations "bff"] (p/proto-map mapper People$Person :name "bob"))
+                  (update-in [:relations "bff" :name] s/capitalize)
+                  (update-in [:relations "bff" :age_millis] inc))
            (p/clj-map->proto-map
-             mapper
-             People$Person
-             {:id          4
-              :name        "Foo"
-              :address     {:city      "Boston"
-                            :street    "Broadway"
-                            :house_num 6
-                            :house     {:num_rooms 5}}
-              :maiden_name "Booga"
-              :likes       [{:desc "desc1" :level :LOW}]}))
+            mapper
+            People$Person
+            {:id          4
+             :name        "Foo"
+             :address     {:city      "Boston"
+                           :street    "Broadway"
+                           :house_num 6
+                           :house     {:num_rooms 5}}
+             :maiden_name "Booga"
+             :s2s         {"a" "b"}
+             :relations   {:bff {:name "Bob" :age_millis 1}}
+             :likes       [{:desc "desc1" :level :LOW}]}))
         (is (= m (p/proto-map mapper People$Person))))))
 
 (deftest pcond->-test []

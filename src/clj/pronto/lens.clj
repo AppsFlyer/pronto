@@ -22,16 +22,18 @@
   (assoc-or-else m k v (fn [m _k _v] m)))
 
 
-
 (defmacro transform-in [m kvs]
   (let [m          (u/with-type-hint m ProtoMap)
         m2         (u/with-type-hint (gensym 'm2) TransientProtoMap)
         new-submap (gensym 'newsubmap)
         submap     (gensym 'submap)
+        pmap?      (gensym 'pmap?)
         kv-forest  (u/kv-forest kvs)]
-    `(let [~m2                  (if (.isMutable ~m) ~m (transient ~m))
-           was-in-transaction?# (.isInTransaction ~m2)]
-       (.setInTransaction ~m2 true)
+    `(let [~pmap?               (u/proto-map? ~m)
+           ~m2                  (if (and ~pmap? (.isMutable ~m)) ~m (transient ~m))
+           was-in-transaction?# (and ~pmap? (.isInTransaction ~m2))]
+       (when ~pmap?
+         (.setInTransaction ~m2 true))
        ~@(doall
           (for [[k vs] kv-forest
                 v      (partition-by u/leaf? vs)]
@@ -42,7 +44,8 @@
                       (let [val-fn (eval (u/leaf-val leaf))]
                         (val-fn m2 k)))))
               `(let [~submap     (or (get ~m2 ~k nil)
-                                     (.empty ~m2 ~k))
+                                     (when ~pmap?
+                                       (.empty ~m2 ~k)))
                      ~new-submap (pronto.lens/transform-in ~submap ~(u/flatten-forest v))]
                  (assoc! ~m2 ~k ~new-submap)))))
        (if was-in-transaction?#
