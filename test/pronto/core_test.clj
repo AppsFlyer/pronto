@@ -266,16 +266,16 @@
                             :relations {"bff" bff}
                             :relations-like-level {"bff" People$Level/HIGH})
         w      (p/proto->proto-map mapper person)]
-    (is (= {:bff bff} (:relations (assoc-in w [:relations :bff] bff))))
-    (is (= {:bff bff :sister sister} (:relations (assoc-in w [:relations :sister] sister))))
+    (is (= {"bff" bff} (:relations (assoc-in w [:relations "bff"] bff))))
+    (is (= {"bff" bff "sister" sister} (:relations (assoc-in w [:relations "sister"] sister))))
 
-    (is (= {:bff :HIGH} (:relations_like_level w)))
-    (is (= {:bff :MEDIUM} (:relations_like_level (assoc-in w [:relations_like_level :bff] :MEDIUM))))
+    (is (= {"bff" :HIGH} (:relations_like_level w)))
+    (is (= {"bff" :MEDIUM} (:relations_like_level (assoc-in w [:relations_like_level "bff"] :MEDIUM))))
 
-    (is (= {:hello "world"} (:s2s (assoc-in w [:s2s "hello"] "world"))))
+    (is (= {"hello" "world"} (:s2s (assoc-in w [:s2s "hello"] "world"))))
 
     (is (thrown? ExceptionInfo (assoc w :relations nil)))
-    (is (thrown? ExceptionInfo (assoc-in w [:relations :sister] 1)))
+    (is (thrown? ExceptionInfo (assoc-in w [:relations "sister"] 1)))
     (is (thrown? ExceptionInfo (assoc-in w [:relations 123] "aaa")))
     (is (thrown? ExceptionInfo (assoc-in w [:s2s "a"] 1)))
     (is (thrown? ExceptionInfo (assoc-in w [:s2s 1] "a")))))
@@ -338,7 +338,7 @@
                [])
 
   (check-clear #(p/clj-map->proto-map mapper People$Person %) :relations
-               {:friend (make-person)}
+               {"friend" (make-person)}
                {})
 
   (check-clear #(p/clj-map->proto-map mapper People$Address %) :house
@@ -474,7 +474,7 @@
                            :house     {:num_rooms 5}}
              :maiden_name "Booga"
              :s2s         {"a" "b"}
-             :relations   {:bff {:name "Bob" :age_millis 1}}
+             :relations   {"bff" {:name "Bob" :age_millis 1}}
              :likes       [{:desc "desc1" :level :LOW}]}))
         (is (= m (p/proto-map mapper People$Person))))))
 

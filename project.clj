@@ -24,7 +24,8 @@
   :profiles {:provided {:dependencies [[com.google.protobuf/protobuf-java ~protobuf-version]]}
              :dev      {:dependencies      [[clj-kondo "RELEASE"] ;; TODO: pin this, or use it as a binary
                                             [jmh-clojure "0.4.0"]
-                                            [com.clojure-goes-fast/clj-java-decompiler "0.3.0"]
+                                            [com.clojure-goes-fast/clj-java-decompiler "0.3.0" :exclusions [org.bitbucket.mstrobel/procyon-compilertools]]
+                                            [org.bitbucket.mstrobel/procyon-compilertools "0.5.36"]
                                             [org.openjdk.jol/jol-core "0.13"]
                                             [criterium "0.4.6"]
                                             [com.clojure-goes-fast/clj-memory-meter "0.1.3"]]
