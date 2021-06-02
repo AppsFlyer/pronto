@@ -762,3 +762,13 @@ an error in the generated code"
                                              People$Person
                                              :name "booga")})
       (check-assoc-eagerness p :num 42))))
+
+
+(deftest hash-test
+  (testing "hashes of two equivalent proto maps should be equal"
+    (is (= (hash (p/proto-map mapper People$Person))
+           (hash (p/proto-map mapper People$Person))))
+    (is (= (hash (p/proto-map mapper People$Person :name "joe"))
+           (hash (p/proto-map mapper People$Person :name "joe"))))
+    (is (= (hash (p/proto-map mapper People$Person :address {:city "NYC"}))
+           (hash (p/proto-map mapper People$Person :address {:city "NYC"}))))))

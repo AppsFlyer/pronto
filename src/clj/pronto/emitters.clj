@@ -549,7 +549,9 @@
                  (pronto.PersistentMapHelpers/toString this#))
 
        (equals [this# obj#]
-               (pronto.PersistentMapHelpers/equals this# obj#)))))
+         (pronto.PersistentMapHelpers/equals this# obj#))
+
+       (hashCode [this#] (.hashCode ~o)))))
 
 
 (defn check-editable! [editable?]
