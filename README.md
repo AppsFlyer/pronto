@@ -24,6 +24,8 @@ Add a dependency to your `project.clj` file:
 
            [pronto "2.0.6"]
 
+Note that the library comes with no Java protobuf dependencies of its own and they are expected to be provided by consumers of the library, with a minimal version of `3.9.0`.
+
 ## How does it work?
 
 The main abstraction in `pronto` is the `proto-map`, a type of map which can be used as a regular Clojure map, but rejects any operations
