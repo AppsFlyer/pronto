@@ -3,8 +3,6 @@
 A library for using [Protocol Buffers](https://github.com/protocolbuffers/protobuf) 3 in Clojure.
 
 ***
-This library is an `alpha` version and under active development!
-
 **Please join #rnd-pronto-lib on Slack for discussions and announcements.**
 ****
 
@@ -49,7 +47,7 @@ Let's use this [example](https://***REMOVED***/clojure/pronto/blob/master/resour
 (p/defmapper my-mapper [People$Person])
 ```
 
-`defmapper` is a macro which generates new `proto-map` classes for the supplied class and for any message type dependency it has.
+`defmapper` is a macro which generates new `proto-map` classes for the supplied class and for any message type dependency it has. It also defines a var at the call-site, which serves as a handle to interact with the library later on.
 
 Now we can work with protobuf while writing idiomatic Clojure code:
 
@@ -63,7 +61,7 @@ Now we can work with protobuf while writing idiomatic Clojure code:
 Internally, field reads and writes are delegated directly to the underlying POJO.
 For example, `(:name person-map)` will call `Person.getName` and `(assoc person-map :name "John")` will call `Person.Builder.setName`.
 
-Schema-breaking operations will throw an error:
+Schema-breaking operations will fail:
 
 ```clj
 (assoc person-map :no-such-key 12345)
@@ -153,21 +151,6 @@ However, this is also a valid code:
 
 It has the downside that you might have gotten either `Person` or `Address` wrong, but figuring which one is still easy enough. The point to move from plain maps into `proto-map`s can be chosen freely and should balance this tradeoff. 
 
-
-***
-Please note that `proto-map`, `bytes->proto-map` and `clj-map->proto-map` are -- for efficiency reasons --  macros and not functions.
-
-Think of these macros as equivalent to Clojure's record-from-map constructors: `map->RecordType`.
-
-This means that every call-site for the above must provide a symbol which will resolve to a Class during macro expansion time. Passing a variable
-which references a Class instance will not work. In short, the following will not work:
-
-```clj
-(let [clazz People$Person]
-   (p/proto-map clazz))
-```
-***
-
 ### Protocol Buffers - Clojure interop
 
 #### Fields
@@ -208,7 +191,7 @@ Values of repeated/map fields are returned as Clojure maps/vectors:
 (:pet_names person-map)
 => ["foo" "bar"]
 (:relations person-map)
-=> {:friend {:name "Joe" ... } :cousin {:name "Vinny" ... }}
+=> {"friend" {:name "Joe" ... } "cousin" {:name "Vinny" ... }}
 ```
 
 #### Enums
@@ -228,6 +211,14 @@ It is possible to use kebab-case (or any other case) for enums.
     :enum-value-fn u/->kebab-case)
 (:level (p/proto-map my-mapper People$Like))
 => :low
+```
+
+Either a keyword or a Java enum value may be assoced:
+
+```clj
+(assoc (p/proto-map mapper People$Like) :level :HIGH)
+
+(assoc (p/proto-map mapper People$Like) :level People$Level/HIGH)
 ```
 
 #### One-of's
@@ -274,10 +265,36 @@ However, ByteString's are naturally `seqable` since they implement `java.lang.It
 This means, that rather than calling `(-> my-proto-map :my-string-value :value)` you can simply write `(:my-string-value my-proto-map)`. Note that since
 well-known-types are message types, this may return `nil` when the field is unset.
 
+
+#### Encoders
+
+While protobuf allows us to describe our domain model, the Java generated types are not always a great programmatic fit. Consider the following schema:
+
+```
+message UUID {
+   int64 msb = 1; // most significat bits
+   int64 lsb = 2; // least significat bits
+}
+
+message Person {
+   UUID id = 1;
+}
+```
+Encoders allow us to define an alternative type (rather than the POJO class) that will be used for proto-map fields of that type:
+```
+(defmapper mapper [protogen.generated.People$Person]
+  :encoders {protogen.generated.People$UUID
+             {:from-proto (fn [^protogen.generated.People$UUID proto-uuid]
+                            (java.util.UUID. (.getMsb proto-uuid) (.getLsb proto-uuid)))                           
+              :to-proto   (fn [^java.util.UUID java-uuid]
+                            (let [b (People$UUID/newBuilder)]
+                               (.setMsb b (.getMostSignificantBits java-uuid)
+                               (.setLsb b (.getLeastSignificantBits java-uuid))
+                               (.build b))))}})
+
+(proto-map mapper People$Person :id (java.util.UUID/randomUUID))
+=> {:id #uuid "2a1ef325-c7c2-42d4-815d-6bb1b9ed2e63"} 
+
+```
+This encourages DRYer code, since these kinds of proto<->clj conversions can be defined as a single encoder, rather than across the codebase.
 ### [Performance](doc/performance.md)
-
-#### Reloadability 
-
-TODO: discuss reloadability at the REPL
-
-

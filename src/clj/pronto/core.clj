@@ -59,7 +59,10 @@
                          e#))))))))
 
 
-(defmacro proto-map [mapper clazz & kvs]
+(defmacro proto-map
+  "Returns a new proto-map for the supplied class, via `mapper`, initialized
+  to the optionally supplied key-value pairs."
+  [mapper clazz & kvs]
   {:pre [(even? (count kvs))]}
   (let [resolved-class (resolve-class clazz)
         mapper         (e/with-builder-class-hint mapper resolved-class)]
@@ -75,7 +78,11 @@
                      ~@chain))))))
 
 
-(defmacro clj-map->proto-map [mapper clazz m]
+(defmacro clj-map->proto-map
+  "Translate a map to a proto-map for the supplied class using mapper `m`.
+  The converted map must not violate the class schema, i.e, it must have matching
+  keyword names as well as value types."
+  [mapper clazz m]
   (let [resolved-class (resolve-class clazz)
         mapper         (e/with-builder-class-hint mapper resolved-class)]
     (with-catch mapper resolved-class
@@ -85,10 +92,13 @@
            `(. ~mapper ~e/get-transient-method ~clazz))
         ~m))))
 
-(defn proto->proto-map [mapper proto]
+(defn proto->proto-map
+  "Wraps a new proto-map around `proto`, a POJO."
+  [mapper proto]
   (e/proto->proto-map proto mapper))
 
 (defn proto-map->clj-map
+  "Recursively converts a proto-map to a regular Clojure map."
   ([proto-map] (proto-map->clj-map proto-map (map identity)))
   ([proto-map xform]
    (let [mapper
@@ -108,7 +118,9 @@
            xform
            proto-map))))
 
-(defmacro bytes->proto-map [mapper clazz bytes]
+(defmacro bytes->proto-map
+  "Deserializes `bytes` into a proto-map for the given `clazz`"
+  [mapper clazz bytes]
   (if-let [resolved-class  (resolve-class clazz)]
     (let [mapper (e/with-builder-class-hint mapper resolved-class)]
       (with-catch mapper clazz
@@ -118,7 +130,9 @@
         ~clazz ~bytes)))
 
 
-(defn proto-map->bytes [proto-map]
+(defn proto-map->bytes
+  "Serializes `proto-map` to protobuf binary"
+  [proto-map]
   (.toByteArray ^GeneratedMessageV3 (proto-map->proto proto-map)))
 
 (defn remap
@@ -157,13 +171,16 @@
     s))
 
 
-
-(defn schema [proto-map-or-class & ks]
+(defn schema
+  "Accepts a proto-map or class of a POJO, and returns a schema as a map.
+  If `ks` not supplied, will return the schema of the given class. Otherwise, will drill down to the schema using `ks` as a path"
+  [proto-map-or-class & ks]
   (schema/schema
     (cond
       (class? proto-map-or-class)     proto-map-or-class
       (u/proto-map? proto-map-or-class) (class (proto-map->proto proto-map-or-class)))
     ks))
+
 
 (defn- init-ctx [opts]
   (merge
@@ -185,7 +202,9 @@
                   (eval %))))))
 
 
-(defn dependencies [^Class clazz]
+(defn dependencies
+  "Return class dependencies for `clazz`."
+  [^Class clazz]
   (set (resolve-deps (init-ctx nil) clazz)))
 
 
@@ -197,7 +216,18 @@
   (s/join "." [global-ns *ns* mapper-sym-name]))
 
 
-(defmacro defmapper [name classes & opts]
+(defmacro defmapper
+  "Define a new proto mapper for the supplied classes using the supplied options.
+
+  Supported options:
+  :key-name-fn - a function that maps a field name, default `identity`
+
+  :enum-value-fn - a function that maps enum values, default `identity`
+
+  :iter-xf - a transducer for key-value map pairs
+
+  :encoders - encoders map, `{class->{:from-proto fn, :to-proto fn}}`"
+  [name classes & opts]
   {:pre [(symbol? name)
          (vector? classes)
          (not-empty classes)
