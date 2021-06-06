@@ -213,13 +213,17 @@
                    :else                   `(-> ~g ~x)))))))))
 
 
-(defmacro p-> [x & forms]
+(defmacro p->
+  "Like `->` but meant to be used where the initial expression evaluates to a proto-map. Under the hood, `p->` will operate on a transient version of the proto-map and `persistent!` it back when done. Expressions will be pipelined as much as possible, such that `(p-> person-proto (assoc-in [:pet :name] \"patch\") (assoc-in [:pet :kind] :cat))` will only generate a single instance of a pet transient map to which both operations will be applied in succession."
+  [x & forms]
   (let [g (gensym)]
     `(clojure.core/as-> ~x ~g
        ~@(rewrite-forms g forms))))
 
 
-(defmacro pcond-> [expr & clauses]
+(defmacro pcond->
+  "Equivalent to cond->. See `p->`"
+  [expr & clauses]
   (assert (even? (count clauses)))
   (let [clauses' (->> clauses
                       (partition 2)
