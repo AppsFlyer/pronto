@@ -22,7 +22,7 @@ ignored completely.
 ## Installation
 Add a dependency to your `project.clj` file:
 
-           [pronto "1.0.16"]
+           [pronto "2.0.6"]
 
 ## How does it work?
 
@@ -281,7 +281,7 @@ message Person {
 }
 ```
 Encoders allow us to define an alternative type (rather than the POJO class) that will be used for proto-map fields of that type:
-```
+```clj
 (defmapper mapper [protogen.generated.People$Person]
   :encoders {protogen.generated.People$UUID
              {:from-proto (fn [^protogen.generated.People$UUID proto-uuid]
@@ -297,4 +297,30 @@ Encoders allow us to define an alternative type (rather than the POJO class) tha
 
 ```
 This encourages DRYer code, since these kinds of proto<->clj conversions can be defined as a single encoder, rather than across the codebase.
+
+
+## Schema utils
+
+To inspect a schema at the REPL use `schema`, which returns the (Clojurified) schema as data:
+
+```clj
+(require '[pronto.core :as p])
+
+(p/schema People$Person)
+=> {:name String
+    :age  int
+    :friends [People$Person] ;; a repeated Person fields
+    :addressBook {String People$PersonDetails} ;; a map string->PersonDetails
+    :diet #{"UNKNOWN_DIET" "OMNIVORE" "VEGETARIAN" "VEGAN"} ;; an enum
+    :address People$Address ;; address field
+ }
+```
+Drilling-down is also possible:
+```clj
+(p/schema People$Person :address)
+=> {:country String :city String :house_num int}
+```
+
+Please note that unlike the rest of the library, `schema` uses runtime reflection and is meant as a convenience method to be used during development. 
+
 ### [Performance](doc/performance.md)
