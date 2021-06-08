@@ -54,7 +54,7 @@ public class ProntoVector extends APersistentVector implements IObj, IEditableCo
     public Object kvreduce(IFn f, Object init) {
         for (int i = 0; i < count(); i++) {
             Object obj = nth(i);
-            init = f.invoke(init, i, transformer.fromProto(obj));
+            init = f.invoke(init, i, obj);
             if (RT.isReduced(init)) {
                 return ((IDeref) init).deref();
             }
@@ -85,7 +85,7 @@ public class ProntoVector extends APersistentVector implements IObj, IEditableCo
     public Object reduce(IFn f, Object init) {
         for (int i = 0; i < count(); i++) {
             Object obj = nth(i);
-            init = f.invoke(init, transformer.fromProto(obj));
+            init = f.invoke(init, obj);
             if (RT.isReduced(init)) {
                 return ((IDeref) init).deref();
             }
