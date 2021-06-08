@@ -2,10 +2,6 @@
 
 A library for using [Protocol Buffers](https://github.com/protocolbuffers/protobuf) 3 in Clojure.
 
-***
-**Please join #rnd-pronto-lib on Slack for discussions and announcements.**
-****
-
 ## Rationale
 
 The guiding principles behind `pronto` are:
@@ -290,15 +286,15 @@ Encoders allow us to define an alternative type (rather than the POJO class) tha
                             (java.util.UUID. (.getMsb proto-uuid) (.getLsb proto-uuid)))                           
               :to-proto   (fn [^java.util.UUID java-uuid]
                             (let [b (People$UUID/newBuilder)]
-                               (.setMsb b (.getMostSignificantBits java-uuid)
-                               (.setLsb b (.getLeastSignificantBits java-uuid))
-                               (.build b))))}})
+                              (.setMsb b (.getMostSignificantBits java-uuid)
+                              (.setLsb b (.getLeastSignificantBits java-uuid))
+                              (.build b))))}})
 
 (proto-map mapper People$Person :id (java.util.UUID/randomUUID))
 => {:id #uuid "2a1ef325-c7c2-42d4-815d-6bb1b9ed2e63"} 
 
 ```
-This encourages DRYer code, since these kinds of proto<->clj conversions can be defined as a single encoder, rather than across the codebase.
+This encourages DRYer code, since these kinds of proto<->clj conversions can be defined as a single encoder, rather than handled across the codebase.
 
 
 ## Schema utils
@@ -312,7 +308,7 @@ To inspect a schema at the REPL use `schema`, which returns the (Clojurified) sc
 => {:name String
     :age  int
     :friends [People$Person] ;; a repeated Person fields
-    :addressBook {String People$PersonDetails} ;; a map string->PersonDetails
+    :address_book {String People$PersonDetails} ;; a map string->PersonDetails
     :diet #{"UNKNOWN_DIET" "OMNIVORE" "VEGETARIAN" "VEGAN"} ;; an enum
     :address People$Address ;; address field
  }

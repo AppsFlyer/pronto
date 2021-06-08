@@ -1,22 +1,22 @@
 (def protobuf-version "3.9.0")
 
 
-(defproject pronto "2.0.7-SNAPSHOT"
+(defproject com.appsflyer/pronto "2.0.7"
   :description "clojure support for protocol buffers"
-  :url "https://***REMOVED***/clojure/pronto"
+  :url "https://github.com/AppsFlyer/pronto"
   :license {:name "Eclipse Public License"
             :url  "http://www.eclipse.org/legal/epl-v10.html"}
   :source-paths ["src/clj"]
   :java-source-paths ["src/java" "test/java"]
-  :deploy-repositories [["releases"  {:url           "***REMOVED***/" :username :***REMOVED***
-                                      :password      :***REMOVED***
-                                      :sign-releases false}]
-                        ["snapshots"  {:url           "***REMOVED***" :username :***REMOVED***
-                                       :password      :***REMOVED***
-                                       :sign-releases false}]]
-  :repositories [["releases" {:url "***REMOVED***/"}]]
+  :deploy-repositories [["releases" {:url "https://repo.clojars.org"
+                                     :sign-releases false
+                                     :username :env/clojars_user
+                                     :password :env/clojars_pass}]
+                        ["snapshots" {:url "https://repo.clojars.org"
+                                      :username :env/clojars_user
+                                      :password :env/clojars_pass}]]
 
-  :plugins [[lein-protodeps "0.1.21"]
+  :plugins [[com.appsflyer/lein-protodeps "1.0.1"]
             [lein-codox "0.10.7"]]
 
   :dependencies [[org.clojure/clojure "1.10.1"]

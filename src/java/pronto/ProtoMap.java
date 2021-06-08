@@ -4,11 +4,11 @@ import clojure.lang.Keyword;
 import com.google.protobuf.GeneratedMessageV3;
 
 /**
-   Base functionality implemented by any generated proto-map.
-
-   Note: the ugly `pmap_` prefix in method names is a precaution to avoid
-   a conflict with the `get<Field>` and `has<Field>` methods that are generated as part of
-   the <Object>OrBuilder interfaces.
+ * Base functionality implemented by any generated proto-map.
+ * <p>
+ * Note: the ugly `pmap_` prefix in method names is a precaution to avoid
+ * a conflict with the `get<Field>` and `has<Field>` methods that are generated as part of
+ * the <Object>OrBuilder interfaces.
  **/
 public interface ProtoMap<T extends GeneratedMessageV3> {
     boolean isMutable();
