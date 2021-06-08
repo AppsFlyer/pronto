@@ -772,3 +772,15 @@ an error in the generated code"
            (hash (p/proto-map mapper People$Person :name "joe"))))
     (is (= (hash (p/proto-map mapper People$Person :address {:city "NYC"}))
            (hash (p/proto-map mapper People$Person :address {:city "NYC"}))))))
+
+
+(deftest test-end-to-end-proto-vector
+  (testing "a proto vector of proto-maps should be able to be assoced back to a proto-map after some transformations"
+    (let [p (p/proto-map mapper People$Person
+                         :likes [(p/proto-map mapper People$Like :desc "desc1")
+                                 {:desc "desc2"}
+                                 (p/proto-map->proto (p/proto-map mapper People$Like :desc "desc3"))])
+          ;; go through reduce
+          new-likes (into [] (map #(update % :desc s/upper-case)) (:likes p))
+          new-p (assoc p :likes new-likes)]
+      (is (= ["DESC1" "DESC2" "DESC3"] (map :desc (:likes new-p)))))))
