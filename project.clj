@@ -1,7 +1,7 @@
 (def protobuf-version "3.9.0")
 
 
-(defproject pronto "2.0.7"
+(defproject pronto "2.0.7-SNAPSHOT"
   :description "clojure support for protocol buffers"
   :url "https://***REMOVED***/clojure/pronto"
   :license {:name "Eclipse Public License"
