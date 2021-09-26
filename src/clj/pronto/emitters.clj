@@ -244,15 +244,17 @@
                       interface)))))))
 
 
-(defn- emit-case [k branches not-found]
-  (let [clauses (apply concat branches)]
-    (if (<= (count branches) 8)
-      `(condp identical? ~k
-         ~@clauses
-         ~not-found)
-      `(case ~k
-         ~@clauses
-         ~not-found))))
+(defn- emit-case
+  ([k branches not-found] (emit-case k branches not-found false))
+  ([k branches not-found use-cond?]
+   (let [clauses (apply concat branches)]
+     (if (or use-cond? (<= (count branches) 8))
+       `(condp identical? ~k
+          ~@clauses
+          ~not-found)
+       `(case ~k
+          ~@clauses
+          ~not-found)))))
 
 
 (defn- emit-fields-case [fields k throw-error? f]
@@ -726,11 +728,15 @@
         clazz        (gensym 'clazz)
         this         (gensym 'this)
         bytea        (gensym 'bytea)
+        ;; since we cannot rely on consistent hash codes for classes
+        ;; between compilation-time and runtime when using AOT, we explicitly opt in
+        ;; to dispatch via `cond`.
         emit-methods (fn [f]
                        (emit-case
                          clazz
                          (map (juxt identity f) classes)
-                         `(throw (new IllegalArgumentException (str "unknown " ~clazz)))))]
+                         `(throw (new IllegalArgumentException (str "unknown " ~clazz)))
+                         true))]
     `(do
        (defrecord ~type-name []
 
