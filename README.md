@@ -1,5 +1,9 @@
 # pronto
 
+[![Coverage Status](https://coveralls.io/repos/github/AppsFlyer/pronto/badge.svg?branch=master)](https://coveralls.io/github/AppsFlyer/pronto?branch=master)
+[![Clojars Project](https://img.shields.io/clojars/v/com.appsflyer/pronto.svg)](https://clojars.org/com.appsflyer/pronto)
+[![cljdoc badge](https://cljdoc.org/badge/com.appsflyer/pronto)](https://cljdoc.org/d/com.appsflyer/pronto/CURRENT)
+
 A library for using [Protocol Buffers](https://github.com/protocolbuffers/protobuf) 3 in Clojure.
 
 ## Rationale
@@ -18,7 +22,7 @@ ignored completely.
 ## Installation
 Add a dependency to your `project.clj` file:
 
-           [pronto "2.0.6"]
+           [pronto "2.0.7"]
 
 Note that the library comes with no Java protobuf dependencies of its own and they are expected to be provided by consumers of the library, with a minimal version of `3.9.0`.
 
