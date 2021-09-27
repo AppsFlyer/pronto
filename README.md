@@ -22,7 +22,7 @@ ignored completely.
 ## Installation
 Add a dependency to your `project.clj` file:
 
-           [pronto "2.0.7"]
+           [pronto "2.0.8"]
 
 Note that the library comes with no Java protobuf dependencies of its own and they are expected to be provided by consumers of the library, with a minimal version of `3.9.0`.
 
