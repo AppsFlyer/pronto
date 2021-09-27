@@ -2,4 +2,4 @@
            pronto.runtime/p->   clojure.core/->
            pronto.core/p->      clojure.core/->
            pronto.core/pcond->  clojure.core/cond->}
- :output  {:exclude-files ["emitters.clj" "potemkin_types.clj"]}}
+ :output  {:exclude-files ["emitters.clj"]}}
