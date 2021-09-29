@@ -111,7 +111,7 @@ jobs:
           git config --global user.email "<>"
           git config --global push.followTags true
           lein pom
-          export VERSION=$(less pom.xml | grep "<version>" | head -1 | cut -d ">" -f2 | cut -d "<" -f1)
+          export VERSION=$(grep "<version>" pom.xml | head -1 | cut -d ">" -f2 | cut -d "<" -f1)
           echo "version is:" $VERSION
           if [[ !("$VERSION" =~ $RELEASE_REGEX) ]]
           then
