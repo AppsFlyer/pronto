@@ -10,11 +10,11 @@
   :java-source-paths ["src/java" "test/java"]
   :deploy-repositories [["releases" {:url "https://repo.clojars.org"
                                      :sign-releases false
-                                     :username :env/clojars_user
-                                     :password :env/clojars_pass}]
+                                     :username :env/clojars_username
+                                     :password :env/clojars_password}]
                         ["snapshots" {:url "https://repo.clojars.org"
-                                      :username :env/clojars_user
-                                      :password :env/clojars_pass}]]
+                                      :username :env/clojars_username
+                                      :password :env/clojars_password}]]
 
   :plugins [[com.appsflyer/lein-protodeps "1.0.1"]
             [lein-codox "0.10.7"]]
