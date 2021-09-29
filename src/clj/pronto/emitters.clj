@@ -12,11 +12,11 @@
            [pronto ProtoMapper]))
 
 
-(defn get-builder-class [^Class clazz]
+(defn- get-builder-class [^Class clazz]
   (.getReturnType (.getDeclaredMethod clazz "toBuilder" (make-array Class 0))))
 
 
-(defn empty-map-var-name
+(defn- empty-map-var-name
   ([clazz] (empty-map-var-name clazz nil))
   ([^Class clazz ns]
    (symbol ns (str "__EMPTY_" (u/sanitized-class-name clazz)))))
@@ -27,23 +27,23 @@
   (first (.getInterfaces clazz)))
 
 
-(defn assoc-intf-name2 [{:keys [iname itype]}]
+(defn- assoc-intf-name2 [{:keys [iname itype]}]
   (symbol (str "assoc" iname "_" (.getSimpleName ^Class itype))))
 
 
-(defn val-at-intf-name2 [{:keys [iname itype]}]
+(defn- val-at-intf-name2 [{:keys [iname itype]}]
   (symbol (str "valAt" iname "_" (.getSimpleName ^Class itype))))
 
 
-(defn empty-intf-name2 [{:keys [iname]}]
+(defn- empty-intf-name2 [{:keys [iname]}]
   (symbol (str "empty" iname)))
 
 
-(defn clear-intf-name2 [{:keys [iname]}]
+(defn- clear-intf-name2 [{:keys [iname]}]
   (symbol (str "clear" iname)))
 
 
-(defn interface-info [k]
+(defn- interface-info [k]
   {:iname (u/->camel-case (name k))
    :itype Object})
 
@@ -51,27 +51,27 @@
   (interface-info (:kw fd)))
 
 
-(defn intf-info->intf-name [{:keys [iname itype]}]
+(defn- intf-info->intf-name [{:keys [iname itype]}]
   (symbol (str 'I iname "_" (u/sanitized-class-name itype))))
 
 
-(defn clear [field builder]
+(defn- clear [field builder]
   (let [clear-method (symbol (str ".clear" (u/field->camel-case (:fd field))))]
     `(~clear-method ~(u/with-type-hint builder
                        (get-builder-class (:class field))))))
 
 
-(defn emit-default-ctor [^Class clazz]
+(defn- emit-default-ctor [^Class clazz]
   (let [wrapper-class-name (u/class->map-class-name clazz)]
     `(new ~wrapper-class-name (.build (~(u/static-call clazz "newBuilder"))) nil)))
 
 
-(defn emit-default-transient-ctor [^Class clazz ns]
+(defn- emit-default-transient-ctor [^Class clazz ns]
   (let [transient-wrapper-class-name (u/class->transient-class-name clazz)]
     `(~(symbol ns (str '-> transient-wrapper-class-name)) (~(u/static-call clazz "newBuilder")) true false)))
 
 
-(defn get-interfaces [^Class clazz ctx]
+(defn- get-interfaces [^Class clazz ctx]
   (let [fields          (t/get-fields clazz ctx)
         builder-class   (get-builder-class clazz)
         builder-sym     (gensym 'builder) #_ (u/with-type-hint (gensym 'builder) builder-class)
@@ -160,7 +160,7 @@
 (def get-proto-method 'getProto)
 
 
-(defn builder-interface-name [^Class clazz]
+(defn- builder-interface-name [^Class clazz]
   (symbol (str "Builder_" (u/sanitized-class-name clazz))))
 
 (defn builder-interface-get-proto-method-name [^Class clazz]
@@ -263,7 +263,7 @@
     (emit-case k branches not-found)))
 
 
-(defn emit-assoc [clazz fields this builder k v]
+(defn- emit-assoc [clazz fields this builder k v]
   (emit-fields-case
          fields k true
          (fn [fd]
@@ -276,25 +276,25 @@
 
 
 
-(defn direct-dispath-call [fd this-sym]
+(defn- direct-dispath-call [fd this-sym]
   `(~(symbol (str "." (val-at-intf-name2
                        (fd->interface-info fd))))
     ~this-sym))
 
-(defn emit-val-at [fields this k]
+(defn- emit-val-at [fields this k]
   (emit-fields-case
     fields k true
     (fn [fd]
       (direct-dispath-call fd this))))
 
 
-(defn emit-clear [fields builder k]
+(defn- emit-clear [fields builder k]
   (emit-fields-case
     fields k true
     (fn [field]
       (clear field builder))))
 
-(defn emit-has-field? [fields o k]
+(defn- emit-has-field? [fields o k]
   (emit-fields-case
     fields k true
     (fn [field]
@@ -309,7 +309,7 @@
   (keyword (s/lower-case (u/->kebab-case enum-case-name))))
 
 
-(defn emit-which-one-of [fields o k]
+(defn- emit-which-one-of [fields o k]
   (let [one-ofs (->> fields
                      (map #(.getContainingOneof ^Descriptors$FieldDescriptor (:fd %)))
                      (keep identity)
@@ -354,7 +354,7 @@
 (def ^:private pojo (gensym 'pojo))
 
 
-(defn emit-deftype [^Class clazz ctx]
+(defn- emit-deftype [^Class clazz ctx]
   (let [fields               (t/get-fields clazz ctx)
         o                    (u/with-type-hint pojo clazz)
         wrapper-class-name   (u/class->map-class-name clazz)
@@ -560,7 +560,7 @@
   (when-not editable?
     (throw (IllegalAccessError. "Transient used after persistent! call"))))
 
-(defn emit-transient [^Class clazz ctx]
+(defn- emit-transient [^Class clazz ctx]
   (let [fields                       (t/get-fields clazz ctx)
         builder-class                (get-builder-class clazz)
         o                            (u/with-type-hint pojo builder-class)

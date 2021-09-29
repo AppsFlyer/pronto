@@ -11,7 +11,7 @@
   (wrap [this v])
   (unwrap [this v]))
 
-(def numeric-scalar?
+(def ^:private numeric-scalar?
   (comp boolean #{Integer Integer/TYPE Long Long/TYPE Double Double/TYPE Float Float/TYPE}))
 
 (defn- if-instrument [ctx test then else]
@@ -29,7 +29,7 @@
                   String ByteString} clazz))))
 
 
-(def wkt->java-type
+(def ^:private wkt->java-type
   ;; use string keys since these classes may not be loaded by the classloader
   {"com.google.protobuf.DoubleValue" Double/TYPE
    "com.google.protobuf.FloatValue"  Float/TYPE
@@ -51,7 +51,7 @@
       (not (protobuf-scalar? clazz))    :message
       :else                             :scalar)))
 
-(defn make-error [^Class clazz ctx v]
+(defn- make-error [^Class clazz ctx v]
   (u/make-type-error (:class ctx)
                      (.getName ^Descriptors$FieldDescriptor (:fd ctx))
                      clazz
