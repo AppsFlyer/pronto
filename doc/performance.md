@@ -1,4 +1,8 @@
-# memory efficiency
+# Performance
+
+Benchmarks were run on i7-8750H, 2.2 GHz, Linux 4.15.0 x86_64, JDK 11 using JMH.
+
+## memory efficiency
 
 A single proto-map's memory consumption is almost identical to its corresponding Java object; the overhead is exactly 24 bytes per message.
 
@@ -6,7 +10,7 @@ Below is a measurement of memory consumption of a Java protobuf POJO containing 
 
 ![img](memory.png)
 
-# read efficiency
+## read efficiency
 
 Reading data from proto-map (either straight via a keyword or through `clojure.core/get`) is generally faster than a regular map counterpart. To compare performance, we ran several micro-benchmarks for several schema sizes.
 
@@ -22,7 +26,7 @@ Because the threading-macro is familiar with the internal structure of proto-map
 
 ![img](read2.png)
 
-# write efficiency
+## write efficiency
 
 The cost of a single `assoc` to a proto-map is generally higher than of its Clojure map counterpart (assuming same number of keys).
 
@@ -39,7 +43,7 @@ This is unlike Clojure maps, where associng a key to a map is a `O(log32 n)` ope
 
 ![Single assoc throughput for different schema size](write1.png)
 
-## Transients
+### Transients
 
 One way of achieving better write performance is by using `transients`. Proto maps can be made `transient` by calling [transient](https://clojuredocs.org/clojure.core/transient) and then persistent again via [persistent!](https://clojuredocs.org/clojure.core/persistent!), and like regular transients, transient proto maps are mutable and not thread-safe and are intended to only be used in local scopes, to perform a series of update operations.
 

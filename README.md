@@ -39,7 +39,7 @@ Every `proto-map`
 
 ## Quick example
 
-Let's use this [example](https://***REMOVED***/clojure/pronto/blob/master/resources/proto/people.proto):
+Let's use this [example](https://github.com/AppsFlyer/pronto/blob/master/resources/proto/people.proto):
 
 ```clj
 (import 'protogen.generated.People$Person)
@@ -96,9 +96,10 @@ and can't be used as a general-purpose container of key-value pairs. Therefor, t
 Second, returning `nil` could lead to strange ambiguities -- see below.
 * Associng a key not present in the schema is an error -- maintain schema correctness.
 * Associng a value of the wrong type is an error -- maintain schema correctness.
-* To `nil` or not to `nil`: protocol buffers in Java have no notion of nullability. Every field in every message is always initialized and present.
+* To `nil` or not to `nil`: protocol buffers in Java have no notion of scalar nullability. Scalar fields are always initialized and present.
 When unset, they take on their "zero-value" rather than `null`. However, for message type fields it is possible to check whether set or not.
-  * Scalar fields will never be `nil`. When unset, their value will be whatever the default value is for the respective type.
+  * Scalar fields will never be `nil`. When unset, their value will be whatever the default value is for the respective type. However, protobuf provides
+ [boxed](#well-known-types)  wrappers for primitive types, which `pronto` automatically recognizes and inlines into the proto-map.
   * The value message type fields will be `nil` when they are unset. Associng `nil` to a message type field will clear it.
 
 ## Usage guide
@@ -230,7 +231,7 @@ fields still exist in the schema with their default values or `nil` in the case 
 To check which one-of is set, use `which-one-of` or `one-of`.
 
 For example, given this schema:
-```
+```protobuf
 message Address {
   string city = 1;
   string street = 2;
@@ -264,15 +265,15 @@ However, ByteString's are naturally `seqable` since they implement `java.lang.It
 #### Well-Known-Types
 
 [Well known types](https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/wrappers.proto) fields will be inlined into the message.
-This means, that rather than calling `(-> my-proto-map :my-string-value :value)` you can simply write `(:my-string-value my-proto-map)`. Note that since
-well-known-types are message types, this may return `nil` when the field is unset.
+This means that rather than calling `(-> my-proto-map :my-string-value :value)` you can simply write `(:my-string-value my-proto-map)`. Note that since
+well-known-types are message types, this may return `nil` when the field is unset -- allowing us to model schemas which support null scalar fields.
 
 
 #### Encoders
 
 While protobuf allows us to describe our domain model, the Java generated types are not always a great programmatic fit. Consider the following schema:
 
-```
+```protobuf
 message UUID {
    int64 msb = 1; // most significat bits
    int64 lsb = 2; // least significat bits
@@ -281,7 +282,10 @@ message UUID {
 message Person {
    UUID id = 1;
 }
+
 ```
+Reading a person's `id` field would return a ```{:lsb <lsb> :msb <msb>}``` proto-map.
+
 Encoders allow us to define an alternative type (rather than the POJO class) that will be used for proto-map fields of that type:
 ```clj
 (defmapper mapper [protogen.generated.People$Person]
@@ -300,15 +304,50 @@ Encoders allow us to define an alternative type (rather than the POJO class) tha
 ```
 This encourages DRYer code, since these kinds of proto<->clj conversions can be defined as a single encoder, rather than handled across the codebase.
 
+#### Interoping proto-maps with Java code
 
-## Schema utils
+It is sometimes necessary to interop with Java code that expects a POJO instance. For example, consider the following method signature:
 
-To inspect a schema at the REPL use `schema`, which returns the (Clojurified) schema as data:
+
+```java
+public class Utils {
+  public static void foo(com.google.protobuf.Duration duration) { ... }   
+}  
+```
+
+This method receives a `com.google.protobuf.Duration`, a generated class that was compiled from the [duration schema](https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/duration.proto) that is part of the protobuf distribution. 
+
+Since proto-maps are thin wrappers, we can always refer back to the underlying POJO and interop successfully:
 
 ```clj
 (require '[pronto.core :as p])
+(import 'com.google.protobuf.Duration)
 
-(p/schema People$Person)
+(p/defmapper m [Duration])
+
+(Utils/foo (p/proto-map->proto (p/proto-map m Duration)))
+```
+
+If your Java code operates on the protoc generated interfaces rather than concrete typs, it is also possible to pass the proto-map directly:
+
+```java
+public static void foo(com.google.protobuf.DurationOrBuilder duration) { ... }
+```
+
+```clj
+(Utils/foo (p/proto-map m Duration))
+```
+
+## [Performance](doc/performance.md)
+
+## Schema utils
+
+To inspect a schema at the REPL use `pronto.schema/schema`, which returns the (Clojurified) schema as data:
+
+```clj
+(require '[pronto.schema :refer [schema]])
+
+(schema People$Person)
 => {:name String
     :age  int
     :friends [People$Person] ;; a repeated Person fields
@@ -325,4 +364,3 @@ Drilling-down is also possible:
 
 Please note that unlike the rest of the library, `schema` uses runtime reflection and is meant as a convenience method to be used during development. 
 
-### [Performance](doc/performance.md)
