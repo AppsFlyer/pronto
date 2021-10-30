@@ -6,7 +6,6 @@
             [pronto.utils :as u]
             [pronto.protos :refer [global-ns]]
             [pronto.lens :as lens]
-            [pronto.schema :as schema]
             [potemkin]
             [clojure.string :as s])
   (:import [pronto ProtoMap ProtoMapper]
@@ -24,11 +23,6 @@
       (throw (IllegalArgumentException. (str clazz " is not a protobuf class"))))
     clazz))
 
-
-(defn proto-map->proto
-  "Returns the protobuf instance associated with the proto-map"
-  [^ProtoMap m]
-  (.pmap_getProto m))
 
 (defn has-field? [^ProtoMap m k]
   (.pmap_hasField m k))
@@ -133,7 +127,7 @@
 (defn proto-map->bytes
   "Serializes `proto-map` to protobuf binary"
   [proto-map]
-  (.toByteArray ^GeneratedMessageV3 (proto-map->proto proto-map)))
+  (.toByteArray ^GeneratedMessageV3 (u/proto-map->proto proto-map)))
 
 (defn remap
   "Remaps `proto-map` using `mapper`.
@@ -169,17 +163,6 @@
   (if (symbol? s)
     (resolve s)
     s))
-
-
-(defn schema
-  "Accepts a proto-map or class of a POJO, and returns a schema as a map.
-  If `ks` not supplied, will return the schema of the given class. Otherwise, will drill down to the schema using `ks` as a path"
-  [proto-map-or-class & ks]
-  (schema/schema
-    (cond
-      (class? proto-map-or-class)     proto-map-or-class
-      (u/proto-map? proto-map-or-class) (class (proto-map->proto proto-map-or-class)))
-    ks))
 
 
 (defn- init-ctx [opts]
@@ -261,4 +244,5 @@
                        assoc-if]
                       [pronto.utils
                        ->kebab-case
-                       proto-map?])
+                       proto-map?
+                       proto-map->proto])

@@ -569,54 +569,6 @@
 
 
 
-(deftest schema-test []
-  (is (= (p/schema (p/proto-map mapper People$Person))
-         (p/schema People$Person)))
-
-  (is (nil? (p/schema People$Person :fake-key)))
-
-  (is (= (p/schema People$Person :address)
-         {:city           String
-          :street         String
-          :house_num      Integer/TYPE
-          :home/house     People$House
-          :home/apartment People$Apartment
-          :address_id     People$UUID}))
-
-  (is (= (p/schema People$Person :address :home/house)
-         {:num_rooms Integer/TYPE}))
-
-  (is (= (p/schema People$Person)
-         {:id                   Integer/TYPE
-          :name                 String
-          :email                String
-          :address              People$Address
-          :likes                [People$Like]
-          :relations            {String People$Person}
-          :pet_names            [String]
-          :private_key          ByteString
-          :age_millis           Long/TYPE
-          :is_vegetarian        Boolean/TYPE
-          :height_cm            Double/TYPE
-          :weight_kg            Float/TYPE
-          :levels               [#{"HIGH" "LOW" "MEDIUM" "ALIASED_HIGH"}]
-          :social_security      com.google.protobuf.Int32Value
-          :maiden_name          com.google.protobuf.StringValue
-          :uuid                 People$UUID
-          :bv                   com.google.protobuf.BytesValue
-          :bla                  {String, com.google.protobuf.DoubleValue}
-          :ids_list             [Integer]
-          :relations_like_level {String #{"HIGH" "LOW" "MEDIUM" "ALIASED_HIGH"}}
-          :thing/num            Integer/TYPE
-          :thing/str            String
-          :thing/person         People$Person
-          :thing/level          #{"HIGH" "LOW" "MEDIUM" "ALIASED_HIGH"}
-          :s2s                  {String String}
-          :repeated_bytes       [ByteString]
-          :repeated_bools       [Boolean]
-          :repeated_floats      [Float]
-          :repeated_doubles     [Double]})))
-
 (deftest remove-default-values-xf-tests
   (testing "that default values are removed when converting to a clj-map using the xf"
     (is (= {:level :LOW}

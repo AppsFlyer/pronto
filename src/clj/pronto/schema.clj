@@ -1,6 +1,8 @@
 (ns pronto.schema
   (:require [pronto.reflection :as reflect]
-            [pronto.type-gen :as t])
+            [pronto.type-gen :as t]
+            [pronto.utils :as u]
+            [pronto.wrapper :as w])
   (:import  [com.google.protobuf
              Descriptors$FieldDescriptor
              Descriptors$Descriptor]))
@@ -21,10 +23,10 @@
                                (type-info x))))
 
 
-(defn- find-descriptors [clazz descriptors ks]
+(defn- find-descriptors [clazz descriptors key-path]
   (loop [clazz       clazz
          descriptors descriptors
-         ks          ks]
+         ks          key-path]
     (if-not (seq ks)
       [clazz descriptors]
       (let [[k & ks] ks
@@ -39,18 +41,77 @@
                 clazz     (t/field-type clazz descriptor)]
             (recur clazz sub-descs ks)))))))
 
-(defn schema [clazz ks]
-  (let [[clazz descriptors] (find-descriptors
-                             clazz
-                             (map :fd (t/get-fields clazz {}))
-                             ks)]
-    (when descriptors
-      (into {}
-            (map
-             (fn [^Descriptors$FieldDescriptor fd]
-               [(keyword
-                 (when-let [oneof (.getContainingOneof fd)]
-                   (.getName oneof))
-                 (.getName fd))
-                (field-schema clazz fd)]))
-            descriptors))))
+
+(defn- search-descriptors [kw descriptors]
+  (when kw
+    (some
+     (fn [^Descriptors$FieldDescriptor fd]
+       (when (= (.getName fd) (name kw))
+         fd))
+     descriptors)))
+
+
+(defn- struct-schema [clazz descriptors]
+  (when (seq descriptors)
+    (into
+     {}
+     (map
+      (fn [^Descriptors$FieldDescriptor fd]
+        [(keyword
+          (when-let [oneof (.getContainingOneof fd)]
+            (.getName oneof))
+          (.getName fd))
+         (field-schema clazz fd)]))
+     descriptors)))
+
+
+(defn- class-descriptors [clazz ks]
+  (find-descriptors
+   clazz
+   (map :fd (t/get-fields clazz {}))
+   ks))
+
+
+(defn- schema* [clazz ks]
+  (let [k (last ks)
+        [clazz descriptors] (class-descriptors clazz (butlast ks))]
+    (if k
+      (when-let [d (search-descriptors k descriptors)]
+        (let [t (t/find-type clazz d)]
+          (if (w/protobuf-scalar? t)
+            (field-schema clazz d)
+            (struct-schema t (second (class-descriptors t []))))))
+      (struct-schema clazz descriptors))))
+
+
+(defn schema
+  "Accepts a proto-map or class of a POJO, and returns a schema as a map.
+  If `ks` not supplied, will return the schema of the given class. Otherwise, will drill down to the schema using `ks` as a path"
+  [proto-map-or-class & ks]
+  (schema*
+   (cond
+     (class? proto-map-or-class)     proto-map-or-class
+     (u/proto-map? proto-map-or-class) (class (u/proto-map->proto proto-map-or-class)))
+   ks))
+
+
+(defn search
+  ([f clazz] (search f clazz [] #{}))
+  ([f clazz path seen-classes]
+   (let [schema (schema* clazz [])
+         seen-classes (conj seen-classes clazz)
+         res (->> schema
+                  (filter (fn [[k v]] (f k v)))
+                  keys
+                  (map #(conj path %)))
+         sub-res (->> schema
+                      (filter
+                        (fn [[_ v]]
+                          (and (class? v)
+                               (not (w/protobuf-scalar? v))
+                               (not (get seen-classes v)))))
+                      (map
+                        (fn [[k v]]
+                          (search f v (conj path k) seen-classes)))
+                      (apply concat))]
+     (concat res sub-res))))

@@ -215,3 +215,9 @@
 
 (defn proto-map? [m]
   (instance? ProtoMap m))
+
+
+(defn proto-map->proto
+  "Returns the protobuf instance associated with the proto-map"
+  [^ProtoMap m]
+  (.pmap_getProto m))
