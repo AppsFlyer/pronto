@@ -95,23 +95,28 @@
    ks))
 
 
+(defn- search* [f clazz path seen-classes]
+  (let [schema (schema* clazz [])
+        seen-classes (conj seen-classes clazz)
+        res (->> schema
+                 (filter (fn [[k v]] (f k v)))
+                 keys
+                 (map #(conj path %)))
+        sub-res (->> schema
+                     (filter
+                      (fn [[_ v]]
+                        (and (class? v)
+                             (not (w/protobuf-scalar? v))
+                             (not (get seen-classes v)))))
+                     (mapcat
+                      (fn [[k v]]
+                        (search* f v (conj path k) seen-classes))))]
+    (concat res sub-res)))
+
+
 (defn search
-  ([f clazz] (search f clazz [] #{}))
-  ([f clazz path seen-classes]
-   (let [schema (schema* clazz [])
-         seen-classes (conj seen-classes clazz)
-         res (->> schema
-                  (filter (fn [[k v]] (f k v)))
-                  keys
-                  (map #(conj path %)))
-         sub-res (->> schema
-                      (filter
-                        (fn [[_ v]]
-                          (and (class? v)
-                               (not (w/protobuf-scalar? v))
-                               (not (get seen-classes v)))))
-                      (map
-                        (fn [[k v]]
-                          (search f v (conj path k) seen-classes)))
-                      (apply concat))]
-     (concat res sub-res))))
+  "Applies `f`, a predicate, to every field in the schema of the supplied class, recursively, and
+  returns a seq of paths to fields for which the function returned a truthy value.
+  `f` must be a 2 arity function, receiving the field name (keyword) and its type as given in `pronto.schema/schema`."
+  [f clazz]
+  (search* f clazz [] #{}))
