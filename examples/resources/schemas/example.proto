@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package protogen;
+
+option java_multiple_files = true;
+
+message Address {
+  string street = 1;
+  string city = 2;
+  string country = 3;
+  int32 house_number = 4;
+}
+
+message PhoneBookInfo {
+  string primary_number = 1;
+  string work_number = 2;
+  Address home_address = 3;
+}
+
+message Person {
+  int64 id = 1;
+  string name = 2;
+  int32 age = 3;
+  repeated Person friends = 4;
+  map<string, PhoneBookInfo> phone_book = 5;
+  ProgrammingLanguage favorite_language = 6;
+  bool can_vote = 7;
+  Address address = 8;
+}
+
+enum ProgrammingLanguage {
+  UNKNOWN_LANGUAGE = 0;
+  CLOJURE = 1;
+  JAVA = 2;
+  C = 3;
+  CPP = 4;
+  HASKELL = 5;
+}

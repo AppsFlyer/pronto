@@ -16,3 +16,5 @@ test/java/
 .cider-repl-history
 *.iml
 .lsp/
+.nrepl-port
+examples/target
