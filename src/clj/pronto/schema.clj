@@ -78,9 +78,9 @@
     (if k
       (when-let [d (search-descriptors k descriptors)]
         (let [t (t/find-type clazz d)]
-          (if (w/protobuf-scalar? t)
-            (field-schema clazz d)
-            (struct-schema t (second (class-descriptors t []))))))
+          (if (u/struct? d)
+            (struct-schema t (second (class-descriptors t [])))
+            (field-schema clazz d))))
       (struct-schema clazz descriptors))))
 
 
