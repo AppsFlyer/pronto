@@ -54,7 +54,7 @@
 (defn- struct-schema [clazz descriptors]
   (when (seq descriptors)
     (into
-     {}
+     (sorted-map)
      (map
       (fn [^Descriptors$FieldDescriptor fd]
         [(keyword
