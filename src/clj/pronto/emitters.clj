@@ -27,34 +27,6 @@
   (first (.getInterfaces clazz)))
 
 
-(defn- assoc-intf-name2 [{:keys [iname itype]}]
-  (symbol (str "assoc" iname "_" (.getSimpleName ^Class itype))))
-
-
-(defn- val-at-intf-name2 [{:keys [iname itype]}]
-  (symbol (str "valAt" iname "_" (.getSimpleName ^Class itype))))
-
-
-(defn- empty-intf-name2 [{:keys [iname]}]
-  (symbol (str "empty" iname)))
-
-
-(defn- clear-intf-name2 [{:keys [iname]}]
-  (symbol (str "clear" iname)))
-
-
-(defn- interface-info [k]
-  {:iname (u/->camel-case (name k))
-   :itype Object})
-
-(defn- fd->interface-info [fd]
-  (interface-info (:kw fd)))
-
-
-(defn- intf-info->intf-name [{:keys [iname itype]}]
-  (symbol (str 'I iname "_" (u/sanitized-class-name itype))))
-
-
 (defn- clear [field builder]
   (let [clear-method (symbol (str ".clear" (u/field->camel-case (:fd field))))]
     `(~clear-method ~(u/with-type-hint builder
@@ -69,76 +41,6 @@
 (defn- emit-default-transient-ctor [^Class clazz ns]
   (let [transient-wrapper-class-name (u/class->transient-class-name clazz)]
     `(~(symbol ns (str '-> transient-wrapper-class-name)) (~(u/static-call clazz "newBuilder")) true false)))
-
-
-(defn- get-interfaces [^Class clazz ctx]
-  (let [fields          (t/get-fields clazz ctx)
-        builder-class   (get-builder-class clazz)
-        builder-sym     (gensym 'builder) #_ (u/with-type-hint (gensym 'builder) builder-class)
-        proto-interface (proto-or-builder-interface clazz)
-        val-sym         (gensym 'val)
-        this            (gensym 'this)]
-    (for [field fields]
-      (let [intf-info (fd->interface-info field)
-            intf-name (intf-info->intf-name intf-info)
-            ^Descriptors$FieldDescriptor fd (:fd field)]
-        {:name (str (u/javaify global-ns) "." intf-name)
-         :intf
-         `(definterface ~intf-name
-            (~(assoc-intf-name2 intf-info)
-             [~'builder ~'val])
-
-            (~(val-at-intf-name2 intf-info)
-             [])
-
-            (~(empty-intf-name2 intf-info)
-             [])
-
-            (~(clear-intf-name2 intf-info)
-             [~'builder]))
-
-         :impl
-         `((~(assoc-intf-name2 intf-info)
-            [~this ~builder-sym ~val-sym]
-            ~(let [ex (gensym 'ex)]
-               `(try
-                  ~(t/gen-setter
-                     (:type-gen field)
-                     (u/with-type-hint
-                       builder-sym
-                       builder-class)
-                     val-sym)
-                  (catch ClassCastException ~ex
-                      (throw ~(u/make-type-error
-                                clazz
-                                (:kw field)
-                                (cond
-                                  (.isMapField fd) java.util.Map
-                                  (.isRepeated fd) java.util.List
-                                  :else (t/field-type clazz fd))
-                                val-sym
-                                ex))))))
-           
-
-           (~(val-at-intf-name2 intf-info)
-            [~this]
-            ~(t/gen-getter
-               (:type-gen field)
-               (u/with-type-hint
-                 this
-                 proto-interface)))
-
-           (~(empty-intf-name2 intf-info)
-            [~this]
-            ~(let [^Descriptors$FieldDescriptor fd (:fd field)]
-               (if (u/struct? fd)
-                 (empty-map-var-name (t/field-type clazz (:fd field)))
-                 `(throw (new UnsupportedOperationException
-                              "Cannot call empty")))))
-
-           (~(clear-intf-name2 intf-info)
-            [~this ~builder-sym]
-            ~(clear field builder-sym)))}))))
 
 
 (defn- emit-interfaces
@@ -263,29 +165,49 @@
     (emit-case k branches not-found)))
 
 
+(defn setter [clazz field builder-sym val-sym]
+  (let [builder-class                              (get-builder-class clazz)
+        ex                                         (gensym 'ex)
+        ^Descriptors$FieldDescriptor fd            (:fd field)]
+    `(try
+       ~(t/gen-setter
+         (:type-gen field)
+         (u/with-type-hint builder-sym builder-class)
+         val-sym)
+       (catch ClassCastException ~ex
+         (throw ~(u/make-type-error
+                  clazz
+                  (:kw field)
+                  (cond
+                    (.isMapField fd) java.util.Map
+                    (.isRepeated fd) java.util.List
+                    :else (t/field-type clazz fd))
+                  val-sym
+                  ex))))))
+
+
 (defn- emit-assoc [clazz fields this builder k v]
   (emit-fields-case
          fields k true
-         (fn [fd]
-           `(~(symbol (str "."
-                           (assoc-intf-name2
-                            (fd->interface-info fd))))
-             ~this
-             ~builder
-             ~v))))
+         (fn [field]
+           (setter clazz field builder v))))
 
 
 
-(defn- direct-dispath-call [fd this-sym]
-  `(~(symbol (str "." (val-at-intf-name2
-                       (fd->interface-info fd))))
-    ~this-sym))
+(defn getter [clazz field this]
+  (let [proto-interface (proto-or-builder-interface clazz)]
+    (t/gen-getter
+      (:type-gen field)
+      (u/with-type-hint
+        this
+        proto-interface))))
 
-(defn- emit-val-at [fields this k]
+
+(defn- emit-val-at [clazz fields this k]
   (emit-fields-case
     fields k true
     (fn [fd]
-      (direct-dispath-call fd this))))
+      (getter clazz fd this))))
 
 
 (defn- emit-clear [fields builder k]
@@ -362,8 +284,7 @@
         md                   (gensym 'md)
         mapper               (gensym 'mapper)
         builder-class (get-builder-class clazz)
-        builder-sym   (u/with-type-hint (gensym 'builder) builder-class)
-        interfaces    (get-interfaces clazz ctx)]
+        builder-sym   (u/with-type-hint (gensym 'builder) builder-class)]
     `(deftype ~wrapper-class-name [~o ~md]
 
        clojure.lang.IPersistentMap
@@ -426,7 +347,7 @@
        ~(let [k    (gensym 'k)
               this (gensym 'this)]
           `(valAt [~this ~k]
-                  ~(emit-val-at fields this k)))
+                  ~(emit-val-at clazz fields this k)))
 
        (valAt [this# k# not-found#]
          (.valAt this# k#))
@@ -440,12 +361,6 @@
          (pronto.PersistentMapHelpers/invoke this# arg1# not-found#))
 
        ~@(implement-message-or-builder-interface clazz o)
-
-       ~@(mapcat
-           (fn [{:keys [name impl]}]
-             (into [(symbol name)]
-                   impl))
-           interfaces)
 
        java.io.Serializable
 
@@ -482,7 +397,7 @@
               entries (mapv (fn [fd]
                               `(clojure.lang.MapEntry/create
                                  ~(:kw fd)
-                                 ~(direct-dispath-call fd this)))
+                                 ~(getter clazz fd this)))
                             fields)]
           `(seq
              [~this]
@@ -505,7 +420,7 @@
                               ~(mapv (fn [fd]
                                        `(clojure.lang.MapEntry/create
                                           ~(:kw fd)
-                                          ~(direct-dispath-call fd this)))
+                                          ~(getter clazz fd this)))
                                      fields))]
           `(iterator
              [~this]
@@ -567,8 +482,7 @@
         transient-wrapper-class-name (u/class->transient-class-name clazz)
         wrapper-class-name           (u/class->map-class-name clazz)
         builder-class (get-builder-class clazz)
-        builder-sym   (u/with-type-hint (gensym 'builder) builder-class)
-        interfaces    (get-interfaces clazz ctx)]
+        builder-sym   (u/with-type-hint (gensym 'builder) builder-class)]
     `(deftype ~transient-wrapper-class-name [~(with-meta o {:unsynchronized-mutable true})
                                               ~(with-meta 'editable? {:unsynchronized-mutable true})
                                               ~(with-meta 'in-transaction? {:unsynchronized-mutable true})]
@@ -611,7 +525,7 @@
        ~(let [k    (gensym 'k)
               this (gensym 'this)]
           `(valAt [~this ~k]
-                  ~(emit-val-at fields this k)))
+                  ~(emit-val-at clazz fields this k)))
 
        (valAt [this# k# not-found#]
          (.valAt this# k#))
@@ -625,12 +539,6 @@
          (pronto.PersistentMapHelpers/invoke this# arg1# not-found#))
 
        ~@(implement-message-or-builder-interface clazz o)
-
-       ~@(mapcat
-           (fn [{:keys [name impl]}]
-             (into [(symbol name)]
-                   impl))
-           interfaces)
 
        pronto.TransientProtoMap
 
@@ -705,7 +613,6 @@
 
 (defn emit-proto-map [^Class clazz ctx]
   `(do
-     ~(emit-interfaces (get-interfaces clazz ctx))
      ~(emit-interfaces [(proto-builder-interface (:ns ctx) clazz)])
      ~(emit-deftype clazz ctx)
      ~(emit-transient clazz ctx)
