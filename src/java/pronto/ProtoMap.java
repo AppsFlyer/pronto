@@ -28,4 +28,6 @@ public interface ProtoMap<T extends GeneratedMessageV3> {
     ProtoMap<T> remap(ProtoMapper mapper);
 
     ProtoMap<?> empty(Keyword keyword);
+
+    ProtoMap<?> fromBuilder(GeneratedMessageV3.Builder builder);
 }

@@ -1,6 +1,7 @@
 package pronto;
 
 import clojure.lang.IPersistentSet;
+import clojure.lang.IPersistentMap;
 
 import com.google.protobuf.GeneratedMessageV3;
 
@@ -15,5 +16,7 @@ public interface ProtoMapper {
 
     ProtoMap getProto(Class<? extends GeneratedMessageV3> clazz);
 
-    TransientProtoMap getTransient(Class<? extends GeneratedMessageV3> clazz);
+    ProtoMap getTransient(Class<? extends GeneratedMessageV3> clazz);
+
+    IPersistentMap getContext();
 }

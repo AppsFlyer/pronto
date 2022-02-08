@@ -18,3 +18,7 @@
     (Class/forName class-name)
     true
     (catch ClassNotFoundException _ false)))
+
+
+(defn get-builder-class [^Class proto-class]
+  (.getReturnType (.getDeclaredMethod proto-class "toBuilder" (make-array Class 0))))

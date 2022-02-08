@@ -29,7 +29,7 @@
                                             [org.openjdk.jol/jol-core "0.13"]
                                             [criterium "0.4.6"]
                                             [com.clojure-goes-fast/clj-memory-meter "0.1.3"]]
-                        :jvm-opts          ["-Djdk.attach.allowAttachSelf"]
+                        :jvm-opts          ["-XX:-OmitStackTraceInFastThrow" "-Djdk.attach.allowAttachSelf"]
                         :aliases           {"clj-kondo" ["run" "-m" "clj-kondo.main"]}
                         :eftest            {:multithread?   false
                                             :report         eftest.report.junit/report

@@ -121,8 +121,12 @@
 (defmethod gen-wrapper
   :message
   [^Class clazz ctx]
-  (let [wrapper-type           (u/class->map-class-name clazz)
-        transient-wrapper-type (u/class->transient-class-name clazz)]
+  (let [fqn?                   (get ctx :pronto/fqn? true)
+        ns                     (when fqn? (str (:ns ctx) "."))
+        wrapper-type           (u/class->map-class-name clazz)
+        wrapper-type           (if ns (symbol (u/javaify (str ns wrapper-type))) wrapper-type)
+        transient-wrapper-type (u/class->transient-class-name clazz)
+        transient-wrapper-type (if ns (symbol (u/javaify (str ns transient-wrapper-type))) transient-wrapper-type)]
     (reify Wrapper
       (wrap [_ v]
         `(new ~wrapper-type ~v (meta ~v)))
@@ -136,9 +140,7 @@
 
            (identical? (class ~v) ~clazz) ~v
 
-
-           ;; TODO: consolidate this with first clause
-
+;; TODO: consolidate this with first clause
 
            (instance? ProtoMap ~v)
            ~(let [u (with-meta (gensym 'u) {:tag 'pronto.ProtoMap})]
@@ -148,10 +150,10 @@
            (map? ~v)
            ;; TODO: duplicate code
            ~(let [u (with-meta (gensym 'u) {:tag 'pronto.ProtoMap})]
-              `(let [~u (transform/map->proto-map (new ~transient-wrapper-type (~(u/static-call clazz "newBuilder")) true false)  ~v)]
+              `(let [~u (transform/map->proto-map (new ~transient-wrapper-type (~(u/static-call clazz "newBuilder")) true)  ~v)]
                  (pronto.RT/getProto ~u)))
 
-           :else (throw ~(make-error clazz ctx v)))))))
+           :else ~(when (:instrument? ctx) `(throw ~(make-error clazz ctx v))))))))
 
 
 ;; TODO: Get rid of this method, collapse into regular scalar
@@ -190,18 +192,22 @@
                        v
                        `(throw ~(make-error clazz ctx v)))
         (numeric-scalar? clazz)
-        (let [vn              (u/with-type-hint v Number)
-              boxed?          (get #{Long Integer Double Float} clazz)
+        (let [boxed?          (get #{Long Integer Double Float} clazz)
               primitive-class (if boxed?
                                 (condp = clazz
                                   Integer Integer/TYPE
                                   Long    Long/TYPE
                                   Double  Double/TYPE
                                   Float   Float/TYPE)
-                                clazz)]
-          (if-instrument ctx
-                         `(instance? Number ~vn)
-                         `(~(symbol (str "." (str primitive-class) "Value")) ~vn)
-                         `(throw ~(make-error clazz ctx v))))
+                                clazz)
+              vn              (if boxed?
+                                (u/with-type-hint v Number)
+                                v)]
+          (if boxed?
+            (if-instrument ctx
+              `(instance? Number ~vn)
+              `(~(symbol (str "." (str primitive-class) "Value")) ~vn)
+              `(throw ~(make-error clazz ctx v)))
+            vn))
         :else (throw (IllegalArgumentException. (str "don't know how to wrap " clazz)))))))
 

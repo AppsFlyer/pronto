@@ -60,11 +60,12 @@
                              res
                              (u/with-type-hint (gensym 'res) field-type))
               clear-method (symbol (str ".clear" (u/field->camel-case fd)))]
-          `(if (nil? ~v)
-             ~(if (u/message? fd)
-                `(~clear-method ~builder)
-                `(throw ~(u/make-type-error clazz (.getName fd) field-type nil)))
-             (let [~res ~(w/unwrap wrapper v)]
+          (if (u/message? fd)
+            `(if (nil? ~v)
+               (~clear-method ~builder)
+               (let [~res ~(w/unwrap wrapper v)]
+                 (~setter ~builder ~res)))
+            `(let [~res ~(w/unwrap wrapper v)]
                (~setter ~builder ~res)))))
 
       (gen-getter [_ o]
@@ -235,7 +236,7 @@
                       ~(w/wrap wrapper item)))
                   nil)))))))
 
-(defn get-fields [^Class clazz ctx]
+(defn get-field-handles [^Class clazz ctx]
   (let [class-descriptor  (descriptor clazz)
         field-descriptors (field-descriptors class-descriptor)]
     (for [fd field-descriptors]
