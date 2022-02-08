@@ -1,8 +1,10 @@
 (ns pronto.core-test
   (:require [clojure.test :refer :all]
             [pronto.core :refer [defmapper] :as p]
+            [pronto.lens]
             [pronto.utils :as u]
-            [clojure.string :as s])
+            [clojure.string :as s]
+            [clojure.walk])
   (:import [protogen.generated People$Person People$Person$Builder
             People$Address People$Like People$Level
             People$House People$Apartment
@@ -88,6 +90,9 @@
               :to-proto   #(let [b (People$UUID/newBuilder)]
                              (.setValue b (str %))
                              (.build b))}})
+
+
+(def empty-person (p/proto-map mapper People$Person))
 
 
 (deftest dependencies-test
@@ -436,8 +441,8 @@
   (let [address (make-address)]
     (is (identical? address (p/proto-map->proto (p/proto->proto-map mapper address))))))
 
-(defn change-city [^:transient-proto m city]
-  (p/p-> m (assoc-in [:address :city] city)))
+(defn change-city [m city]
+ (p/p-> m (assoc-in [:address :city] city)))
 
 (deftest p->-test []
   (let [m     (p/proto-map mapper People$Person)
@@ -456,13 +461,13 @@
                   (assoc-in [:likes] [(make-like :desc "desc1" :level People$Level/LOW)])
                   (update-in [:address :house_num] + 3)
                   (assoc a-key "Foo")
-                  (change-city "Boston")
                   (assoc-in [:address :street] "Broadway")
                   (assoc-in [:address :house] {:num_rooms 5})
                   (assoc-in [:s2s "a"] "b")
                   (assoc-in [:relations "bff"] (p/proto-map mapper People$Person :name "bob"))
                   (update-in [:relations "bff" :name] s/capitalize)
-                  (update-in [:relations "bff" :age_millis] inc))
+                  (update-in [:relations "bff" :age_millis] inc)
+                  (change-city "Boston"))
            (p/clj-map->proto-map
             mapper
             People$Person
@@ -477,6 +482,75 @@
              :relations   {"bff" {:name "Bob" :age_millis 1}}
              :likes       [{:desc "desc1" :level :LOW}]}))
         (is (= m (p/proto-map mapper People$Person))))))
+
+
+(deftest p->-test-hinted []
+  (p/with-hints
+    [(p/hint empty-person People$Person mapper)]
+    (testing "it overrides"
+      (is (= (p/p-> empty-person
+                    (assoc :id 3)
+                    (assoc :name "foo")
+                    (assoc :id 4)
+                    (update :id + 6)
+                    (update :name s/upper-case)
+                    (assoc-in [:likes] [(make-like :desc "desc1" :level People$Level/LOW)])
+                    (update :maiden_name (constantly "Booga"))
+                    (assoc-in [:s2s "a"] "b"))
+             (p/clj-map->proto-map mapper People$Person {:name "FOO"
+                                                         :id 10
+                                                         :s2s {"a" "b"}
+                                                         :likes [{:desc "desc1" :level :LOW}]
+                                                         :maiden_name "Booga"}))))
+    (testing "nested assoc-ins into message type"
+      (is (= (p/p-> empty-person
+                    (assoc-in [:address :city] "New York")
+                    (assoc-in [:address :house_num] 3)
+                    (update-in [:address :house_num] + 3)
+                    (assoc-in [:address :street] "Broadway")
+                    (assoc-in [:address :house] {:num_rooms 5}))
+             (p/clj-map->proto-map mapper People$Person
+                                   {:address {:city      "New York"
+                                              :street    "Broadway"
+                                              :house_num 6
+                                              :house     {:num_rooms 5}}}))))))
+
+
+(deftest p->-test-hinted2 []
+  (let [person (assoc empty-person :name "Joe" :address {:city "New York"})]
+    (p/with-hints
+      [(p/hint person People$Person mapper)]
+      (testing "associng into map types"
+        (is (= (p/p-> person
+                      (assoc-in [:relations "bff"] (assoc empty-person :name "bob"))
+                      (update-in [:relations "bff" :name] s/capitalize)
+                      (update-in [:relations "bff" :age_millis] inc))
+               (p/clj-map->proto-map mapper People$Person
+                                     {:name "Joe"
+                                      :address {:city "New York"}
+                                      :relations {"bff" {:name "Bob" :age_millis 1}}}))))
+      (is (= (p/p-> person
+                    :address
+                    :city)
+             "New York"))
+      (is (= (p/p-> person (get-in [:address :city]))
+             "New York"))
+      (is (= (p/p-> person :name) "Joe"))
+      (is (= (p/p-> person (get :name)) "Joe")))))
+
+
+(deftest assoc-if-test []
+  (let [person (assoc empty-person :name "Joe")]
+    (is (= "Bob" (p/p-> person
+                        (p/assoc-if :name "Bob")
+                        (p/assoc-if :name (do nil))
+                        :name)))))
+
+
+(deftest clear-field-test []
+  (let [person (assoc empty-person :address {:city "NYC"})]
+    (is (nil? (p/p-> person (p/clear-field :address) :address)))))
+
 
 (deftest pcond->-test []
   (let [m     (p/proto-map mapper People$Person)
@@ -736,3 +810,12 @@ an error in the generated code"
           new-likes (into [] (map #(update % :desc s/upper-case)) (:likes p))
           new-p (assoc p :likes new-likes)]
       (is (= ["DESC1" "DESC2" "DESC3"] (map :desc (:likes new-p)))))))
+
+
+(deftest hint-validity []
+  (testing "hinting should only work within with-hints or p->"
+    (is (thrown? Exception
+                 (macroexpand '(pronto.lens/hint (p/proto-map mapper People$Person)
+                                                 People$Person
+                                                 mapper)))))
+  )

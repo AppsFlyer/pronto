@@ -2,7 +2,7 @@
   (:require [clojure.string :as s]
             [pronto.protos :refer [global-ns]])
   (:import
-   [pronto ProtoMap] 
+   [pronto ProtoMap ProtoMapper] 
    [com.google.protobuf
     Descriptors$FieldDescriptor
     Descriptors$GenericDescriptor
@@ -221,3 +221,7 @@
   "Returns the protobuf instance associated with the proto-map"
   [^ProtoMap m]
   (.pmap_getProto m))
+
+
+(defn mapper? [m]
+  (instance? ProtoMapper m))

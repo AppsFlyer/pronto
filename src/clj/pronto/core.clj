@@ -67,7 +67,10 @@
           `(. ~mapper ~e/get-proto-method ~clazz))
         (let [chain (map (fn [[k v]] `(assoc ~k ~v)) (partition 2 kvs))]
           `(lens/p-> ~(if resolved-class
-                        `(. ~mapper ~(e/builder-interface-get-transient-method-name resolved-class))
+                        (lens/try-hint
+                          `(. ~mapper ~(e/builder-interface-get-transient-method-name resolved-class))
+                          resolved-class
+                          mapper)
                         `(. ~mapper ~e/get-transient-method ~clazz))
                      ~@chain))))))
 
@@ -138,7 +141,7 @@
 (defn- resolve-deps
   ([ctx ^Class clazz] (first (resolve-deps ctx clazz #{})))
   ([ctx ^Class clazz seen-classes]
-   (let [fields       (t/get-fields clazz ctx)
+   (let [fields       (t/get-field-handles clazz ctx)
          deps-classes (->> fields
                            (map #(t/get-class (:type-gen %)))
                            (filter (fn [^Class clazz]
@@ -232,7 +235,7 @@
                (for [dep deps]
                  (e/emit-proto-map dep ctx))))
 
-         ~(e/emit-mapper name deps proto-ns-name)))))
+         ~(e/emit-mapper name deps ctx proto-ns-name)))))
 
 
 
@@ -241,7 +244,9 @@
                        pcond->
                        clear-field
                        clear-field!
-                       assoc-if]
+                       assoc-if
+                       hint
+                       with-hints]
                       [pronto.utils
                        ->kebab-case
                        proto-map?

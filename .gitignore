@@ -12,6 +12,7 @@ pom.xml.asc
 .hg/
 .idea/
 .clj-kondo/.cache
+.clj-kondo/babashka
 test/java/
 .cider-repl-history
 *.iml

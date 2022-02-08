@@ -68,7 +68,7 @@
 (defn- class-descriptors [clazz ks]
   (find-descriptors
    clazz
-   (map :fd (t/get-fields clazz {}))
+   (map :fd (t/get-field-handles clazz {}))
    ks))
 
 

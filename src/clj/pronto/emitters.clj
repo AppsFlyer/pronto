@@ -2,6 +2,7 @@
   (:require [pronto.type-gen :as t]
             [pronto.utils :as u]
             [pronto.protos :refer [global-ns]]
+            [pronto.reflection :as r]
             [clojure.string :as s]
             [pronto.reflection :as reflect])
   (:import [com.google.protobuf
@@ -10,10 +11,6 @@
            [com.google.protobuf Internal$EnumLite]
            [java.lang.reflect Method]
            [pronto ProtoMapper]))
-
-
-(defn- get-builder-class [^Class clazz]
-  (.getReturnType (.getDeclaredMethod clazz "toBuilder" (make-array Class 0))))
 
 
 (defn- empty-map-var-name
@@ -30,7 +27,7 @@
 (defn- clear [field builder]
   (let [clear-method (symbol (str ".clear" (u/field->camel-case (:fd field))))]
     `(~clear-method ~(u/with-type-hint builder
-                       (get-builder-class (:class field))))))
+                       (r/get-builder-class (:class field))))))
 
 
 (defn- emit-default-ctor [^Class clazz]
@@ -40,7 +37,7 @@
 
 (defn- emit-default-transient-ctor [^Class clazz ns]
   (let [transient-wrapper-class-name (u/class->transient-class-name clazz)]
-    `(~(symbol ns (str '-> transient-wrapper-class-name)) (~(u/static-call clazz "newBuilder")) true false)))
+    `(~(symbol ns (str '-> transient-wrapper-class-name)) (~(u/static-call clazz "newBuilder")) true)))
 
 
 (defn- emit-interfaces
@@ -165,32 +162,35 @@
     (emit-case k branches not-found)))
 
 
-(defn setter [clazz field builder-sym val-sym]
-  (let [builder-class                              (get-builder-class clazz)
+(defn setter [clazz field builder-sym val-sym instrument?]
+  (let [builder-class                              (r/get-builder-class clazz)
         ex                                         (gensym 'ex)
-        ^Descriptors$FieldDescriptor fd            (:fd field)]
-    `(try
-       ~(t/gen-setter
-         (:type-gen field)
-         (u/with-type-hint builder-sym builder-class)
-         val-sym)
-       (catch ClassCastException ~ex
-         (throw ~(u/make-type-error
-                  clazz
-                  (:kw field)
-                  (cond
-                    (.isMapField fd) java.util.Map
-                    (.isRepeated fd) java.util.List
-                    :else (t/field-type clazz fd))
-                  val-sym
-                  ex))))))
+        ^Descriptors$FieldDescriptor fd            (:fd field)
+        setter-code                                (t/gen-setter
+                                                    (:type-gen field)
+                                                    (u/with-type-hint builder-sym builder-class)
+                                                    val-sym)]
+    (if-not instrument?
+      setter-code
+      `(try
+         ~setter-code
+         (catch ClassCastException ~ex
+           (throw ~(u/make-type-error
+                    clazz
+                    (:kw field)
+                    (cond
+                      (.isMapField fd) java.util.Map
+                      (.isRepeated fd) java.util.List
+                      :else (t/field-type clazz fd))
+                    val-sym
+                    ex)))))))
 
 
 (defn- emit-assoc [clazz fields this builder k v]
   (emit-fields-case
          fields k true
          (fn [field]
-           (setter clazz field builder v))))
+           (setter clazz field builder v true))))
 
 
 
@@ -277,13 +277,13 @@
 
 
 (defn- emit-deftype [^Class clazz ctx]
-  (let [fields               (t/get-fields clazz ctx)
+  (let [fields               (t/get-field-handles clazz ctx)
         o                    (u/with-type-hint pojo clazz)
         wrapper-class-name   (u/class->map-class-name clazz)
         transient-class-name (u/class->transient-class-name clazz)
         md                   (gensym 'md)
         mapper               (gensym 'mapper)
-        builder-class (get-builder-class clazz)
+        builder-class (r/get-builder-class clazz)
         builder-sym   (u/with-type-hint (gensym 'builder) builder-class)]
     `(deftype ~wrapper-class-name [~o ~md]
 
@@ -311,14 +311,17 @@
        (copy [this# builder#] (new ~wrapper-class-name (.build builder#) ~md))
 
        (remap [this# ~mapper]
-              ~(let [mapper (with-meta mapper
-                              {:tag (str (u/javaify global-ns)
-                                         "."
-                                         (builder-interface-name clazz))})]
-                 `(. ~mapper ~(builder-interface-from-proto-method-name clazz) ~o)))
+         ~(let [mapper (with-meta mapper
+                         {:tag (str (u/javaify global-ns)
+                                    "."
+                                    (builder-interface-name clazz))})]
+            `(. ~mapper ~(builder-interface-from-proto-method-name clazz) ~o)))
 
        (pmap_getProto [this#] ~pojo)
-         
+
+       (fromBuilder [this# builder#]
+         (.copy this# builder#))
+
        ~(let [k (gensym 'k)]
           `(clearField [this# ~k]
                        (let [~builder-sym (.pmap_getBuilder this#)]
@@ -328,10 +331,14 @@
        ~(let [k (gensym 'k)]
           `(pmap_hasField [this# ~k]
                           ~(emit-has-field? fields o k)))
-       
+
        ~(let [k (gensym 'k)]
           `(whichOneOf [this# ~k]
                        ~(emit-which-one-of fields o k)))
+
+       ~(let [k (gensym 'k)]
+          `(empty [this# ~k]
+                  ~(emit-empty clazz fields k)))
 
        (containsKey [this# k#]
          (boolean (get ~(into #{} (map :kw fields))
@@ -339,7 +346,7 @@
 
        (entryAt [this# k#]
          (clojure.lang.MapEntry/create k# (.valAt this# k#)))
-       
+
        clojure.lang.MapEquivalence
 
        clojure.lang.ILookup
@@ -367,16 +374,16 @@
        clojure.lang.IObj
 
        (withMeta [this# meta-map#]
-                 (if (nil? meta-map#)
-                   this#
-                   (new ~wrapper-class-name ~o meta-map#)))
+         (if (nil? meta-map#)
+           this#
+           (new ~wrapper-class-name ~o meta-map#)))
 
        (meta [this#] ~md)
 
        clojure.lang.IPersistentCollection
 
        (cons [this# o#]
-             (pronto.PersistentMapHelpers/cons this# o#))
+         (pronto.PersistentMapHelpers/cons this# o#))
 
        (empty
          [this#]
@@ -385,72 +392,71 @@
        (count [this#] ~(count fields))
 
        (equiv [this# other#]
-              (pronto.PersistentMapHelpers/equiv
-                this#
-                (if (instance? ~clazz other#)
-                  (new ~wrapper-class-name other# nil)
-                  other#)))
+         (pronto.PersistentMapHelpers/equiv
+          this#
+          (if (instance? ~clazz other#)
+            (new ~wrapper-class-name other# nil)
+            other#)))
 
        clojure.lang.Seqable
 
        ~(let [this    (gensym 'this)
               entries (mapv (fn [fd]
                               `(clojure.lang.MapEntry/create
-                                 ~(:kw fd)
-                                 ~(getter clazz fd this)))
+                                ~(:kw fd)
+                                ~(getter clazz fd this)))
                             fields)]
           `(seq
-             [~this]
-             ~(if (nil? (:iter-xf ctx))
-                `(clojure.lang.RT/seq ~entries)
-                `(sequence
-                   ~(:iter-xf ctx)
-                   ~entries))))
+            [~this]
+            ~(if (nil? (:iter-xf ctx))
+               `(clojure.lang.RT/seq ~entries)
+               `(sequence
+                 ~(:iter-xf ctx)
+                 ~entries))))
 
        clojure.lang.IEditableCollection
 
-       ;; TODO: clean this up
        (asTransient [this#]
-                    (new ~transient-class-name (.toBuilder ~o) true false))
+         (new ~transient-class-name (.toBuilder ~o) true))
 
        java.lang.Iterable
 
        ~(let [this         (gensym 'this)
               entries-iter `(clojure.lang.RT/iter
-                              ~(mapv (fn [fd]
-                                       `(clojure.lang.MapEntry/create
-                                          ~(:kw fd)
-                                          ~(getter clazz fd this)))
-                                     fields))]
+                             ~(mapv (fn [fd]
+                                      `(clojure.lang.MapEntry/create
+                                        ~(:kw fd)
+                                        ~(getter clazz fd this)))
+                                    fields))]
           `(iterator
-             [~this]
-             ~(if (nil? (:iter-xf ctx))
-                entries-iter
-                `(clojure.lang.TransformerIterator/create
-                   ~(:iter-xf ctx)
-                   ~entries-iter))))
+            [~this]
+            ~(if (nil? (:iter-xf ctx))
+               entries-iter
+               `(clojure.lang.TransformerIterator/create
+                 ~(:iter-xf ctx)
+                 ~entries-iter))))
 
        java.util.Map
 
        (clear [this#] (throw (UnsupportedOperationException.)))
 
        (containsValue [this# value#]
-                      (pronto.PersistentMapHelpers/containsValue this# value#))
+         (pronto.PersistentMapHelpers/containsValue this# value#))
 
        (entrySet [this#]
-                 (pronto.PersistentMapHelpers/entrySet this#))
+         (pronto.PersistentMapHelpers/entrySet this#))
 
        (keySet [this#]
-               (pronto.PersistentMapHelpers/keySet this#))
+         (pronto.PersistentMapHelpers/keySet this#))
 
        (values [this#]
-               (pronto.PersistentMapHelpers/values this#))
+         (pronto.PersistentMapHelpers/values this#))
 
        (get [this# key#]
-            (pronto.PersistentMapHelpers/get this# key#))
+         (pronto.PersistentMapHelpers/get this# key#))
 
        (isEmpty [this#]
-                (pronto.PersistentMapHelpers/isEmpty this#))
+         (pronto.PersistentMapHelpers/isEmpty this#))
 
        (put [this# k# v#] (throw (UnsupportedOperationException.)))
 
@@ -463,7 +469,7 @@
        Object
 
        (toString [this#]
-                 (pronto.PersistentMapHelpers/toString this#))
+         (pronto.PersistentMapHelpers/toString this#))
 
        (equals [this# obj#]
          (pronto.PersistentMapHelpers/equals this# obj#))
@@ -476,16 +482,15 @@
     (throw (IllegalAccessError. "Transient used after persistent! call"))))
 
 (defn- emit-transient [^Class clazz ctx]
-  (let [fields                       (t/get-fields clazz ctx)
-        builder-class                (get-builder-class clazz)
+  (let [fields                       (t/get-field-handles clazz ctx)
+        builder-class                (r/get-builder-class clazz)
         o                            (u/with-type-hint pojo builder-class)
         transient-wrapper-class-name (u/class->transient-class-name clazz)
         wrapper-class-name           (u/class->map-class-name clazz)
-        builder-class (get-builder-class clazz)
+        builder-class (r/get-builder-class clazz)
         builder-sym   (u/with-type-hint (gensym 'builder) builder-class)]
     `(deftype ~transient-wrapper-class-name [~(with-meta o {:unsynchronized-mutable true})
-                                              ~(with-meta 'editable? {:unsynchronized-mutable true})
-                                              ~(with-meta 'in-transaction? {:unsynchronized-mutable true})]
+                                             ~(with-meta 'editable? {:unsynchronized-mutable true})]
 
        pronto.ProtoMap
 
@@ -494,11 +499,14 @@
        (pmap_getBuilder [this#] ~o)
 
        (copy [this# builder#]
-                  (set! ~o builder#)
-                  this#)
+         (set! ~o builder#)
+         this#)
+
+       (fromBuilder [this# builder#]
+         (new ~wrapper-class-name (.build builder#) nil))
 
        (pmap_getProto [this#] ~pojo)
-       
+
        ~(let [k (gensym 'k)]
           `(clearField [this# ~k]
                        (let [~builder-sym (.pmap_getBuilder this#)]
@@ -517,7 +525,6 @@
           `(empty [this# ~k]
                   ~(emit-empty clazz fields k)))
 
-       
        clojure.lang.MapEquivalence
 
        clojure.lang.ILookup
@@ -540,21 +547,15 @@
 
        ~@(implement-message-or-builder-interface clazz o)
 
-       pronto.TransientProtoMap
-
-       (setInTransaction [this# v#] (set! ~'in-transaction? v#))
-
-       (isInTransaction [this#] ~'in-transaction?)
-
        clojure.lang.ITransientMap
 
        ~(let [this (gensym 'this)
               k    (gensym 'k)
               v    (gensym 'v)]
           `(~'assoc [~this ~k ~v]
-            (check-editable! ~'editable?)
-            ~(emit-assoc clazz fields this o k v)
-            ~this))
+                    (check-editable! ~'editable?)
+                    ~(emit-assoc clazz fields this o k v)
+                    ~this))
 
        (persistent
          [this#]
@@ -562,23 +563,23 @@
          (new ~wrapper-class-name (.build ~o) nil))
 
        (count [this#]
-              ~(count fields))
+         ~(count fields))
 
        clojure.lang.ITransientAssociative2
 
        (containsKey [this# k#]
-                    (check-editable! ~'editable?)
-                    (boolean (get ~(into #{} (map :kw fields))
-                                  k#)))
+         (check-editable! ~'editable?)
+         (boolean (get ~(into #{} (map :kw fields))
+                       k#)))
 
        (entryAt [this# k#]
-                (clojure.lang.MapEntry/create k# (.valAt this# k#)))
+         (clojure.lang.MapEntry/create k# (.valAt this# k#)))
 
        clojure.lang.ITransientCollection
 
        (conj [this# val#]
-             (check-editable! ~'editable?)
-             (pronto.TransientMapHelpers/conj this# val#)))))
+         (check-editable! ~'editable?)
+         (pronto.TransientMapHelpers/conj this# val#)))))
 
 
 (defn- emit-builder [^Class clazz]
@@ -607,17 +608,18 @@
      ~@(mapcat
         (fn [clazz]
           [(declare-class (u/class->map-class-name clazz) 2)
-           (declare-class (u/class->transient-class-name clazz) 3)
+           (declare-class (u/class->transient-class-name clazz) 2)
            (declare-empty-map clazz)])
         classes)))
 
 (defn emit-proto-map [^Class clazz ctx]
-  `(do
-     ~(emit-interfaces [(proto-builder-interface (:ns ctx) clazz)])
-     ~(emit-deftype clazz ctx)
-     ~(emit-transient clazz ctx)
-     ~(emit-empty-map clazz)
-     ~(emit-builder clazz)))
+  (let [ctx (assoc ctx :pronto/fqn? false)]
+    `(do
+       ~(emit-interfaces [(proto-builder-interface (:ns ctx) clazz)])
+       ~(emit-deftype clazz ctx)
+       ~(emit-transient clazz ctx)
+       ~(emit-empty-map clazz)
+       ~(emit-builder clazz))))
 
 
 (defn with-builder-class-hint [mapper-sym clazz]
@@ -628,7 +630,7 @@
             (.getName ProtoMapper))}))
 
 
-(defn emit-mapper [name classes ns]
+(defn emit-mapper [name classes ctx ns]
   (let [type-name    (symbol (str 'ProtoMapper '_ (s/replace *ns* \. \_) '_ name))
         interfaces   (map (partial proto-builder-interface ns) classes)
         sym          (symbol (str *ns*) (str name))
@@ -650,6 +652,8 @@
          ProtoMapper
 
          (getNamespace [this#] ~ns)
+
+         (getContext [this#] ~ctx)
 
          (getClasses [this#]
            #{ ~@classes })
