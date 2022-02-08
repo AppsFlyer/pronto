@@ -11,7 +11,21 @@
 
 
 #_{:clj-kondo/ignore [:unused-binding]}
-(defmacro hint [proto-map clazz mapper]
+(defmacro hint
+  "Create a new hint for `proto-map` for use by p-> calls.
+  `clazz` must resolve to the Java protobuf class of the underlying POJO contained within `proto-map.`
+  `mapper` must resolve to a mapper var created via `defmapper`.
+
+  For example:
+
+  `(p/p-> (p/hint my-map MyClass my-mapper) :field_0 field_1)`.
+
+  This is equivalent to writing `(p/p-> my-map :field_0 :field_1)`, except that the
+  produced code will be optimized using the hint of the underlying type.
+
+  See also: `with-hints`
+  "
+  [proto-map clazz mapper]
   (throw (new IllegalStateException "hint can only be used inside p-> or with-hints")))
 
 
@@ -360,7 +374,30 @@
        ~@clauses')))
 
 
-(defmacro with-hints [hints & body]
+(defmacro with-hints
+  "Takes a vector of hints (see `hint`), and introduces a scope within which all hinted variables will be type hinted in `p->` calls, then executes & returns the value of `body.`
+
+  For example:
+
+  `(defn foo [m]
+     (p/with-hints [(p/hint m MyClass my-mapper)]
+       {:height (p/p-> m :height)
+        :name   (p/p-> m :name)}))`
+
+  Since `m` is hinted in the scope, both p-> calls will use the hint to produce more performant code.
+
+  Note that with-hints only applies to p-> calls directly within `body`, and not recursively. Therefore, the following code will not be hinted:
+
+  `
+  (defn get-person-name [person-proto-map]
+    (p/p-> person-proto-map :name))
+
+  (with-hints
+    [(p/hint my-map MyClass my-mapper)]
+    (get-person-name my-map ))
+  `
+  "
+  [hints & body]
   (let [hints (->> hints
                    (keep unpack-hint)
                    (map (juxt :sym identity))

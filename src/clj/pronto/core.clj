@@ -24,13 +24,22 @@
     clazz))
 
 
-(defn has-field? [^ProtoMap m k]
+(defn has-field?
+  "Returns true iff field `k` is set in `m`.
+  `k` must be a message type (i.e, non-scalar)."
+  [^ProtoMap m k]
   (.pmap_hasField m k))
 
-(defn which-one-of [^ProtoMap m k]
+(defn which-one-of
+  "Returns a keyword corresponding to which field is set for `k`,
+  a one-of type (or `nil` if none set)."
+  [^ProtoMap m k]
   (.whichOneOf m k))
 
-(defn one-of [^ProtoMap m k]
+(defn one-of
+  "Returns the value of the field which is set for `k`,
+  a one-of type (or `nil` if none set)."
+  [^ProtoMap m k]
   (when-let [k' (which-one-of m k)]
     (get m k')))
 
