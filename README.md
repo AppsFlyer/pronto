@@ -340,6 +340,8 @@ public static void foo(com.google.protobuf.DurationOrBuilder duration) { ... }
 
 ## [Performance](doc/performance.md)
 
+Please read the [performance introduction](doc/performance.md).
+
 ## Schema utils
 
 To inspect a schema at the REPL use `pronto.schema/schema`, which returns the (Clojurified) schema as data:
@@ -348,13 +350,12 @@ To inspect a schema at the REPL use `pronto.schema/schema`, which returns the (C
 (require '[pronto.schema :refer [schema]])
 
 (schema People$Person)
-=> {:name String
+=> {:diet #{"UNKNOWN_DIET" "OMNIVORE" "VEGETARIAN" "VEGAN"} ;; an enum
+    :address People$Address ;; address field
+    :address_book {String People$PersonDetails} ;; a map string->PersonDetails
     :age  int
     :friends [People$Person] ;; a repeated Person fields
-    :address_book {String People$PersonDetails} ;; a map string->PersonDetails
-    :diet #{"UNKNOWN_DIET" "OMNIVORE" "VEGETARIAN" "VEGAN"} ;; an enum
-    :address People$Address ;; address field
- }
+    :name String}
 ```
 Drilling-down is also possible:
 ```clj

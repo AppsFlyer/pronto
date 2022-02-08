@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package protogen.generated;
+
+message Strings5 {
+  string field_0 = 1 ;
+  string field_1 = 2 ;
+  string field_2 = 3 ;
+  string field_3 = 4 ;
+  string field_4 = 5 ;
+}
+
+message Strings10 {
+  string field_0 = 1 ;
+  string field_1 = 2 ;
+  string field_2 = 3 ;
+  string field_3 = 4 ;
+  string field_4 = 5 ;
+  string field_5 = 6 ;
+  string field_6 = 7 ;
+  string field_7 = 8 ;
+  string field_8 = 9 ;
+  string field_9 = 10 ;
+}
+
+message Strings20 {
+  string field_0 = 1 ;
+  string field_1 = 2 ;
+  string field_2 = 3 ;
+  string field_3 = 4 ;
+  string field_4 = 5 ;
+  string field_5 = 6 ;
+  string field_6 = 7 ;
+  string field_7 = 8 ;
+  string field_8 = 9 ;
+  string field_9 = 10 ;
+  string field_10 = 11 ;
+  string field_11 = 12 ;
+  string field_12 = 13 ;
+  string field_13 = 14 ;
+  string field_14 = 15 ;
+  string field_15 = 16 ;
+  string field_16 = 17 ;
+  string field_17 = 18 ;
+  string field_18 = 19 ;
+  string field_19 = 20 ;
+}
+
+message Strings30 {
+  string field_0 = 1 ;
+  string field_1 = 2 ;
+  string field_2 = 3 ;
+  string field_3 = 4 ;
+  string field_4 = 5 ;
+  string field_5 = 6 ;
+  string field_6 = 7 ;
+  string field_7 = 8 ;
+  string field_8 = 9 ;
+  string field_9 = 10 ;
+  string field_10 = 11 ;
+  string field_11 = 12 ;
+  string field_12 = 13 ;
+  string field_13 = 14 ;
+  string field_14 = 15 ;
+  string field_15 = 16 ;
+  string field_16 = 17 ;
+  string field_17 = 18 ;
+  string field_18 = 19 ;
+  string field_19 = 20 ;
+  string field_20 = 21 ;
+  string field_21 = 22 ;
+  string field_22 = 23 ;
+  string field_23 = 24 ;
+  string field_24 = 25 ;
+  string field_25 = 26 ;
+  string field_26 = 27 ;
+  string field_27 = 28 ;
+  string field_28 = 29 ;
+  string field_29 = 30 ;
+}
+
+message Strings50 {
+string field_0 = 1 ;
+string field_1 = 2 ;
+string field_2 = 3 ;
+string field_3 = 4 ;
+string field_4 = 5 ;
+string field_5 = 6 ;
+string field_6 = 7 ;
+string field_7 = 8 ;
+string field_8 = 9 ;
+string field_9 = 10 ;
+string field_10 = 11 ;
+string field_11 = 12 ;
+string field_12 = 13 ;
+string field_13 = 14 ;
+string field_14 = 15 ;
+string field_15 = 16 ;
+string field_16 = 17 ;
+string field_17 = 18 ;
+string field_18 = 19 ;
+string field_19 = 20 ;
+string field_20 = 21 ;
+string field_21 = 22 ;
+string field_22 = 23 ;
+string field_23 = 24 ;
+string field_24 = 25 ;
+string field_25 = 26 ;
+string field_26 = 27 ;
+string field_27 = 28 ;
+string field_28 = 29 ;
+string field_29 = 30 ;
+string field_30 = 31 ;
+string field_31 = 32 ;
+string field_32 = 33 ;
+string field_33 = 34 ;
+string field_34 = 35 ;
+string field_35 = 36 ;
+string field_36 = 37 ;
+string field_37 = 38 ;
+string field_38 = 39 ;
+string field_39 = 40 ;
+string field_40 = 41 ;
+string field_41 = 42 ;
+string field_42 = 43 ;
+string field_43 = 44 ;
+string field_44 = 45 ;
+string field_45 = 46 ;
+string field_46 = 47 ;
+string field_47 = 48 ;
+string field_48 = 49 ;
+string field_49 = 50 ;
+}
