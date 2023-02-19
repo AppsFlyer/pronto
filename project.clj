@@ -28,7 +28,8 @@
                                             [org.bitbucket.mstrobel/procyon-compilertools "0.5.36"]
                                             [org.openjdk.jol/jol-core "0.13"]
                                             [criterium "0.4.6"]
-                                            [com.clojure-goes-fast/clj-memory-meter "0.1.3"]]
+                                            [com.clojure-goes-fast/clj-memory-meter "0.1.3"]
+                                            [org.clojure/tools.analyzer.jvm "1.2.2"]]
                         :jvm-opts          ["-XX:-OmitStackTraceInFastThrow" "-Djdk.attach.allowAttachSelf"]
                         :aliases           {"clj-kondo" ["run" "-m" "clj-kondo.main"]}
                         :eftest            {:multithread?   false

@@ -142,7 +142,9 @@
         val-wrapper                 (w/gen-wrapper val-type instrumented-ctx)
         clear-method                (symbol (str ".clear" cc))
         put-all-method              (symbol (str ".putAll" cc))
-        m                           (u/with-type-hint (gensym 'm) java.util.Map)]
+        m                           (u/with-type-hint (gensym 'm) java.util.Map)
+        key-item-sym                (gensym 'key-item)
+        val-item-sym                (gensym 'val-item)]
     (reify TypeGen
 
       (get-class [_] val-type)
@@ -157,10 +159,10 @@
               (Utils/transformMap
                ~v
                (reify Utils$PairXf
-                 (transformKey [_ keyItem]
-                   ~(w/unwrap key-wrapper 'keyItem))
-                 (transformVal [_ valItem]
-                   ~(w/unwrap val-wrapper 'valItem))))))))
+                 (transformKey [~'_ ~key-item-sym]
+                   ~(w/unwrap key-wrapper key-item-sym))
+                 (transformVal [~'_ ~val-item-sym]
+                   ~(w/unwrap val-wrapper val-item-sym))))))))
 
       (gen-getter [_ o]
         `(let [~m (~(symbol (str ".get" cc "Map")) ~o)]
@@ -168,10 +170,10 @@
             (Utils/mapToArray
              ~m
              (reify Utils$PairXf
-               (transformKey [_ keyItem]
-                 ~(w/wrap key-wrapper 'keyItem))
-               (transformVal [_ valItem]
-                 ~(w/wrap val-wrapper 'valItem))))))))))
+               (transformKey [~'_ ~key-item-sym]
+                 ~(w/wrap key-wrapper key-item-sym))
+               (transformVal [~'_ ~val-item-sym]
+                 ~(w/wrap val-wrapper val-item-sym))))))))))
 
 #_(defmethod get-type-gen
     :one-of
@@ -202,7 +204,8 @@
         wrapper          (w/gen-wrapper inner-type instrumented-ctx)
         clear-method     (symbol (str ".clear" cc))
         add-all-method   (symbol (str ".addAll" cc))
-        get-list         (symbol (str ".get" cc "List"))]
+        get-list         (symbol (str ".get" cc "List"))
+        item-sym         (gensym 'item-sym)]
     (reify TypeGen
 
       (get-class [_] inner-type)
@@ -217,24 +220,23 @@
               (TransformIterable.
                ~v
                (reify TransformIterable$Xf
-                 (transform [_ item]
-                   ~(w/unwrap wrapper 'item))))))))
+                 (transform [~'_ ~item-sym]
+                   ~(w/unwrap wrapper item-sym))))))))
 
       (gen-getter [_ o]
-        (let [item (gensym 'item)]
-          `(let [v#            (~get-list ~o)
-                 list-factory# ~(if (= String inner-type)
-                                  'pronto.ProntoVector/LAZY_STRING_LIST_FACTORY
-                                  'pronto.ProntoVector/DEFAULT_LIST_FACTORY)]
-             (new ProntoVector
-                  v#
-                  list-factory#
-                  (reify ProntoVector$Transformer
-                    (toProto [_ ~item]
-                      ~(w/unwrap wrapper item))
-                    (fromProto [_ ~item]
-                      ~(w/wrap wrapper item)))
-                  nil)))))))
+        `(let [v#            (~get-list ~o)
+               list-factory# ~(if (= String inner-type)
+                                'pronto.ProntoVector/LAZY_STRING_LIST_FACTORY
+                                'pronto.ProntoVector/DEFAULT_LIST_FACTORY)]
+           (new ProntoVector
+                v#
+                list-factory#
+                (reify ProntoVector$Transformer
+                  (toProto [~'_ ~item-sym]
+                    ~(w/unwrap wrapper item-sym))
+                  (fromProto [~'_ ~item-sym]
+                    ~(w/wrap wrapper item-sym)))
+                nil))))))
 
 (defn get-field-handles [^Class clazz ctx]
   (let [class-descriptor  (descriptor clazz)
