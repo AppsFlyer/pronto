@@ -16,7 +16,7 @@
                                       :username :env/clojars_username
                                       :password :env/clojars_password}]]
 
-  :plugins [[com.appsflyer/lein-protodeps "1.0.1"]
+  :plugins [[com.appsflyer/lein-protodeps "1.0.5"]
             [lein-codox "0.10.7"]]
 
   :dependencies [[org.clojure/clojure "1.10.1"]
