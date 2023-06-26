@@ -50,8 +50,8 @@
       (is (thrown? ExceptionInfo
                    (assoc v1 :a3 :unrecognized))))
 
-    (testing "new->old->new unknown fields are preserved")
-    (is (= (->> (assoc v1 :a1 "a22")
-                p/proto-map->bytes
-                (p/bytes->proto-map mapper Versioning$V2))
-           (assoc v2 :a1 "a22")))))
+    (testing "new->old->new unknown fields are preserved"
+      (is (= (->> (assoc v1 :a1 "a22")
+                  p/proto-map->bytes
+                  (p/bytes->proto-map mapper Versioning$V2))
+             (assoc v2 :a1 "a22"))))))
