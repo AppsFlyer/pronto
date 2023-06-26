@@ -22,7 +22,7 @@ ignored completely.
 ## Installation
 Add a dependency to your `project.clj` file:
 
-           [com.appsflyer/pronto "2.1.1"]
+           [com.appsflyer/pronto "2.1.2"]
 
 Note that the library comes with no Java protobuf dependencies of its own and they are expected to be provided by consumers of the library, with a minimal version of `3.9.0`.
 
