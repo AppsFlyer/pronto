@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package protogen.generated;
+
+import "google/protobuf/wrappers.proto";
+
+enum E1 {
+  E1_VAL1 = 0;
+  E1_VAL2 = 1;
+}
+
+message V1 {
+  string a1 = 1;
+  int32  a2 = 2;
+  E1 a3 = 3;
+  oneof thing {
+    uint32 num = 23;
+    string str = 24;
+    Inner person = 25;
+  }
+}
+
+enum E2 {
+  E2_VAL1 = 0;
+  E2_VAL2 = 1;
+  E2_VAL3 = 2;
+}
+
+message Inner {
+  uint64 c = 1;
+}
+
+message V2 {
+  string a1 = 1;
+  int32  a2 = 2;
+  E2 a3 = 3;
+
+  string b1 = 9;
+  int32  b2 = 10;
+  Inner b3 = 11;
+  repeated Inner b4 = 12;
+  map<string, Inner> b5 = 13;
+  google.protobuf.StringValue b6 = 14;
+  UUID b7 = 15;
+
+  oneof thing {
+    uint32 num = 16;
+    string str = 17;
+    Inner person = 18;
+    float bb = 19;
+  }
+}
+
+message UUID {
+  string value = 1;
+}

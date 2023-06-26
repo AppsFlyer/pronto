@@ -84,20 +84,21 @@
 (defmethod gen-wrapper
   :enum
   [^Class clazz ctx]
-  (let [values        (reflect/enum-values clazz)
-        enum-value-fn (or (:enum-value-fn ctx) identity)
-        enum->kw      (map-indexed #(vector %1 (keyword (enum-value-fn (.getName ^Descriptors$EnumValueDescriptor %2))))
-                                   values)
-        kw->enum      (map #(vector (keyword (enum-value-fn (.getName ^Descriptors$EnumValueDescriptor %1)))
-                                    (symbol (str (.getName clazz) "/" (.getName ^Descriptors$EnumValueDescriptor %1))))
-                           values)]
+  (let [values          (reflect/enum-values clazz)
+        enum-value-fn   (or (:enum-value-fn ctx) identity)
+        enum->kw        (map-indexed #(vector %1 (keyword (enum-value-fn (.getName ^Descriptors$EnumValueDescriptor %2))))
+                                     values)
+        kw->enum        (map #(vector (keyword (enum-value-fn (.getName ^Descriptors$EnumValueDescriptor %1)))
+                                      (symbol (str (.getName clazz) "/" (.getName ^Descriptors$EnumValueDescriptor %1))))
+                             values)
+        unrecognized-kw (-> "UNRECOGNIZED" enum-value-fn keyword)]
     (reify Wrapper
       (wrap [_ v]
         `(case (.ordinal ~(u/with-type-hint v clazz))
            ~@(interleave
                (map first enum->kw)
                (map second enum->kw))
-           (throw (IllegalArgumentException. (str "can't wrap " ~v)))))
+           ~unrecognized-kw))
 
       (unwrap [_ v]
         (let [v2 (gensym 'v)]
