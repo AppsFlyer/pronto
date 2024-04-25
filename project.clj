@@ -1,7 +1,7 @@
-(def protobuf-version "3.9.0")
+(def protobuf-version "3.15.0")
 
 
-(defproject com.appsflyer/pronto "2.1.2"
+(defproject com.appsflyer/pronto "3.0.0"
   :description "clojure support for protocol buffers"
   :url "https://github.com/AppsFlyer/pronto"
   :license {:name "Eclipse Public License"

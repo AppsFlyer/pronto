@@ -221,7 +221,7 @@
     fields k true
     (fn [field]
       (let [^Descriptors$FieldDescriptor fd (:fd field)]
-        (if (u/struct? fd)
+        (if (or (u/struct? fd) (u/optional? fd))
           (let [has-method (symbol (str ".has" (u/field->camel-case (:fd field))))]
             `(~has-method ~o))
           `(throw (IllegalArgumentException. (str "field " ~k " cannot be checked for field existence"))))))))
