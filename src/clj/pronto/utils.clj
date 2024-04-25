@@ -85,9 +85,6 @@
        (not (.isMapField fd))
        (not (.isRepeated fd))))
 
-(defn optional? [^Descriptors$FieldDescriptor fd]
-  (.hasOptionalKeyword fd))
-
 (defn enum? [^Descriptors$FieldDescriptor fd]
   (= (.getType fd)
      Descriptors$FieldDescriptor$Type/ENUM))
