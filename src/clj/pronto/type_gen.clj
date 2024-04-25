@@ -60,7 +60,7 @@
                              res
                              (u/with-type-hint (gensym 'res) field-type))
               clear-method (symbol (str ".clear" (u/field->camel-case fd)))]
-          (if (u/message? fd)
+          (if (or (u/message? fd) (u/optional? fd))
             `(if (nil? ~v)
                (~clear-method ~builder)
                (let [~res ~(w/unwrap wrapper v)]
@@ -73,7 +73,7 @@
               has-method (symbol (str ".has" (u/field->camel-case fd)))
               get-form   `(let [~v (~getter ~o)]
                             ~(w/wrap wrapper v))]
-          (if-not (u/message? fd)
+          (if-not (or (u/message? fd) (u/optional? fd))
             get-form
             `(when (~has-method ~o)
                ~get-form)))))))
