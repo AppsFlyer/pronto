@@ -63,7 +63,7 @@ enum Level {
 
 message Like {
   string desc = 1;
-  Level level = 2;
+  optional Level level = 2;
 }
 
 message House {
