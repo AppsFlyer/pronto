@@ -221,7 +221,7 @@
     fields k true
     (fn [field]
       (let [^Descriptors$FieldDescriptor fd (:fd field)]
-        (if (u/struct? fd)
+        (if (or (u/struct? fd) (u/optional? fd))
           (let [has-method (symbol (str ".has" (u/field->camel-case (:fd field))))]
             `(~has-method ~o))
           `(throw (IllegalArgumentException. (str "field " ~k " cannot be checked for field existence"))))))))
@@ -230,10 +230,9 @@
 (defn enum-case->kebab-case [enum-case-name]
   (keyword (s/lower-case (u/->kebab-case enum-case-name))))
 
-
 (defn- emit-which-one-of [fields o k]
   (let [one-ofs (->> fields
-                     (map #(.getContainingOneof ^Descriptors$FieldDescriptor (:fd %)))
+                     (map #(.getRealContainingOneof ^Descriptors$FieldDescriptor (:fd %)))
                      (keep identity)
                      set)]
     (if-not (seq one-ofs)

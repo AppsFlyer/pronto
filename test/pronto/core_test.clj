@@ -812,10 +812,33 @@ an error in the generated code"
       (is (= ["DESC1" "DESC2" "DESC3"] (map :desc (:likes new-p)))))))
 
 
-(deftest hint-validity []
+(deftest hint-validity
   (testing "hinting should only work within with-hints or p->"
     (is (thrown? Exception
                  (macroexpand '(pronto.lens/hint (p/proto-map mapper People$Person)
                                                  People$Person
-                                                 mapper)))))
-  )
+                                                 mapper))))))
+
+(deftest optional-field
+  (testing "usage of optional fields"
+    (let [p1 (p/proto-map mapper People$Like :level :LOW)
+          p2 (p/proto-map mapper People$Like)]
+      (is (= (:level p1) :LOW))
+      (is (true? (p/has-field? p1 :level)))
+      (-> (p/clear-field p1 :level)
+          (p/has-field? :level)
+          false?
+          is)
+      (is (= (p/clear-field p1 :level) p2))
+
+      (-> (assoc p1 :level nil)
+          (p/has-field? :level)
+          false?
+          is)
+      (is (= (assoc p1 :level nil) p2))
+
+      (is (false? (p/has-field? p2 :level)))
+      (is (= (:level p2) nil))
+
+      (is (= (assoc p2 :level :LOW) p1))
+      (is (p/has-field? (assoc p2 :level :LOW) :level)))))
