@@ -1,0 +1,49 @@
+on: [workflow_call]
+
+jobs:
+  test:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v3
+        with:
+          distribution: corretto
+          java-version: 8
+
+      - name: Restore local Maven repository from cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles( 'project.clj' ) }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Generate proto files
+        run: lein protodeps generate
+
+      - name: Unit tests
+        env:
+          IP_STACK_ACCESS_KEY: ${{ secrets.IP_STACK_ACCESS_KEY }}
+        run: lein cloverage --html --lcov --junit
+
+      - name: Publish Unit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1.19
+        #if: always()
+        if: false
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          files: "target/coverage/junit.xml"
+
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
+        if: false
+        with:
+          path-to-lcov: "target/coverage/lcov.info"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
